@@ -6,7 +6,7 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Any, Iterable, List, Sequence
 
 import numpy as np
 
@@ -85,6 +85,27 @@ class LocalEmbeddingClient(BaseEmbeddingClient):
         return [self._seed_from_text(text).tolist() for text in texts]
 
 
+def _extract_embedding_values(payload: Any) -> list[float]:
+    """Normalize Gemini responses into a float list."""
+
+    embedding: Any = None
+    if isinstance(payload, dict):
+        embedding = payload.get("embedding")
+    else:
+        embedding = getattr(payload, "embedding", None)
+    if embedding is None:
+        raise ValueError("Gemini response missing 'embedding'")
+
+    values: Any = None
+    if isinstance(embedding, dict):
+        values = embedding.get("values")
+    else:
+        values = getattr(embedding, "values", embedding if isinstance(embedding, list) else None)
+    if values is None:
+        raise ValueError("Gemini embedding missing values")
+    return [float(v) for v in values]
+
+
 class GeminiEmbeddingClient(BaseEmbeddingClient):
     """Embedding client backed by the Gemini API."""
 
@@ -105,7 +126,7 @@ class GeminiEmbeddingClient(BaseEmbeddingClient):
         embeddings: list[list[float]] = []
         for text in texts:
             result = self._genai.embed_content(model=self._model, content=text)
-            embeddings.append(result["embedding"])  # type: ignore[index]
+            embeddings.append(_extract_embedding_values(result))
         return embeddings
 
 
