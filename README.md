@@ -1,227 +1,368 @@
-# Project Specification: NTTDATA AI for Sustainability Agritech
+# Agritech AI Assistant
 
-## 1. Project Overview
+> An intelligent, multi-agent farming assistant powered by LLM and RAG for sustainable agriculture.
 
-| Item          | Details                                                          |
-| ------------- | ---------------------------------------------------------------- |
-| Project Title | NTTDATA AI for Sustainability Agritech with Satellite Processing |
-| Authors       | Sagar, Sanchi, Shuaiting, Vivek                                  |
-| Supervisor    | Professor Graham Roberts                                         |
-| Date          | 04 Nov 2025                                                      |
-| Version       | 0.2 (first draft+)                                               |
-
-Provide a concise summary of the project’s purpose and overall goals.
-
-### 1.1 Summary
-
-This project aims to develop an intelligent, multi-agent farming assistant system (name TBC). The system integrates multiple AI components to help farmers manage daily tasks efficiently by:
-
-- Reminding farmers about essential actions.
-- Answering agricultural queries based on internal and external knowledge.
-- Allowing users to upload and analyse photos of crops or livestock for plant disease detection or growth monitoring.
-
-The goal is to be more cost-efficient and easier to adopt than existing solutions.
-
-### 1.2 Objectives
-
-- Implement an agent responsible for long-term plans that reminds the farmer what to do each day (e.g., via a greeting message).
-- Implement a RAG system for retrieving and generating contextually relevant agricultural knowledge.
-- Implement an image processing module so farmers can upload photos via mobile phone and automatically identify objects or conditions in the photo.
-- Integrate a powerful LLM for natural and context-aware conversations with the user.
-- Use an LLM as a tool manager behind the scenes for orchestrating the interaction between components and agents (Lima core system).
-
-### 1.3 Scope
-
-**MVP**
-- User interface for text-based conversation.
-- Development of a modular multi-agent system integrating LLM and RAG.
-- Prototype deployment for limited-scale demonstration.
-
-**Nice to Have**
-- User interface for text-based conversation and image upload.
-- User interface for marking farm boundaries on satellite photos.
-- Development of a modular multi-agent system integrating LLM, RAG, and image processing.
-- Long-term memory and daily task reminders.
-- Real-time weather or satellite integration.
-- Product-level deployment with extensibility.
-
-**Excluded**
-- Full-scale commercial deployment.
-- Integration with existing agricultural IoT sensors.
-- Hardware development.
-
-## 2. Background and Motivation
-
-- **Problem Description:** Existing intelligent farming solutions are costly or too complex for small-scale farmers.
-- **Motivation:** Create an open-source, cost-effective, and easy-to-use intelligent farming solution.
-- **Existing Solutions:** Farmonaut, CropIn, Granular.
-- **Limitations:** Proposed solution is more cost-effective—free if self-hosted, otherwise only API costs.
-
-## 3. Requirements Specification
-
-### 3.1 Functional Requirements
-
-| ID  | Requirement                                                                  | Priority | Acceptance Criteria                                      |
-| --- | ---------------------------------------------------------------------------- | -------- | -------------------------------------------------------- |
-| FR1 | System sends daily reminders and updates based on farm schedule.             | M        | User receives ≥1 contextually relevant reminder per day. |
-| FR2 | System supports natural conversation via LLM.                                | H        | LLM responds contextually within <2 seconds.             |
-| FR3 | System supports uploading and analysing satellite images.                    | M        | Image upload and classification achieve 90% accuracy.    |
-| FR4 | System retrieves factual data using RAG.                                     | H        | Responses include referenced knowledge sources.          |
-| FR5 | System stores and recalls user interactions (long-term memory).              | M        | Context preserved across sessions.                       |
-| FR6 | System runs locally or in the cloud with minimal setup.                      | L        | Setup completed in under 10 minutes.                     |
-| FR7 | System allows user to mark their farm on a satellite map to provide context. | M        | LLM can identify the user’s farm location.               |
-
-### 3.2 Non-Functional Requirements
-
-| ID   | Requirement                                                                           | Category        | Acceptance Criteria                       |
-| ---- | ------------------------------------------------------------------------------------- | --------------- | ----------------------------------------- |
-| NFR1 | System should respond to user queries quickly.                                        | Performance     | Average response time <10 seconds.        |
-| NFR2 | Interface should be intuitive for non-technical users.                                | Usability       | Users can operate without training.       |
-| NFR3 | System must preserve data privacy and not leak personal data.                         | Security        | No personal data shared externally.       |
-| NFR4 | Modular architecture should allow each agent to be replaced or updated independently. | Maintainability | Components communicate via standard APIs. |
-
-### 3.3 Constraints and Assumptions
-
-- Internet connectivity is assumed for external data retrieval (RAG).
-- User device: desktop browser application with capability to upload images.
-- OpenAI-compatible LLM API is available for text generation.
-- Existing models are available for image processing.
-- User can share location data and maintain relevant static data.
-
-## 4. System Design and Architecture
-
-### 4.1 Overview
-
-The system follows a multi-agent architecture where each agent covers a specific domain:
-
-- **Planner Agent:** Generates long-term goals and daily tasks.
-- **RAG Agent:** Fetches agricultural information.
-- **Vision Agent:** Handles image recognition and interpretation.
-- **Chat Agent (LLM):** Communicates with the user naturally.
-- **Core Orchestrator:** Coordinates tasks between agents and handles user memory (executive logic/routing).
-
-### 4.2 Architecture Diagram
-
-> Placeholder: diagram to illustrate message flow between agents and central memory.
-
-### 4.3 Data Model
-
-- Level 0 DFD diagram (multi-agent architecture) – TBC.
-- User table: `ID`, `profile`, `farm_type`, `preferences`.
-- Task table: `TaskID`, `description`, `due_date`, `completion_status`.
-- Image log: `ImageID`, `upload_date`, `result_metadata`.
-
-### 4.4 Technology Stack
-
-| Layer           | Technology        |
-| --------------- | ----------------- |
-| Frontend        | React or Next.js  |
-| Backend         | Python (FastAPI)  |
-| AI Models       | Gemini or LLaMA   |
-| Database        | PostgreSQL        |
-| Deployment      | Docker containers |
-| Version Control | Git + GitHub      |
-
-## 5. Implementation Plan
-
-### 5.1 Work Packages / Tasks
-
-| Task | Description                                | Duration | Dependencies |
-| ---- | ------------------------------------------ | -------- | ------------ |
-| T1   | Design system architecture and data model. | 2 weeks  | None         |
-| T2   | Implement RAG backend.                     | 2 weeks  | T1           |
-| T3   | TBC.                                       | TBC      | TBC          |
-
-### 5.2 Milestones and Deliverables
-
-| Milestone | Target Date | Deliverable                                                            |
-| --------- | ----------- | ---------------------------------------------------------------------- |
-| M1        | 12 Dec 2025 | MVP: Working frontend with API and RAG backend.                        |
-| M2        | 15 Jan 2026 | Demonstration of UI plus potential Nice-to-Have features.              |
-| M3        | 6 Feb 2026  | Submission of second prototype with additional implementations and UI. |
-| M4        | 3 Mar 2026  | Demo-able product and pitch deck for in-person showcase.               |
-| M5        | 12 Mar 2026 | Finalised solution with documentation and minimal bugs.                |
-
-### 5.3 Version Control and Development Process
-
-The project uses Git with a feature-branch workflow. CI/CD will run via GitHub Actions for automated tests and builds, and code reviews are required for every merge request.
-
-## 6. Testing and Evaluation Plan
-
-- **Testing Methods:** Unit testing (Python `unittest`), integration testing, and user testing sessions.
-- **Test Data:** Simulated and anonymised agricultural data, plus public datasets for image recognition.
-- **Evaluation Metrics:** TBC.
-
-## 7. Risk Assessment
-
-| Risk                                              | Likelihood | Impact | Mitigation                             |
-| ------------------------------------------------- | ---------- | ------ | -------------------------------------- |
-| R1: API rate limits or cost.                      | Medium     | Medium | Implement caching and fallbacks.       |
-| R2: Model hallucination (LLM returns false data). | High       | High   | Use RAG with citation-based responses. |
-| R3: Poor user adoption due to complex UI.         | Medium     | Medium | Conduct early usability testing.       |
-| R4: Integration conflicts between agents.         | Low        | Medium | Define clear API boundaries.           |
-
-## 8. Ethical, Legal, and Sustainability Considerations
-
-- Ensure data privacy by not storing personally identifiable information.
-- Provide transparent information sources (RAG citations).
-- Use cloud computing responsibly to minimize energy waste.
-- Consider accessibility (readable text, mobile-friendly UI, colourblind-friendly palette).
-
-## 9. Schedule
-
-> TBC – detailed schedule to be added once milestones are baselined.
-
-## 10. References
-
-List all references cited in this document using a consistent style (e.g., Harvard or IEEE).
-
-## 11. Appendices
-
-- **Appendix A:** Initial sketches, diagrams, or mock-ups.
-- **Appendix B:** Additional data or background information.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## Backend Implementation (LLM + RAG MVP)
+## 📋 Project Overview
 
-To demonstrate the LLM and RAG portion of the system, this repository now includes a FastAPI backend that exposes ingestion and chat endpoints backed by Gemini (with an offline-friendly fallback for development).
+The Agritech AI Assistant is an open-source, cost-effective farming advisory system that helps smallholder farmers with:
 
-### Stack and Capabilities
-- FastAPI application in `app/main.py` with `/ingest` and `/chat` routes plus `/health`.
-- Modular core (`agritech_core/`) containing:
-  - `KnowledgeBase` with simple vector store, chunker, and Gemini/hashed embeddings.
-  - Domain agents for planning, RAG, and chat orchestration with rolling memory buffer.
-  - Gemini text client wrapper (falls back to a deterministic offline stub when `GEMINI_API_KEY` is missing or when `LLM_MODE=offline`).
-- Sample agronomy knowledge stored under `data/knowledge_base/` (markdown files automatically ingested on startup).
-- Pydantic schemas shared between API and orchestrator for predictable contracts.
+- 🌾 **Daily Task Recommendations** - Intelligent planning for farm activities
+- 💬 **Agricultural Q&A** - Natural conversation powered by LLM and RAG
+- 📚 **Knowledge Retrieval** - Access to agricultural best practices with citations
+- 🎯 **Context-Aware Advice** - Personalized based on location and farm type
 
-### Running Locally
-1. Create a virtual environment (`python -m venv .venv && source .venv/bin/activate`).
-2. Install dependencies: `pip install -e .[dev]`.
-3. Export Gemini credentials (real usage) or force offline mode for development:
-   - `export GEMINI_API_KEY=your_key`
-   - Optional overrides: `LLM_MODE=gemini|offline`, `GEMINI_MODEL` (defaults to `models/gemini-2.5-flash`), `GEMINI_EMBEDDING_MODEL`, `RAG_TOP_K`.
-4. Make sure the knowledge base directory contains at least one markdown file (defaults to `data/knowledge_base`, override with `KNOWLEDGE_BASE_DIR`). The API will refuse to start if the directory is missing or empty.
-5. Start the API: `uvicorn app.main:app --reload`.
-6. Visit `http://127.0.0.1:8000/docs` for interactive testing.
+**Current Status**: MVP Backend (LLM + RAG) ✅ | Frontend & Vision Module 🚧
 
-### Environment Variables
+> 📄 **Full Project Specification**: See [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md)
 
-| Variable                       | Purpose                                      | Default                                         |
-| ------------------------------ | -------------------------------------------- | ----------------------------------------------- |
-| `GEMINI_API_KEY`               | Auth token for Gemini APIs.                  | _None_ (falls back to offline mode when unset). |
-| `GEMINI_MODEL`                 | Text generation model for the chat agent.    | `models/gemini-2.5-flash`                       |
-| `GEMINI_EMBEDDING_MODEL`       | Embedding model for the vector store.        | `models/text-embedding-004`                     |
-| `LLM_MODE`                     | Switch between live Gemini and offline stub. | `gemini`                                        |
-| `RAG_TOP_K`                    | Number of chunks returned per query.         | `4`                                             |
-| `CHUNK_SIZE` / `CHUNK_OVERLAP` | Chunker configuration during ingestion.      | `500` / `50`                                    |
-| `KNOWLEDGE_BASE_DIR`           | Directory of markdown files to ingest.       | `data/knowledge_base`                           |
+---
 
-### API Overview
-- `POST /ingest` — Add documents to the knowledge base. Accepts JSON payload with `documents` list, each containing `doc_id`, `text`, and optional metadata. Returns the number of chunks created.
-- `POST /chat` — Send a user message (up to 4,000 characters) plus optional `location`, `farm_type`, and `goals`. Returns the assistant reply, planner tasks, and citations derived from retrieved chunks.
-- `GET /health` — Basic readiness probe.
+## ✨ Key Features
 
-### Tests
-Run `pytest` to exercise the offline chat flow (`tests/test_orchestrator.py`). Tests default to the offline LLM/embedding mode so no network access or API keys are required.
+### Current Implementation (v0.1)
+
+- ✅ **FastAPI Backend** with `/chat`, `/ingest`, and `/health` endpoints
+- ✅ **RAG System** with vector-based document retrieval
+- ✅ **LLM Integration** (Google Gemini) with offline fallback mode
+- ✅ **Multi-Agent Architecture** (Planner, RAG, Chat agents)
+- ✅ **Conversation Memory** with rolling buffer
+- ✅ **Auto-Ingestion** of markdown knowledge base on startup
+- ✅ **Type-Safe API** with Pydantic schemas
+
+### Planned Features
+
+- 🚧 Frontend UI (React/Next.js)
+- 🚧 Image processing for crop/pest identification
+- 🚧 User authentication and profiles
+- 🚧 Persistent storage (PostgreSQL)
+- 🚧 Real-time weather integration
+- 🚧 Satellite imagery analysis
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.10 or higher
+- pip package manager
+- Git
+
+### One-Command Setup
+
+```bash
+./setup.sh
+```
+
+This will:
+1. Create virtual environment
+2. Install all dependencies
+3. Create `.env` configuration file
+4. Run tests to verify setup
+
+### Manual Setup
+
+See **[docs/SETUP.md](docs/SETUP.md)** for detailed instructions.
+
+### Start the Server
+
+```bash
+# Activate virtual environment
+source .venv/bin/activate  # macOS/Linux
+# or
+.venv\Scripts\activate  # Windows
+
+# Start development server
+uvicorn app.main:app --reload
+
+# Or run in offline mode (no API key needed)
+LLM_MODE=offline uvicorn app.main:app --reload
+```
+
+Server will be available at: **http://127.0.0.1:8000**
+
+### Test the API
+
+**Interactive Swagger UI**: http://127.0.0.1:8000/docs
+
+**Example Request**:
+```bash
+curl -X POST http://127.0.0.1:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "How should I water my maize crops?",
+    "location": "Kenya",
+    "farm_type": "maize"
+  }'
+```
+
+---
+
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+| Document | Description |
+|----------|-------------|
+| **[Project Specification](docs/PROJECT_SPEC.md)** | Complete project requirements and planning |
+| **[Setup Guide](docs/SETUP.md)** | Installation and configuration instructions |
+| **[Architecture](docs/ARCHITECTURE.md)** | System design and component overview |
+| **[Contributing](docs/CONTRIBUTING.md)** | Development guidelines and code standards |
+| **[Code Review](docs/CODEX_REVIEW.md)** | Known issues and technical debt |
+| **[Handoff Guide](docs/HANDOFF.md)** | Developer transition checklist |
+
+---
+
+## 🏗️ Architecture
+
+The system uses a multi-agent architecture:
+
+```
+Client Request
+     ↓
+FastAPI Server
+     ↓
+Orchestrator
+     ↓
+┌────────┬────────┬────────┐
+│Planner │  RAG   │  Chat  │
+│ Agent  │ Agent  │ Agent  │
+└────────┴────────┴────────┘
+     ↓        ↓        ↓
+  Tasks  Knowledge  Reply
+```
+
+**Components**:
+- **Planner Agent**: Generates actionable farming tasks
+- **RAG Agent**: Retrieves relevant knowledge from vector store
+- **Chat Agent**: Produces natural language responses via LLM
+- **Memory**: Maintains conversation context (6-turn buffer)
+
+For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
+
+## 🔌 API Endpoints
+
+### `POST /chat`
+Send a message and get AI-powered farming advice.
+
+**Request**:
+```json
+{
+  "message": "How do I control pests?",
+  "location": "Kenya",
+  "farm_type": "maize",
+  "goals": ["increase yield", "reduce pesticide use"]
+}
+```
+
+**Response**:
+```json
+{
+  "reply": "For pest control in maize farming...",
+  "tasks": [
+    {
+      "title": "Scout for pests",
+      "detail": "Inspect crops twice weekly",
+      "priority": "high"
+    }
+  ],
+  "citations": ["pest_management.md"]
+}
+```
+
+### `POST /ingest`
+Add documents to the knowledge base.
+
+**Request**:
+```json
+{
+  "documents": [
+    {
+      "doc_id": "fertilizer-guide",
+      "text": "Apply NPK at 50kg per hectare...",
+      "metadata": {"source": "manual", "year": 2025}
+    }
+  ]
+}
+```
+
+**Response**:
+```json
+{
+  "chunks_added": 3
+}
+```
+
+### `GET /health`
+Health check endpoint.
+
+**Response**:
+```json
+{
+  "status": "ok"
+}
+```
+
+---
+
+## ⚙️ Configuration
+
+Configuration via environment variables or `.env` file:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GEMINI_API_KEY` | Google Gemini API key ([Get one](https://aistudio.google.com/app/apikey)) | None (offline mode) |
+| `LLM_MODE` | `gemini` or `offline` | `gemini` |
+| `GEMINI_MODEL` | Text generation model | `models/gemini-2.0-flash-exp` |
+| `GEMINI_EMBEDDING_MODEL` | Embedding model | `models/text-embedding-004` |
+| `RAG_TOP_K` | Number of retrieved chunks | `4` |
+| `CHUNK_SIZE` | Characters per chunk | `500` |
+| `MAX_HISTORY` | Conversation turns to keep | `6` |
+
+See [docs/SETUP.md](docs/SETUP.md) for complete configuration details.
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest -v
+
+# Run specific test file
+pytest tests/test_api_integration.py -v
+
+# Run with coverage
+pytest --cov=agritech_core --cov-report=html
+```
+
+**Test Coverage**: ~60% (aim for >80%)
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please read our [Contributing Guidelines](docs/CONTRIBUTING.md) before submitting PRs.
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes and add tests
+4. Run tests (`pytest -v`)
+5. Commit with conventional commits (`git commit -m "feat: add new feature"`)
+6. Push to your fork (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for detailed guidelines.
+
+---
+
+## 📦 Project Structure
+
+```
+agritech-project/
+├── agritech_core/          # Core business logic
+│   ├── agents.py           # Multi-agent orchestrator
+│   ├── llm.py              # LLM client wrappers
+│   ├── rag.py              # RAG pipeline
+│   ├── memory.py           # Conversation memory
+│   └── schemas.py          # Pydantic models
+├── app/
+│   └── main.py             # FastAPI application
+├── data/
+│   └── knowledge_base/     # Agricultural knowledge (markdown)
+├── docs/                   # Documentation
+├── tests/                  # Test suite
+├── .env.example            # Environment template
+├── setup.sh                # Quick setup script
+└── pyproject.toml          # Dependencies
+```
+
+---
+
+## 🐛 Known Issues
+
+See [docs/CODEX_REVIEW.md](docs/CODEX_REVIEW.md) for detailed code review and known issues.
+
+**Critical Issues**:
+- Deprecated FastAPI `on_event` usage
+- Global mutable state (doesn't support multi-worker)
+- Hash-based embeddings in offline mode (non-semantic)
+- No input validation/rate limiting
+- Security improvements needed
+
+**Status**: These are being addressed in upcoming releases.
+
+---
+
+## 📅 Roadmap
+
+### Milestone 1 (Dec 12, 2025)
+- ✅ Backend API with RAG
+- 🚧 Frontend UI
+- 🚧 User authentication
+
+### Milestone 2 (Jan 15, 2026)
+- 🔜 Image upload and analysis
+- 🔜 Weather integration
+- 🔜 Enhanced memory system
+
+### Milestone 3 (Feb 6, 2026)
+- 🔜 Satellite imagery support
+- 🔜 Farm boundary mapping
+- 🔜 Mobile-responsive UI
+
+### Milestone 4 (Mar 3, 2026)
+- 🔜 Production deployment
+- 🔜 Performance optimization
+- 🔜 Complete documentation
+
+See [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md) for complete timeline.
+
+---
+
+## 👥 Team
+
+**NTTDATA AI for Sustainability Agritech Team**
+- Sagar
+- Sanchi
+- Shuaiting
+- Vivek
+
+**Supervisor**: Professor Graham Roberts
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Google Gemini for LLM and embedding APIs
+- FastAPI for the excellent web framework
+- Open-source agricultural datasets
+- NTTDATA for project sponsorship
+
+---
+
+## 📞 Support
+
+- 📖 **Documentation**: [docs/](docs/)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/shuaiting-li/agritech-project/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/shuaiting-li/agritech-project/discussions)
+
+---
+
+**Made with 🌱 for sustainable agriculture**
