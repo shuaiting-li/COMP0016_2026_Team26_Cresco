@@ -325,11 +325,14 @@ pytest -v
 # Run specific file
 pytest tests/test_api_integration.py -v
 
+# Run PlannerAgent unit tests
+pytest tests/test_planner_agent.py -v
+
+# Run manual verification script for PlannerAgent
+python verify_planner.py
+
 # Run with coverage
 pytest --cov=agritech_core --cov-report=html
-
-# Run specific test
-pytest tests/test_api_integration.py::test_health_endpoint -v
 ```
 
 ### Test Fixtures

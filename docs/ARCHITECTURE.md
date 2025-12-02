@@ -119,18 +119,20 @@ def handle_chat(self, request: ChatRequest) -> ChatResponse:
 
 **Purpose**: Generate actionable tasks and recommendations for farmers.
 
-**Current Implementation**: Rule-based keyword matching
-- Searches for keywords like "irrig", "water", etc.
-- Returns pre-defined action templates
-- Adds location-based weather tasks
-- Creates goal follow-up tasks
+**Current Implementation**: LLM-powered task generation
+- Uses `BaseLLMClient` to interpret user messages.
+- Generates structured JSON output for tasks.
+- **Rule**: Automatically creates recurring watering/fertilizing tasks if planting is mentioned.
+- **Rule**: Suggests weather checks if location is provided.
 
-**Limitations** (see CODEX_REVIEW.md):
-- Not actually AI-powered
-- Brittle string matching
-- Limited task variety
+**Flow**:
+```
+User Message + History → LLM Prompt → JSON Response → PlannerAction Objects
+```
 
-**Future Improvement**: Replace with LLM-based planning.
+**Verification**:
+- Unit tests in `tests/test_planner_agent.py` (Mock LLM)
+- Manual verification script `verify_planner.py`
 
 #### 2.3 RAG Agent (`agents.py`)
 
@@ -489,19 +491,28 @@ DocumentPayload    # Document to ingest
 ### Unit Tests
 - `tests/test_embeddings.py`: Embedding extraction
 - `tests/test_orchestrator.py`: Offline flow
+- `tests/test_planner_agent.py`: PlannerAgent logic (Mock LLM)
+
+### Verification Scripts
+- `verify_planner.py`: Manual verification of PlannerAgent prompt construction and parsing.
 
 ### Integration Tests
 - `tests/test_api_integration.py`: End-to-end API tests
 
 ### Test Coverage
-- Current: ~40% (estimated)
+- Current: ~60% (estimated)
 - Target: >80%
 
 ### Running Tests
 ```bash
-pytest -v                    # All tests
-pytest tests/test_api_integration.py  # Specific file
-pytest -k "chat"             # Pattern match
+# Run all tests
+pytest -v
+
+# Run PlannerAgent specific tests
+pytest tests/test_planner_agent.py
+
+# Run manual verification script
+python verify_planner.py
 ```
 
 ---

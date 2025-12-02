@@ -242,25 +242,18 @@ class ConversationMemory:
 
 ---
 
-### 9. **PlannerAgent is Hardcoded Nonsense** ⚠️ HIGH
-**File**: `agritech_core/agents.py:26-56`
+### 9. **PlannerAgent is Hardcoded Nonsense** ✅ FIXED
+**File**: `agritech_core/agents.py`
 
-```python
-def build_actions(self, request: ChatRequest) -> list[PlannerAction]:
-    actions: list[PlannerAction] = []
-    msg = request.message.lower()
-    if "irrig" in msg or "water" in msg:
-        actions.append(PlannerAction(...))
-```
-
-**Issues**:
-- String matching is brittle ("irrigate" works, "watering" doesn't)
+**Previous Issue**:
+- String matching was brittle ("irrigate" works, "watering" doesn't)
 - Not actually a "planner" - just keyword matching
-- Always returns at least one generic action
-- Doesn't use LLM despite being called an "agent"
-- Goals are echoed without analysis
 
-**This is Not AI**: It's a glorified if-else statement masquerading as an intelligent agent.
+**Current Status**:
+- Replaced with LLM-based implementation.
+- Uses structured JSON output from LLM.
+- Includes specific prompt engineering for planting scenarios.
+- Verified with unit tests and manual script.
 
 ---
 
@@ -307,12 +300,11 @@ The README claims a "multi-agent architecture" but this is misleading:
 - INFO logs mixed with business logic
 - Can't debug production issues
 
-### 13. **Testing is Insufficient**
-- Only 3 unit tests (now 12 with my additions)
-- No integration tests originally
-- No load testing
-- No security testing
-- Coverage likely <30%
+### 13. **Testing is Insufficient** ⚠️ PARTIAL
+- Added `tests/test_planner_agent.py` for unit testing agent logic.
+- Added `verify_planner.py` for manual verification.
+- Still need more integration tests and load testing.
+- Coverage improved but likely still under 80%.
 
 ### 14. **Dependencies Are Outdated**
 **File**: `pyproject.toml`
