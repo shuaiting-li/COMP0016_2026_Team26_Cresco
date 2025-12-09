@@ -187,7 +187,36 @@ INFO:app.main:Ingested 2 knowledge chunks during startup
 
 ---
 
-## Step 7: Test the API
+## Step 7: Run the Frontend
+
+### Install Dependencies
+
+```bash
+cd frontend
+npm install
+```
+
+### Start Development Server
+
+```bash
+npm run dev
+```
+
+Frontend will be available at: **http://localhost:3000**
+
+> **Note**: The frontend development server proxies API requests to `http://127.0.0.1:8000`. Make sure the backend is running first.
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+Production files will be generated in `frontend/dist/`.
+
+---
+
+## Step 8: Test the API
 
 ### Using Web Browser
 

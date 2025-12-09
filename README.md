@@ -17,7 +17,7 @@ The Agritech AI Assistant is an open-source, cost-effective farming advisory sys
 - 📚 **Knowledge Retrieval** - Access to agricultural best practices with citations
 - 🎯 **Context-Aware Advice** - Personalized based on location and farm type
 
-**Current Status**: MVP Backend (LLM + RAG) ✅ | Frontend & Vision Module 🚧
+**Current Status**: MVP Backend (LLM + RAG) ✅ | Frontend UI ✅ | Vision Module 🚧
 
 > 📄 **Full Project Specification**: See [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md)
 
@@ -35,9 +35,12 @@ The Agritech AI Assistant is an open-source, cost-effective farming advisory sys
 - ✅ **Auto-Ingestion** of markdown knowledge base on startup
 - ✅ **Type-Safe API** with Pydantic schemas
 
+- ✅ **React Frontend** with ChatGPT-style dark theme UI
+- ✅ **Task Cards** displaying planner recommendations
+- ✅ **Citation Display** from RAG results
+
 ### Planned Features
 
-- 🚧 Frontend UI (React/Next.js)
 - 🚧 Image processing for crop/pest identification
 - 🚧 User authentication and profiles
 - 🚧 Persistent storage (PostgreSQL)
@@ -51,6 +54,7 @@ The Agritech AI Assistant is an open-source, cost-effective farming advisory sys
 ### Prerequisites
 
 - Python 3.10 or higher
+- Node.js 18+ and npm
 - pip package manager
 - Git
 
@@ -86,6 +90,18 @@ LLM_MODE=offline uvicorn app.main:app --reload
 ```
 
 Server will be available at: **http://127.0.0.1:8000**
+
+### Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend will be available at: **http://localhost:3000**
+
+> **Note**: The frontend proxies API requests to the backend. Make sure the backend is running on port 8000.
 
 ### Test the API
 
@@ -278,13 +294,21 @@ agritech-project/
 │   └── schemas.py          # Pydantic models
 ├── app/
 │   └── main.py             # FastAPI application
+├── frontend/               # React frontend (TypeScript)
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── services/       # API client
+│   │   └── types/          # TypeScript types
+│   ├── package.json        # Node.js dependencies
+│   └── vite.config.ts      # Vite configuration
 ├── data/
 │   └── knowledge_base/     # Agricultural knowledge (markdown)
 ├── docs/                   # Documentation
 ├── tests/                  # Test suite
 ├── .env.example            # Environment template
 ├── setup.sh                # Quick setup script
-└── pyproject.toml          # Dependencies
+└── pyproject.toml          # Python dependencies
 ```
 
 ---
