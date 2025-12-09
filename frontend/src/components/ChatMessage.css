@@ -1,0 +1,179 @@
+/* ChatMessage Styles */
+
+.chat-message {
+    display: flex;
+    gap: 16px;
+    padding: 24px 0;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.chat-message--assistant {
+    background: transparent;
+}
+
+.chat-message--user {
+    background: transparent;
+}
+
+.chat-message__avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-message--user .chat-message__avatar {
+    background: var(--user-message-bg);
+    color: white;
+}
+
+.chat-message--assistant .chat-message__avatar {
+    background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+    color: white;
+}
+
+.chat-message__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-message__role {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.chat-message__text {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Tasks Section */
+.chat-message__tasks {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.tasks-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-green-light);
+    margin-bottom: 12px;
+}
+
+.tasks-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* Task Card */
+.task-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    transition: border-color var(--transition-fast);
+}
+
+.task-card:hover {
+    border-color: var(--accent-green);
+}
+
+.task-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.task-card__title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.task-card__priority {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+}
+
+.task-card__priority--high {
+    background: rgba(239, 83, 80, 0.15);
+    color: var(--priority-high);
+}
+
+.task-card__priority--medium {
+    background: rgba(255, 183, 77, 0.15);
+    color: var(--priority-medium);
+}
+
+.task-card__priority--low {
+    background: rgba(102, 187, 106, 0.15);
+    color: var(--priority-low);
+}
+
+.task-card__detail {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Citations */
+.citations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.citations__label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.citation-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .chat-message {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .chat-message__avatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    .tasks-grid {
+        grid-template-columns: 1fr;
+    }
+}

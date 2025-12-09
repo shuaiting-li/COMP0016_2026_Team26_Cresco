@@ -7,10 +7,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from agritech_core import AgritechOrchestrator, get_settings
 from agritech_core.rag import Document, KnowledgeBase
-from agritech_core.schemas import ChatRequest, ChatResponse, IngestRequest, IngestResponse
+from agritech_core.schemas import (
+    ChatRequest,
+    ChatResponse,
+    IngestRequest,
+    IngestResponse,
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +45,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Agritech AI Assistant", version="0.1.0", lifespan=lifespan)
 
+# CORS configuration for frontend development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def get_orchestrator(request: Request) -> AgritechOrchestrator:
     orchestrator = getattr(request.app.state, "orchestrator", None)
@@ -54,7 +69,8 @@ def health() -> dict[str, str]:
 
 @app.post("/ingest", response_model=IngestResponse)
 def ingest_documents(
-    payload: IngestRequest, orchestrator: AgritechOrchestrator = Depends(get_orchestrator)
+    payload: IngestRequest,
+    orchestrator: AgritechOrchestrator = Depends(get_orchestrator),
 ) -> IngestResponse:
     documents: list[Document] = []
     for idx, doc in enumerate(payload.documents):

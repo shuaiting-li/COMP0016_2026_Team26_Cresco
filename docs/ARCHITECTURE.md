@@ -1,10 +1,12 @@
 # System Architecture
 
-This document describes the architecture and design of the Agritech Assistant backend system.
+This document describes the architecture and design of the Agritech Assistant system, including both the backend API and React frontend.
 
 ## Overview
 
-The Agritech Assistant is a FastAPI-based backend service that provides an intelligent agricultural advisory system using Large Language Models (LLM) and Retrieval-Augmented Generation (RAG).
+The Agritech Assistant is a full-stack application consisting of:
+- **Frontend**: React + TypeScript SPA with ChatGPT-style UI
+- **Backend**: FastAPI service with LLM and RAG capabilities
 
 ```
 ┌─────────────┐
@@ -421,6 +423,12 @@ DocumentPayload    # Document to ingest
 
 ## Technology Stack
 
+### Frontend
+- **React 18**: Component-based UI library
+- **TypeScript**: Type-safe JavaScript
+- **Vite**: Fast build tool and dev server
+- **CSS Modules**: Scoped component styling
+
 ### Backend Framework
 - **FastAPI**: Modern async web framework
 - **Uvicorn**: ASGI server
@@ -437,6 +445,7 @@ DocumentPayload    # Document to ingest
 
 ### Deployment
 - Python 3.10+
+- Node.js 18+
 - Virtual environment (venv)
 - Environment variables for config
 
