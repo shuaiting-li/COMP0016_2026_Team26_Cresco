@@ -221,7 +221,7 @@ Configuration via environment variables or `.env` file:
 |----------|-------------|---------|
 | `GEMINI_API_KEY` | Google Gemini API key ([Get one](https://aistudio.google.com/app/apikey)) | None (offline mode) |
 | `LLM_MODE` | `gemini` or `offline` | `gemini` |
-| `GEMINI_MODEL` | Text generation model | `models/gemini-2.0-flash-exp` |
+| `GEMINI_MODEL` | Text generation model | `models/gemini-2.5-flash` |
 | `GEMINI_EMBEDDING_MODEL` | Embedding model | `models/text-embedding-004` |
 | `RAG_TOP_K` | Number of retrieved chunks | `4` |
 | `CHUNK_SIZE` | Characters per chunk | `500` |

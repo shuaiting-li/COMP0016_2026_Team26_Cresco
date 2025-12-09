@@ -86,7 +86,7 @@ Add the following configuration:
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Optional: Model Configuration
-GEMINI_MODEL=models/gemini-2.0-flash-exp
+GEMINI_MODEL=models/gemini-2.5-flash
 GEMINI_EMBEDDING_MODEL=models/text-embedding-004
 
 # Optional: RAG Configuration
