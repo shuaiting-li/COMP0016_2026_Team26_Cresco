@@ -1,0 +1,111 @@
+/* WelcomeScreen Styles */
+
+.welcome-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.welcome-screen__content {
+    max-width: 640px;
+    text-align: center;
+}
+
+.welcome-screen__logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+    border-radius: 20px;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(76, 175, 80, 0.25);
+}
+
+.welcome-screen__title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.welcome-screen__subtitle {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 40px;
+}
+
+/* Suggestions Grid */
+.suggestions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.suggestion-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    text-align: left;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.suggestion-card:hover {
+    border-color: var(--accent-green);
+    background: var(--bg-hover);
+}
+
+.suggestion-card__icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.suggestion-card__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.suggestion-card__title {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.suggestion-card__prompt {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .suggestions {
+        grid-template-columns: 1fr;
+    }
+
+    .welcome-screen__title {
+        font-size: 24px;
+    }
+
+    .welcome-screen__subtitle {
+        font-size: 14px;
+    }
+}
