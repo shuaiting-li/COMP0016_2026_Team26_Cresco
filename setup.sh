@@ -32,32 +32,22 @@ else
     SKIP_FRONTEND=false
 fi
 
-# Create virtual environment
+# Check uv installation
 echo ""
-echo "🔨 Creating virtual environment..."
-if [ -d ".venv" ]; then
-    echo "⚠️  .venv directory already exists, skipping..."
+echo "📋 Checking uv installation..."
+if ! command -v uv &> /dev/null; then
+    echo "📦 Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source $HOME/.local/bin/env
+    echo "✅ uv installed"
 else
-    python3 -m venv .venv
-    echo "✅ Virtual environment created"
+    echo "✅ Found uv $(uv --version | cut -d' ' -f2)"
 fi
 
-# Activate virtual environment
+# Install Python dependencies with uv (creates/updates .venv automatically)
 echo ""
-echo "🔌 Activating virtual environment..."
-source .venv/bin/activate
-echo "✅ Virtual environment activated"
-
-# Upgrade pip
-echo ""
-echo "📦 Upgrading pip..."
-pip install --upgrade pip -q
-echo "✅ pip upgraded"
-
-# Install Python dependencies
-echo ""
-echo "📚 Installing Python dependencies..."
-pip install -e .[dev] -q
+echo "📚 Installing Python dependencies with uv..."
+uv sync --dev
 echo "✅ Python dependencies installed"
 
 # Create .env if it doesn't exist
@@ -105,25 +95,22 @@ fi
 echo ""
 echo "✅ Setup complete!"
 echo ""
-echo "======================================"
+echo "======================================\n"
 echo "🚀 Quick Start Guide"
 echo "======================================"
 echo ""
-echo "1. Activate the virtual environment:"
-echo "   source .venv/bin/activate"
+echo "1. Edit .env and add your GEMINI_API_KEY"
 echo ""
-echo "2. Edit .env and add your GEMINI_API_KEY"
-echo ""
-echo "3. Start the backend server:"
-echo "   uvicorn app.main:app --reload"
+echo "2. Start the backend server:"
+echo "   uv run uvicorn app.main:app --reload"
 echo ""
 if [ "$SKIP_FRONTEND" = false ]; then
-    echo "4. Start the frontend (in a new terminal):"
+    echo "3. Start the frontend (in a new terminal):"
     echo "   cd frontend && npm run dev"
     echo ""
-    echo "5. Open http://localhost:3000 in your browser"
+    echo "4. Open http://localhost:3000 in your browser"
 else
-    echo "4. Visit http://127.0.0.1:8000/docs to test the API"
+    echo "3. Visit http://127.0.0.1:8000/docs to test the API"
 fi
 echo ""
 echo "For more details, see docs/SETUP.md"
