@@ -117,6 +117,15 @@ uv run mypy agritech_core
 
 ---
 
+## Contributing
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines on:
+- Dependency management with uv
+- Branch naming and commits
+- Pull request process
+
+---
+
 ## Team
 
 **System Engineering Team 26, working with NTT DATA**
