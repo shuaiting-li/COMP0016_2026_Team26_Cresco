@@ -15,10 +15,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # OpenAI settings
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
-    embedding_model: str = "text-embedding-3-small"
+    # Model settings (API keys are read directly from env by LangChain)
+    # Supported providers: openai, google-genai, anthropic, azure-openai, etc.
+    model_provider: str = "openai"
+    model_name: str = "gpt-4o-mini"
+    embedding_model: str = "models/text-embedding-004"
 
     # ChromaDB settings
     chroma_persist_dir: str = "./data/chroma_db"

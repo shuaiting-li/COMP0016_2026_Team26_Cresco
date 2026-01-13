@@ -1,53 +1,48 @@
 """Vector store and retriever configuration for RAG."""
 
-from functools import lru_cache
-
 from langchain_chroma import Chroma
 from langchain_core.retrievers import BaseRetriever
 
-from cresco.config import Settings, get_settings
+from cresco.config import get_settings
 from .embeddings import get_embeddings
 
+# Module-level singletons
+_vector_store = None
+_retriever = None
 
-@lru_cache
-def get_vector_store(settings: Settings = None) -> Chroma:
-    """Get the Chroma vector store instance.
 
-    Args:
-        settings: Application settings. Uses default if not provided.
+def get_vector_store() -> Chroma:
+    """Get the Chroma vector store instance (singleton).
 
     Returns:
         Configured Chroma vector store instance.
     """
-    if settings is None:
+    global _vector_store
+    if _vector_store is None:
         settings = get_settings()
+        _vector_store = Chroma(
+            persist_directory=str(settings.chroma_path),
+            embedding_function=get_embeddings(),
+            collection_name="cresco_knowledge_base",
+        )
+    return _vector_store
 
-    return Chroma(
-        persist_directory=str(settings.chroma_path),
-        embedding_function=get_embeddings(settings),
-        collection_name="cresco_knowledge_base",
-    )
 
-
-@lru_cache
-def get_retriever(settings: Settings = None) -> BaseRetriever:
-    """Get the document retriever for RAG.
-
-    Args:
-        settings: Application settings. Uses default if not provided.
+def get_retriever() -> BaseRetriever:
+    """Get the document retriever for RAG (singleton).
 
     Returns:
         Configured retriever instance.
     """
-    vectorstore = get_vector_store(settings)
-
-    # Configure retriever with search parameters
-    retriever = vectorstore.as_retriever(
-        search_type="mmr",  # Maximum Marginal Relevance for diversity
-        search_kwargs={
-            "k": 5,  # Return top 5 documents
-            "fetch_k": 10,  # Fetch 10, then select 5 diverse ones
-        },
-    )
-
-    return retriever
+    global _retriever
+    if _retriever is None:
+        vectorstore = get_vector_store()
+        # Configure retriever with search parameters
+        _retriever = vectorstore.as_retriever(
+            search_type="mmr",  # Maximum Marginal Relevance for diversity
+            search_kwargs={
+                "k": 5,  # Return top 5 documents
+                "fetch_k": 10,  # Fetch 10, then select 5 diverse ones
+            },
+        )
+    return _retriever

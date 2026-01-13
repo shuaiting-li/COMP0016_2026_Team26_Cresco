@@ -1,7 +1,5 @@
 """LangChain agent for Cresco chatbot - Modern 2026 style."""
 
-from functools import lru_cache
-
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.tools import tool
@@ -19,17 +17,17 @@ class CrescoAgent:
     def __init__(self, settings: Settings):
         """Initialize the Cresco agent."""
         self.settings = settings
-        self.vector_store = get_vector_store(settings)
+        self.vector_store = get_vector_store()
         self.checkpointer = InMemorySaver()
         self._agent = self._build_agent()
 
     def _build_agent(self):
         """Build the agent using create_agent with retrieval tool."""
         # Initialize the chat model
+        # API key is automatically picked up from env var (OPENAI_API_KEY, GOOGLE_API_KEY, etc.)
         model = init_chat_model(
-            self.settings.openai_model,
-            model_provider="openai",
-            api_key=self.settings.openai_api_key,
+            self.settings.model_name,
+            model_provider=self.settings.model_provider,
             temperature=0.3,
         )
 
@@ -111,9 +109,14 @@ class CrescoAgent:
         self._agent = self._build_agent()
 
 
-@lru_cache
-def get_agent(settings: Settings = None) -> CrescoAgent:
-    """Get or create the Cresco agent instance."""
-    if settings is None:
+# Module-level singleton
+_agent = None
+
+
+def get_agent() -> CrescoAgent:
+    """Get or create the Cresco agent instance (singleton)."""
+    global _agent
+    if _agent is None:
         settings = get_settings()
-    return CrescoAgent(settings)
+        _agent = CrescoAgent(settings)
+    return _agent

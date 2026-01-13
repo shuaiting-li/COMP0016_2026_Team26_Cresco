@@ -2,6 +2,10 @@
 
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env before other imports
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,7 +21,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     print(f"🌱 Starting Cresco v{__version__}")
     print(f"📚 Knowledge base: {settings.knowledge_base}")
-    print(f"🧠 Using model: {settings.openai_model}")
+    print(f"🧠 Using model: {settings.model_provider}/{settings.model_name}")
     yield
     # Shutdown
     print("👋 Shutting down Cresco")

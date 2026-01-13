@@ -1,7 +1,5 @@
 """Document indexing for the vector store."""
 
-from pathlib import Path
-
 from langchain_chroma import Chroma
 
 from cresco.config import Settings
@@ -27,7 +25,7 @@ def is_indexed(settings: Settings) -> bool:
     try:
         vectorstore = Chroma(
             persist_directory=str(chroma_path),
-            embedding_function=get_embeddings(settings),
+            embedding_function=get_embeddings(),
             collection_name="cresco_knowledge_base",
         )
         count = vectorstore._collection.count()
@@ -52,7 +50,7 @@ async def index_knowledge_base(settings: Settings, force: bool = False) -> int:
     if not force and is_indexed(settings):
         vectorstore = Chroma(
             persist_directory=str(chroma_path),
-            embedding_function=get_embeddings(settings),
+            embedding_function=get_embeddings(),
             collection_name="cresco_knowledge_base",
         )
         return vectorstore._collection.count()
@@ -73,7 +71,7 @@ async def index_knowledge_base(settings: Settings, force: bool = False) -> int:
     # Create vector store with documents
     vectorstore = Chroma.from_documents(
         documents=chunks,
-        embedding=get_embeddings(settings),
+        embedding=get_embeddings(),
         persist_directory=str(chroma_path),
         collection_name="cresco_knowledge_base",
     )
