@@ -18,33 +18,37 @@ fi
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
 echo "✅ Found Python $PYTHON_VERSION"
 
-# Create virtual environment
+# Check Node.js version
 echo ""
-echo "🔨 Creating virtual environment..."
-if [ -d ".venv" ]; then
-    echo "⚠️  .venv directory already exists, skipping..."
+echo "📋 Checking Node.js version..."
+if ! command -v node &> /dev/null; then
+    echo "⚠️  Warning: Node.js is not installed"
+    echo "   Frontend setup will be skipped"
+    echo "   Install Node.js 18+ from: https://nodejs.org/"
+    SKIP_FRONTEND=true
 else
-    python3 -m venv .venv
-    echo "✅ Virtual environment created"
+    NODE_VERSION=$(node --version)
+    echo "✅ Found Node.js $NODE_VERSION"
+    SKIP_FRONTEND=false
 fi
 
-# Activate virtual environment
+# Check uv installation
 echo ""
-echo "🔌 Activating virtual environment..."
-source .venv/bin/activate
-echo "✅ Virtual environment activated"
+echo "📋 Checking uv installation..."
+if ! command -v uv &> /dev/null; then
+    echo "📦 Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source $HOME/.local/bin/env
+    echo "✅ uv installed"
+else
+    echo "✅ Found uv $(uv --version | cut -d' ' -f2)"
+fi
 
-# Upgrade pip
+# Install Python dependencies with uv (creates/updates .venv automatically)
 echo ""
-echo "📦 Upgrading pip..."
-pip install --upgrade pip -q
-echo "✅ pip upgraded"
-
-# Install dependencies
-echo ""
-echo "📚 Installing dependencies..."
-pip install -e .[dev] -q
-echo "✅ Dependencies installed"
+echo "📚 Installing Python dependencies with uv..."
+uv sync --dev
+echo "✅ Python dependencies installed"
 
 # Create .env if it doesn't exist
 echo ""
@@ -59,30 +63,55 @@ else
     echo "   Get your key from: https://aistudio.google.com/app/apikey"
 fi
 
-# Run tests
-echo ""
-echo "🧪 Running tests..."
-pytest -v --tb=short
-if [ $? -eq 0 ]; then
-    echo "✅ All tests passed!"
-else
-    echo "❌ Some tests failed"
-    exit 1
+
+# Setup Frontend
+if [ "$SKIP_FRONTEND" = false ]; then
+    echo ""
+    echo "🎨 Setting up frontend..."
+    cd frontend
+    
+    if [ -d "node_modules" ]; then
+        echo "⚠️  node_modules already exists, skipping npm install..."
+    else
+        echo "📦 Installing frontend dependencies..."
+        npm install --silent
+        echo "✅ Frontend dependencies installed"
+    fi
+    
+    echo ""
+    echo "🔨 Building frontend..."
+    npm run build --silent
+    if [ $? -eq 0 ]; then
+        echo "✅ Frontend build successful!"
+    else
+        echo "❌ Frontend build failed"
+        exit 1
+    fi
+    
+    cd ..
 fi
 
 # Success message
 echo ""
 echo "✅ Setup complete!"
 echo ""
-echo "Next steps:"
-echo "1. Activate the virtual environment:"
-echo "   source .venv/bin/activate"
+echo "======================================\n"
+echo "🚀 Quick Start Guide"
+echo "======================================"
 echo ""
-echo "2. Edit .env and add your GEMINI_API_KEY"
+echo "1. Edit .env and add your GEMINI_API_KEY"
 echo ""
-echo "3. Start the server:"
-echo "   uvicorn app.main:app --reload"
+echo "2. Start the backend server:"
+echo "   uv run uvicorn app.main:app --reload"
 echo ""
-echo "4. Visit http://127.0.0.1:8000/docs to test the API"
+if [ "$SKIP_FRONTEND" = false ]; then
+    echo "3. Start the frontend (in a new terminal):"
+    echo "   cd frontend && npm run dev"
+    echo ""
+    echo "4. Open http://localhost:3000 in your browser"
+else
+    echo "3. Visit http://127.0.0.1:8000/docs to test the API"
+fi
 echo ""
 echo "For more details, see docs/SETUP.md"
+

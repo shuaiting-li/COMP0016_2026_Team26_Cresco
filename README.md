@@ -1,392 +1,141 @@
 # Agritech AI Assistant
 
-> An intelligent, multi-agent farming assistant powered by LLM and RAG for sustainable agriculture.
+> Intelligent farming assistant powered by LLM and RAG for sustainable agriculture.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.124+-green.svg)](https://fastapi.tiangolo.com)
+[![uv](https://img.shields.io/badge/uv-package%20manager-blueviolet)](https://docs.astral.sh/uv/)
 
 ---
 
-## 📋 Project Overview
-
-The Agritech AI Assistant is an open-source, cost-effective farming advisory system that helps smallholder farmers with:
-
-- 🌾 **Daily Task Recommendations** - Intelligent planning for farm activities
-- 💬 **Agricultural Q&A** - Natural conversation powered by LLM and RAG
-- 📚 **Knowledge Retrieval** - Access to agricultural best practices with citations
-- 🎯 **Context-Aware Advice** - Personalized based on location and farm type
-
-**Current Status**: MVP Backend (LLM + RAG) ✅ | Frontend UI ✅ | Vision Module 🚧
-
-> 📄 **Full Project Specification**: See [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md)
-
----
-
-## ✨ Key Features
-
-### Current Implementation (v0.1)
-
-- ✅ **FastAPI Backend** with `/chat`, `/ingest`, and `/health` endpoints
-- ✅ **RAG System** with vector-based document retrieval
-- ✅ **LLM Integration** (Google Gemini) with offline fallback mode
-- ✅ **Multi-Agent Architecture** (Planner, RAG, Chat agents)
-- ✅ **Conversation Memory** with rolling buffer
-- ✅ **Auto-Ingestion** of markdown knowledge base on startup
-- ✅ **Type-Safe API** with Pydantic schemas
-
-- ✅ **React Frontend** with ChatGPT-style dark theme UI
-- ✅ **Task Cards** displaying planner recommendations
-- ✅ **Citation Display** from RAG results
-
-### Planned Features
-
-- 🚧 Image processing for crop/pest identification
-- 🚧 User authentication and profiles
-- 🚧 Persistent storage (PostgreSQL)
-- 🚧 Real-time weather integration
-- 🚧 Satellite imagery analysis
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- Node.js 18+ and npm
-- pip package manager
-- Git
+- Python 3.10+
+- Node.js 18+ (for frontend)
+- [uv](https://docs.astral.sh/uv/) (installed automatically by setup script)
 
-### One-Command Setup
+### Setup
 
 ```bash
+# Clone and setup
+git clone https://github.com/shuaiting-li/agritech-project.git
+cd agritech-project
 ./setup.sh
+
+# Add your Gemini API key to .env
+echo "GEMINI_API_KEY=your-key-here" >> .env
 ```
 
-This will:
-1. Create virtual environment
-2. Install all dependencies
-3. Create `.env` configuration file
-4. Run tests to verify setup
-
-### Manual Setup
-
-See **[docs/SETUP.md](docs/SETUP.md)** for detailed instructions.
-
-### Start the Server
+### Run
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate  # macOS/Linux
-# or
-.venv\Scripts\activate  # Windows
+# Backend (API server)
+uv run uvicorn app.main:app --reload
 
-# Start development server
-uvicorn app.main:app --reload
-
-# Or run in offline mode (no API key needed)
-LLM_MODE=offline uvicorn app.main:app --reload
+# Frontend (in separate terminal)
+cd frontend && npm run dev
 ```
 
-Server will be available at: **http://127.0.0.1:8000**
+- **API**: http://127.0.0.1:8000/docs
+- **Frontend**: http://localhost:3000
 
-### Start the Frontend
+---
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Features
 
-Frontend will be available at: **http://localhost:3000**
+| Feature | Description |
+|---------|-------------|
+| 🌾 **Task Planning** | AI-generated daily farming recommendations |
+| 💬 **Agricultural Q&A** | Natural language chat with RAG retrieval |
+| 📚 **Knowledge Base** | Vector-indexed agricultural best practices |
+| 🎯 **Context-Aware** | Personalized advice based on location and farm type |
 
-> **Note**: The frontend proxies API requests to the backend. Make sure the backend is running on port 8000.
+---
 
-### Test the API
+## API Reference
 
-**Interactive Swagger UI**: http://127.0.0.1:8000/docs
+### `POST /chat`
 
-**Example Request**:
 ```bash
 curl -X POST http://127.0.0.1:8000/chat \
   -H "Content-Type: application/json" \
-  -d '{
-    "message": "How should I water my maize crops?",
-    "location": "Kenya",
-    "farm_type": "maize"
-  }'
-```
-
----
-
-## 📚 Documentation
-
-Comprehensive documentation is available in the [`docs/`](docs/) directory:
-
-| Document | Description |
-|----------|-------------|
-| **[Project Specification](docs/PROJECT_SPEC.md)** | Complete project requirements and planning |
-| **[Setup Guide](docs/SETUP.md)** | Installation and configuration instructions |
-| **[Architecture](docs/ARCHITECTURE.md)** | System design and component overview |
-| **[Contributing](docs/CONTRIBUTING.md)** | Development guidelines and code standards |
-| **[Code Review](docs/CODEX_REVIEW.md)** | Known issues and technical debt |
-| **[Handoff Guide](docs/HANDOFF.md)** | Developer transition checklist |
-
----
-
-## 🏗️ Architecture
-
-The system uses a multi-agent architecture:
-
-```
-Client Request
-     ↓
-FastAPI Server
-     ↓
-Orchestrator
-     ↓
-┌────────┬────────┬────────┐
-│Planner │  RAG   │  Chat  │
-│ Agent  │ Agent  │ Agent  │
-└────────┴────────┴────────┘
-     ↓        ↓        ↓
-  Tasks  Knowledge  Reply
-```
-
-**Components**:
-- **Planner Agent**: Generates actionable farming tasks
-- **RAG Agent**: Retrieves relevant knowledge from vector store
-- **Chat Agent**: Produces natural language responses via LLM
-- **Memory**: Maintains conversation context (6-turn buffer)
-
-For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## 🔌 API Endpoints
-
-### `POST /chat`
-Send a message and get AI-powered farming advice.
-
-**Request**:
-```json
-{
-  "message": "How do I control pests?",
-  "location": "Kenya",
-  "farm_type": "maize",
-  "goals": ["increase yield", "reduce pesticide use"]
-}
-```
-
-**Response**:
-```json
-{
-  "reply": "For pest control in maize farming...",
-  "tasks": [
-    {
-      "title": "Scout for pests",
-      "detail": "Inspect crops twice weekly",
-      "priority": "high"
-    }
-  ],
-  "citations": ["pest_management.md"]
-}
+  -d '{"message": "How should I water maize?", "location": "Kenya", "farm_type": "maize"}'
 ```
 
 ### `POST /ingest`
-Add documents to the knowledge base.
-
-**Request**:
-```json
-{
-  "documents": [
-    {
-      "doc_id": "fertilizer-guide",
-      "text": "Apply NPK at 50kg per hectare...",
-      "metadata": {"source": "manual", "year": 2025}
-    }
-  ]
-}
-```
-
-**Response**:
-```json
-{
-  "chunks_added": 3
-}
-```
+Add documents to knowledge base.
 
 ### `GET /health`
 Health check endpoint.
 
-**Response**:
-```json
-{
-  "status": "ok"
-}
-```
+Full API documentation: http://127.0.0.1:8000/docs
 
 ---
 
-## ⚙️ Configuration
-
-Configuration via environment variables or `.env` file:
+## Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GEMINI_API_KEY` | Google Gemini API key ([Get one](https://aistudio.google.com/app/apikey)) | None (offline mode) |
+| `GEMINI_API_KEY` | [Google Gemini API key](https://aistudio.google.com/app/apikey) | Required |
 | `LLM_MODE` | `gemini` or `offline` | `gemini` |
-| `GEMINI_MODEL` | Text generation model | `models/gemini-2.5-flash` |
-| `GEMINI_EMBEDDING_MODEL` | Embedding model | `models/text-embedding-004` |
-| `RAG_TOP_K` | Number of retrieved chunks | `4` |
-| `CHUNK_SIZE` | Characters per chunk | `500` |
-| `MAX_HISTORY` | Conversation turns to keep | `6` |
+| `RAG_TOP_K` | Retrieved chunks count | `4` |
+| `MAX_HISTORY` | Conversation turns | `6` |
 
-See [docs/SETUP.md](docs/SETUP.md) for complete configuration details.
+See [.env.example](.env.example) for all options.
 
 ---
 
-## 🧪 Testing
-
-```bash
-# Run all tests
-pytest -v
-
-# Run specific test file
-pytest tests/test_api_integration.py -v
-
-# Run with coverage
-pytest --cov=agritech_core --cov-report=html
-```
-
-**Test Coverage**: ~60% (aim for >80%)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please read our [Contributing Guidelines](docs/CONTRIBUTING.md) before submitting PRs.
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and add tests
-4. Run tests (`pytest -v`)
-5. Commit with conventional commits (`git commit -m "feat: add new feature"`)
-6. Push to your fork (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for detailed guidelines.
-
----
-
-## 📦 Project Structure
+## Project Structure
 
 ```
 agritech-project/
-├── agritech_core/          # Core business logic
-│   ├── agents.py           # Multi-agent orchestrator
-│   ├── llm.py              # LLM client wrappers
-│   ├── rag.py              # RAG pipeline
-│   ├── memory.py           # Conversation memory
-│   └── schemas.py          # Pydantic models
-├── app/
-│   └── main.py             # FastAPI application
-├── frontend/               # React frontend (TypeScript)
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── services/       # API client
-│   │   └── types/          # TypeScript types
-│   ├── package.json        # Node.js dependencies
-│   └── vite.config.ts      # Vite configuration
-├── data/
-│   └── knowledge_base/     # Agricultural knowledge (markdown)
-├── docs/                   # Documentation
-├── tests/                  # Test suite
-├── .env.example            # Environment template
-├── setup.sh                # Quick setup script
-└── pyproject.toml          # Python dependencies
+├── agritech_core/      # Core logic (agents, RAG, LLM)
+├── app/                # FastAPI application
+├── frontend/           # React frontend
+├── data/knowledge_base/# Agricultural knowledge (markdown)
+├── tests/              # Test suite
+├── pyproject.toml      # Dependencies
+└── uv.lock             # Locked dependency versions
 ```
 
 ---
 
-## 🐛 Known Issues
+## Development
 
-See [docs/CODEX_REVIEW.md](docs/CODEX_REVIEW.md) for detailed code review and known issues.
+```bash
+# Install with dev dependencies
+uv sync --dev
 
-**Critical Issues**:
-- Deprecated FastAPI `on_event` usage
-- Global mutable state (doesn't support multi-worker)
-- Hash-based embeddings in offline mode (non-semantic)
-- No input validation/rate limiting
-- Security improvements needed
+# Run tests
+uv run pytest -v
 
-**Status**: These are being addressed in upcoming releases.
-
----
-
-## 📅 Roadmap
-
-### Milestone 1 (Dec 12, 2025)
-- ✅ Backend API with RAG
-- 🚧 Frontend UI
-- 🚧 User authentication
-
-### Milestone 2 (Jan 15, 2026)
-- 🔜 Image upload and analysis
-- 🔜 Weather integration
-- 🔜 Enhanced memory system
-
-### Milestone 3 (Feb 6, 2026)
-- 🔜 Satellite imagery support
-- 🔜 Farm boundary mapping
-- 🔜 Mobile-responsive UI
-
-### Milestone 4 (Mar 3, 2026)
-- 🔜 Production deployment
-- 🔜 Performance optimization
-- 🔜 Complete documentation
-
-See [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md) for complete timeline.
+# Type checking
+uv run mypy agritech_core
+```
 
 ---
 
-## 👥 Team
+## Contributing
 
-**NTTDATA AI for Sustainability Agritech Team**
-- Sagar
-- Sanchi
-- Shuaiting
-- Vivek
-
-**Supervisor**: Professor Graham Roberts
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines on:
+- Dependency management with uv
+- Branch naming and commits
+- Pull request process
 
 ---
 
-## 📄 License
+## Team
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- Google Gemini for LLM and embedding APIs
-- FastAPI for the excellent web framework
-- Open-source agricultural datasets
-- NTTDATA for project sponsorship
+**System Engineering Team 26, working with NTT DATA**
 
 ---
 
-## 📞 Support
+## License
 
-- 📖 **Documentation**: [docs/](docs/)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/shuaiting-li/agritech-project/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/shuaiting-li/agritech-project/discussions)
+MIT License - see [LICENSE](LICENSE)
 
 ---
 
-**Made with 🌱 for sustainable agriculture**
+> 📁 **Legacy docs**: [docs/archived/](docs/archived/INDEX.md)

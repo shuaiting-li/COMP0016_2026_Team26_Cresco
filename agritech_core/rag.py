@@ -51,7 +51,9 @@ class TextChunker:
             chunk_text = text[start:end]
             chunk_id = f"{document.doc_id}-{len(chunks)}"
             chunk_meta = document.metadata | {"source_doc": document.doc_id}
-            chunks.append(Chunk(chunk_id=chunk_id, text=chunk_text, metadata=chunk_meta))
+            chunks.append(
+                Chunk(chunk_id=chunk_id, text=chunk_text, metadata=chunk_meta)
+            )
             start = end - self.overlap
             if start < 0:
                 start = 0
@@ -61,7 +63,9 @@ class TextChunker:
 
 
 class BaseEmbeddingClient:
-    def embed(self, texts: Sequence[str]) -> list[list[float]]:  # pragma: no cover - interface
+    def embed(
+        self, texts: Sequence[str]
+    ) -> list[list[float]]:  # pragma: no cover - interface
         raise NotImplementedError
 
 
@@ -100,14 +104,19 @@ def _extract_embedding_values(payload: Any) -> list[float]:
     if isinstance(embedding, dict):
         values = embedding.get("values")
     else:
-        values = getattr(embedding, "values", embedding if isinstance(embedding, list) else None)
+        values = getattr(
+            embedding, "values", embedding if isinstance(embedding, list) else None
+        )
     if values is None:
         raise ValueError("Gemini embedding missing values")
     return [float(v) for v in values]
 
 
 class GeminiEmbeddingClient(BaseEmbeddingClient):
-    """Embedding client backed by the Gemini API."""
+    """Embedding client backed by the Gemini API with batch support."""
+
+    # Gemini API supports up to 100 texts per batch request
+    BATCH_SIZE = 100
 
     def __init__(self, api_key: str, model: str) -> None:
         try:
@@ -122,12 +131,53 @@ class GeminiEmbeddingClient(BaseEmbeddingClient):
         self._genai = genai
         self._model = model
 
+    def _embed_batch(self, texts: Sequence[str]) -> list[list[float]]:
+        """Embed a batch of texts in a single API call."""
+        result = self._genai.embed_content(model=self._model, content=list(texts))
+        # Handle batch response - returns dict with 'embedding' containing list of embeddings
+        if isinstance(result, dict) and "embedding" in result:
+            embeddings_data = result["embedding"]
+            if (
+                isinstance(embeddings_data, list)
+                and embeddings_data
+                and isinstance(embeddings_data[0], list)
+            ):
+                # Already a list of embeddings
+                return [[float(v) for v in emb] for emb in embeddings_data]
+            elif isinstance(embeddings_data, list):
+                # Single embedding returned as list
+                return [[float(v) for v in embeddings_data]]
+        # Handle object response
+        embedding_attr = getattr(result, "embedding", None)
+        if embedding_attr is not None:
+            if (
+                isinstance(embedding_attr, list)
+                and embedding_attr
+                and isinstance(embedding_attr[0], list)
+            ):
+                return [[float(v) for v in emb] for emb in embedding_attr]
+            elif isinstance(embedding_attr, list):
+                return [[float(v) for v in embedding_attr]]
+        raise ValueError(f"Unexpected embedding response format: {type(result)}")
+
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        embeddings: list[list[float]] = []
-        for text in texts:
-            result = self._genai.embed_content(model=self._model, content=text)
-            embeddings.append(_extract_embedding_values(result))
-        return embeddings
+        """Embed texts using batch API calls for efficiency."""
+        if not texts:
+            return []
+
+        all_embeddings: list[list[float]] = []
+        total_batches = (len(texts) + self.BATCH_SIZE - 1) // self.BATCH_SIZE
+
+        for i in range(0, len(texts), self.BATCH_SIZE):
+            batch = texts[i : i + self.BATCH_SIZE]
+            batch_num = i // self.BATCH_SIZE + 1
+            logger.info(
+                f"Embedding batch {batch_num}/{total_batches} ({len(batch)} texts)"
+            )
+            batch_embeddings = self._embed_batch(batch)
+            all_embeddings.extend(batch_embeddings)
+
+        return all_embeddings
 
 
 class SimpleVectorStore:
@@ -148,7 +198,9 @@ class SimpleVectorStore:
             self._vectors.append(self._normalize(vector))
             self._chunks.append(chunk)
 
-    def similarity_search(self, query_embedding: list[float], top_k: int) -> list[RetrievedChunk]:
+    def similarity_search(
+        self, query_embedding: list[float], top_k: int
+    ) -> list[RetrievedChunk]:
         if not self._vectors:
             return []
         query = self._normalize(np.array(query_embedding, dtype=np.float32))
@@ -190,7 +242,9 @@ class KnowledgeBase:
                 model=self.settings.embedding_model,
             )
         self.vector_store = vector_store or SimpleVectorStore()
-        self.chunker = TextChunker(self.settings.chunk_size, self.settings.chunk_overlap)
+        self.chunker = TextChunker(
+            self.settings.chunk_size, self.settings.chunk_overlap
+        )
 
     def ingest(self, documents: Iterable[Document]) -> int:
         chunk_buffer: list[Chunk] = []
@@ -206,7 +260,9 @@ class KnowledgeBase:
         if not query.strip():
             return []
         embeddings = self.embedding_client.embed([query])
-        return self.vector_store.similarity_search(embeddings[0], top_k or self.settings.rag_top_k)
+        return self.vector_store.similarity_search(
+            embeddings[0], top_k or self.settings.rag_top_k
+        )
 
     @staticmethod
     def load_markdown_dir(path: str | Path) -> list[Document]:
@@ -214,5 +270,11 @@ class KnowledgeBase:
         directory = Path(path)
         for idx, file in enumerate(sorted(directory.glob("*.md"))):
             text = file.read_text(encoding="utf-8")
-            docs.append(Document(doc_id=file.stem or f"doc-{idx}", text=text, metadata={"path": str(file)}))
+            docs.append(
+                Document(
+                    doc_id=file.stem or f"doc-{idx}",
+                    text=text,
+                    metadata={"path": str(file)},
+                )
+            )
         return docs

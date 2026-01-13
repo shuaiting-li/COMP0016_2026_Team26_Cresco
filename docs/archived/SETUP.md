@@ -438,16 +438,16 @@ agritech-project/
 
 ## Environment Variables Reference
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | For production | None | Google Gemini API key |
-| `LLM_MODE` | No | `gemini` | `gemini` or `offline` |
-| `GEMINI_MODEL` | No | `models/gemini-2.0-flash-exp` | Text generation model |
-| `GEMINI_EMBEDDING_MODEL` | No | `models/text-embedding-004` | Embedding model |
-| `RAG_TOP_K` | No | `4` | Number of retrieved chunks |
-| `CHUNK_SIZE` | No | `500` | Characters per chunk |
-| `CHUNK_OVERLAP` | No | `50` | Overlap between chunks |
-| `MAX_HISTORY` | No | `6` | Conversation turns to keep |
+| Variable                 | Required       | Default                     | Description                |
+| ------------------------ | -------------- | --------------------------- | -------------------------- |
+| `GEMINI_API_KEY`         | For production | None                        | Google Gemini API key      |
+| `LLM_MODE`               | No             | `gemini`                    | `gemini` or `offline`      |
+| `GEMINI_MODEL`           | No             | `models/gemini-2.5-flash`   | Text generation model      |
+| `GEMINI_EMBEDDING_MODEL` | No             | `models/text-embedding-004` | Embedding model            |
+| `RAG_TOP_K`              | No             | `4`                         | Number of retrieved chunks |
+| `CHUNK_SIZE`             | No             | `500`                       | Characters per chunk       |
+| `CHUNK_OVERLAP`          | No             | `50`                        | Overlap between chunks     |
+| `MAX_HISTORY`            | No             | `6`                         | Conversation turns to keep |
 
 ---
 
