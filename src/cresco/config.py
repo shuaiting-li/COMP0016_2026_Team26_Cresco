@@ -17,9 +17,15 @@ class Settings(BaseSettings):
 
     # Model settings (API keys are read directly from env by LangChain)
     # Supported providers: openai, google-genai, anthropic, azure-openai, etc.
-    model_provider: str = "openai"
+    model_provider: str = "azure-openai"
     model_name: str = "gpt-4o-mini"
-    embedding_model: str = "models/text-embedding-004"
+    embedding_model: str = "text-embedding-ada-002"
+
+    # Azure OpenAI settings (required when model_provider=azure-openai)
+    azure_openai_endpoint: str = ""
+    azure_openai_api_version: str = "2024-08-01-preview"
+    azure_openai_deployment: str = ""  # Chat model deployment name
+    azure_openai_embedding_deployment: str = ""  # Embedding model deployment name
 
     # ChromaDB settings
     chroma_persist_dir: str = "./data/chroma_db"
