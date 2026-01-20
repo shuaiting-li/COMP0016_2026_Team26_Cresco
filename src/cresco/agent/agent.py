@@ -26,13 +26,13 @@ class CrescoAgent:
         # Initialize the chat model based on provider
         if self.settings.model_provider == "azure-openai":
             # Azure OpenAI requires specific configuration
+            # Note: Some Azure models (like o3-mini) only support default temperature
             from langchain_openai import AzureChatOpenAI
 
             model = AzureChatOpenAI(
                 azure_deployment=self.settings.azure_openai_deployment,
                 azure_endpoint=self.settings.azure_openai_endpoint,
                 api_version=self.settings.azure_openai_api_version,
-                temperature=0.3,
             )
         else:
             # Other providers (openai, google-genai, anthropic, etc.)
