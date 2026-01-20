@@ -41,3 +41,4 @@ nohup.out
 *.db
 *.sqlite
 *.sqlite3
+data/chroma_db/
