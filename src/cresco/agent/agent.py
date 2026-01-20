@@ -23,13 +23,23 @@ class CrescoAgent:
 
     def _build_agent(self):
         """Build the agent using create_agent with retrieval tool."""
-        # Initialize the chat model
-        # API key is automatically picked up from env var (OPENAI_API_KEY, GOOGLE_API_KEY, etc.)
-        model = init_chat_model(
-            self.settings.model_name,
-            model_provider=self.settings.model_provider,
-            temperature=0.3,
-        )
+        # Initialize the chat model based on provider
+        if self.settings.model_provider == "azure-openai":
+            # Azure OpenAI requires specific configuration
+            from langchain_openai import AzureChatOpenAI
+            model = AzureChatOpenAI(
+                azure_deployment=self.settings.azure_openai_deployment,
+                azure_endpoint=self.settings.azure_openai_endpoint,
+                api_version=self.settings.azure_openai_api_version,
+                temperature=0.3,
+            )
+        else:
+            # Other providers (openai, google-genai, anthropic, etc.)
+            model = init_chat_model(
+                self.settings.model_name,
+                model_provider=self.settings.model_provider,
+                temperature=0.3,
+            )
 
         # Create retrieval tool with access to vector store
         vector_store = self.vector_store
