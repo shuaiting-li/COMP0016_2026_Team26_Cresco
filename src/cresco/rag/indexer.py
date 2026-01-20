@@ -1,10 +1,17 @@
 """Document indexing for the vector store."""
 
+import asyncio
+import time
+
 from langchain_chroma import Chroma
 
 from cresco.config import Settings
 from .document_loader import load_knowledge_base, split_documents
 from .embeddings import get_embeddings
+
+# Batch settings for rate limit handling
+BATCH_SIZE = 10  # Number of documents per batch
+BATCH_DELAY = 1.0  # Seconds to wait between batches
 
 
 def is_indexed(settings: Settings) -> bool:
@@ -68,12 +75,53 @@ async def index_knowledge_base(settings: Settings, force: bool = False) -> int:
     documents = load_knowledge_base(settings)
     chunks = split_documents(documents)
 
-    # Create vector store with documents
-    vectorstore = Chroma.from_documents(
-        documents=chunks,
-        embedding=get_embeddings(),
+    print(f"📄 Loaded {len(documents)} documents, split into {len(chunks)} chunks")
+    print(f"🔄 Indexing in batches of {BATCH_SIZE} with {BATCH_DELAY}s delay...")
+
+    # Initialize empty vector store
+    embeddings = get_embeddings()
+    vectorstore = Chroma(
         persist_directory=str(chroma_path),
+        embedding_function=embeddings,
         collection_name="cresco_knowledge_base",
     )
 
-    return len(chunks)
+    # Process in batches to avoid rate limits
+    total_indexed = 0
+    for i in range(0, len(chunks), BATCH_SIZE):
+        batch = chunks[i : i + BATCH_SIZE]
+        batch_num = (i // BATCH_SIZE) + 1
+        total_batches = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
+
+        print(
+            f"  📦 Batch {batch_num}/{total_batches}: {len(batch)} chunks...",
+            end=" ",
+            flush=True,
+        )
+
+        try:
+            # Add batch to vector store
+            vectorstore.add_documents(batch)
+            total_indexed += len(batch)
+            print("✅")
+
+            # Delay between batches (except for the last one)
+            if i + BATCH_SIZE < len(chunks):
+                await asyncio.sleep(BATCH_DELAY)
+
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            # On rate limit, wait longer and retry
+            if "rate" in str(e).lower() or "429" in str(e):
+                print(f"  ⏳ Rate limited, waiting 30s...")
+                await asyncio.sleep(30)
+                try:
+                    vectorstore.add_documents(batch)
+                    total_indexed += len(batch)
+                    print(f"  ✅ Retry successful")
+                except Exception as retry_error:
+                    print(f"  ❌ Retry failed: {retry_error}")
+                    raise
+
+    print(f"🎉 Indexed {total_indexed} chunks successfully")
+    return total_indexed
