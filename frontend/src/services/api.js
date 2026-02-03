@@ -2,7 +2,8 @@
  * API service for communicating with the Cresco backend
  */
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Use environment variable or default to localhost:8000
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 /**
  * Send a message to the chatbot and get a response
@@ -24,6 +25,9 @@ export async function sendMessage(message, conversationId = null, files = []) {
             })
         );
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
+
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
             headers: {
@@ -34,7 +38,10 @@ export async function sendMessage(message, conversationId = null, files = []) {
                 conversation_id: conversationId,
                 files: fileData.length > 0 ? fileData : null,
             }),
+            signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -52,6 +59,10 @@ export async function sendMessage(message, conversationId = null, files = []) {
             conversationId: data.conversation_id,
         };
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('Request timed out');
+            throw new Error('Request timed out. The server took too long to respond.');
+        }
         console.error('Error sending message:', error);
         throw error;
     }
