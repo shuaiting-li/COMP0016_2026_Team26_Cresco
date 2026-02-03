@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file="../.env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -28,10 +28,10 @@ class Settings(BaseSettings):
     azure_openai_embedding_deployment: str = ""  # Embedding model deployment name
 
     # ChromaDB settings
-    chroma_persist_dir: str = "./data/chroma_db"
+    chroma_persist_dir: str = "../data/chroma_db"
 
     # Knowledge base
-    knowledge_base_path: str = "./data/knowledge_base"
+    knowledge_base_path: str = "../data/knowledge_base"
 
     # API settings
     api_host: str = "0.0.0.0"
