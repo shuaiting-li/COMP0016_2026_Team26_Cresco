@@ -19,12 +19,14 @@ function App() {
     const [conversationId, setConversationId] = useState(null);
 
     const handleFileUpload = async (e) => {
+        setIsLoading(true);
         const uploadedFiles = Array.from(e.target.files);
         console.log("Uploading files:");
         for (const file of uploadedFiles) {
             try {
                 await uploadAndIndexFile(file);
                 setFiles(prev => [...prev, file]);
+                setIsLoading(false);
             } catch (error) {
                 console.error("Failed to upload and index:", file.name);
             }
@@ -70,7 +72,7 @@ function App() {
             ]);
 
             // Clear files after successful send
-            setFiles([]);
+            // setFiles([]); 
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [
