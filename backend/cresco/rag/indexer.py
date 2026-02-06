@@ -53,19 +53,15 @@ async def index_knowledge_base(settings: Settings, force: bool = False, upload_f
     Returns:
         Number of document chunks indexed.
     """
-    print("[*] Starting knowledge base indexing...")  ##debug line
     chroma_path = settings.chroma_path
 
     # Check if already indexed
-    print("[*] Checking previous knowledge base indexing...")  ##debug line
-
     if not force and is_indexed(settings) and not upload_file:
         vectorstore = Chroma(
             persist_directory=str(chroma_path),
             embedding_function=get_embeddings(),
             collection_name="cresco_knowledge_base",
         )
-        print("[*] Knowledge base already indexed. Skipping re-indexing.")  ##debug line
         return vectorstore._collection.count()
 
     # Clear existing index if force re-index
@@ -73,11 +69,9 @@ async def index_knowledge_base(settings: Settings, force: bool = False, upload_f
         import shutil
 
         shutil.rmtree(chroma_path)
-    print("[*] creating knowledge base indexing...")  ##debug line
 
     # Create directory if needed
     chroma_path.mkdir(parents=True, exist_ok=True)
-    print("[*] Load and split knowledge base indexing...")  ##debug line
 
     # Load and split documents
     documents = load_knowledge_base(settings)
