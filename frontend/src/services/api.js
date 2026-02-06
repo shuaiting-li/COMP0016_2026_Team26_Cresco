@@ -13,6 +13,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
  * @returns {Promise<{reply: string, tasks: Array, citations: Array}>}
  */
 export async function sendMessage(message, conversationId = null, files = []) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
+
     try {
         // Read file contents if files are provided
         const fileData = await Promise.all(
@@ -24,9 +27,6 @@ export async function sendMessage(message, conversationId = null, files = []) {
                 };
             })
         );
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
 
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
@@ -40,8 +40,6 @@ export async function sendMessage(message, conversationId = null, files = []) {
             }),
             signal: controller.signal,
         });
-
-        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -65,6 +63,8 @@ export async function sendMessage(message, conversationId = null, files = []) {
         }
         console.error('Error sending message:', error);
         throw error;
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 
