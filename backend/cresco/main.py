@@ -39,11 +39,18 @@ def create_app() -> FastAPI:
     )
 
     # Configure CORS for frontend access
+    # Note: allow_origins=["*"] with allow_credentials=True is not valid per CORS spec
+    # Use specific origins in production
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Configure appropriately for production
+        allow_origins=[
+            "http://localhost:5173",  # Vite dev server
+            "http://localhost:3000",  # Alternative dev port
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
+        ],
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
