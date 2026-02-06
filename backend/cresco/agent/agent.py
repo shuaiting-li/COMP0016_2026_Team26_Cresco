@@ -128,9 +128,14 @@ class CrescoAgent:
         for msg in result["messages"]:
             if hasattr(msg, "artifact") and msg.artifact:
                 for doc in msg.artifact:
-                    source = doc.metadata.get("filename", "Unknown")
-                    if source not in sources:
-                        sources.append(source)
+                    # Support both Document objects and dicts  -> short term fix, might be a deeper issue to resolve? probably just from json conversion during upload
+                    metadata = getattr(doc, "metadata", None)
+                    if metadata is None and isinstance(doc, dict):
+                        metadata = doc.get("metadata", {})
+                    if metadata:
+                        source = metadata.get("filename", "Unknown")
+                        if source not in sources:
+                            sources.append(source)
 
         return {
             "answer": answer,

@@ -71,8 +71,7 @@ function App() {
                 }
             ]);
 
-            // Clear files after successful send
-            // setFiles([]); 
+        // setFiles([]); 
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [

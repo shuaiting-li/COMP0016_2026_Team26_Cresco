@@ -50,7 +50,6 @@ async def chat(
                 file_content = file.get("content", "")
                 file_context += f"\n--- {file_name} ---\n{file_content}\n"
             message = message + file_context
-
         result = await agent.chat(message)
         return ChatResponse(
             answer=result["answer"],
@@ -59,24 +58,29 @@ async def chat(
             conversation_id=request.conversation_id,
         )
     except Exception as e:
+        print(f"Error during chat processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
 async def upload_file(file: UploadFile = File(...),settings: Settings = Depends(get_settings)):
-    upload_dir = settings.knowledge_base
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        upload_dir = settings.knowledge_base
+        upload_dir.mkdir(parents=True, exist_ok=True)
 
-    file_path = upload_dir / file.filename
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # Trigger reindexing
-    print(f"uploaded file: {file.filename}")
+        file_path = upload_dir / file.filename
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Trigger reindexing
+        print(f"uploaded file: {file.filename}")
 
-    await index_knowledge_base(settings, force=False, upload_file=file.filename) 
-    print(f"ran index file: {file.filename}")
-    
-    return {"filename": file.filename, "status": "indexed"}
+        await index_knowledge_base(settings, force=False, upload_file=file.filename) 
+        print(f"ran index file: {file.filename}")
+        
+        return {"filename": file.filename, "status": "indexed"}
+    except Exception as e:
+        print(f"Error uploading file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])
