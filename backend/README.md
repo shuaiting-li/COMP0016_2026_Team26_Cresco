@@ -11,7 +11,7 @@ See the [main README](../README.md) for full documentation.
 uv sync
 
 # Start development server
-uv run uvicorn cresco.main:app --reload --port 8001
+uv run uvicorn cresco.main:app --reload --port 8000
 ```
 
 ## Development
