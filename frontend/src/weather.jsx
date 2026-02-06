@@ -11,7 +11,12 @@ const Weather = ({ lat, lon }) => {
         if (!lat || !lon) return;
 
         const fetchWeather = async () => {
-            const apiKey = "API-KEY"; // Replace with your OpenWeather API key
+            const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+            if (!apiKey) {
+                setError("API key is missing. Please set VITE_OPENWEATHER_API_KEY in your .env file.");
+                return;
+            }
 
             try {
                 // Fetch current weather
@@ -36,7 +41,27 @@ const Weather = ({ lat, lon }) => {
                 }
                 const forecastData = await forecastResponse.json();
                 setForecast(forecastData);
+
+                // Send weather and forecast data to the backend
+                const backendResponse = await fetch("http://127.0.0.1:8000/api/v1/weather-data", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        location: weatherData.name,
+                        currentWeather: weatherData,
+                        forecast: forecastData
+                    })
+                });
+
+                if (!backendResponse.ok) {
+                    throw new Error("Failed to send weather data to the backend");
+                }
+
+                console.log("Weather data sent to backend successfully", weatherData, forecastData);
             } catch (err) {
+                console.error("Error in fetchWeather:", err); // Debugging log for errors
                 setError(err.message);
             }
         };
