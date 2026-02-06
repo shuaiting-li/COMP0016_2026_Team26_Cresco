@@ -113,23 +113,26 @@ class CrescoAgent:
         if "---TASKS---" in answer and "---END_TASKS---" in answer:
             try:
                 import json
+
                 task_start = answer.index("---TASKS---") + len("---TASKS---")
                 task_end = answer.index("---END_TASKS---")
                 task_json = answer[task_start:task_end].strip()
                 tasks = json.loads(task_json)
                 # Remove the task section from the answer
-                answer = answer[:answer.index("---TASKS---")].strip()
+                answer = answer[: answer.index("---TASKS---")].strip()
             except (ValueError, json.JSONDecodeError) as e:
                 # If parsing fails, just leave tasks empty
                 pass
 
         # Extract sources from tool artifacts if available
         sources = []
-        for i in range(len(result["messages"]) - 1, len(result["messages"])-3, -1):   # Check the last 2 messages for artifacts (tool message is usually the second last message)
+        for i in range(
+            len(result["messages"]) - 1, len(result["messages"]) - 3, -1
+        ):  # Check the last 2 messages for artifacts (tool message is usually the second last message)
             msg = result["messages"][i]
             if hasattr(msg, "artifact") and msg.artifact:
                 for doc in msg.artifact:
-                    # Support both Document objects and dicts  -> short term fix, might be a deeper issue to resolve? probably just from json conversion during upload
+                    # Support both Document objects and dicts  -> TODO: short term fix, might be a deeper issue to resolve? probably just from json conversion during upload
                     metadata = getattr(doc, "metadata", None)
                     if metadata is None and isinstance(doc, dict):
                         metadata = doc.get("metadata", {})
@@ -138,7 +141,7 @@ class CrescoAgent:
                         if source not in sources:
                             sources.append(source)
                 break  # Only consider the first message with artifacts for sources
-                
+
         return {
             "answer": answer,
             "sources": sources,
