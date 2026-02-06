@@ -1,0 +1,38 @@
+/* Weather.css */
+
+.weather-container {
+    background-color: black;
+    color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    font-family: sans-serif;
+    max-height: 72vh; /* Restrict height to 80% of the viewport */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.weather-title {
+    font-size: 24px;
+    margin-bottom: 1rem;
+}
+
+.weather-card {
+    background-color: #333;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.forecast-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.forecast-card {
+    background-color: #333;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}

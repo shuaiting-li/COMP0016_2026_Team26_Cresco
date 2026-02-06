@@ -4,6 +4,8 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import { sendMessage, uploadAndIndexFile } from './services/api';
+import SatelliteMap from './satellite';
+import Weather from './weather';
 
 const layoutStyle = {
     display: 'flex',
@@ -17,6 +19,9 @@ function App() {
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [conversationId, setConversationId] = useState(null);
+    const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
+    const [isWeatherOpen, setIsWeatherOpen] = useState(false);
+    const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
 
     const handleFileUpload = async (e) => {
         setIsLoading(true);
@@ -40,22 +45,18 @@ function App() {
     const handleSendMessage = async (text) => {
         if (!text.trim()) return;
 
-        // 1. Add User Message
         const userMsg = {
             id: Date.now(),
             role: 'user',
             content: text
         };
 
-        // This is the moment the Central Logo disappears (messages.length > 0)
         setMessages(prev => [...prev, userMsg]);
         setIsLoading(true);
 
         try {
-            // 2. Call Real API with conversation ID and uploaded files
             const response = await sendMessage(text, conversationId, files);
 
-            // Update conversation ID if provided
             if (response.conversationId) {
                 setConversationId(response.conversationId);
             }
@@ -66,12 +67,11 @@ function App() {
                     id: Date.now() + 1,
                     role: 'assistant',
                     content: response.reply,
-                    tasks: response.tasks,      // Pass tasks through
-                    citations: response.citations // Pass citations through
+                    tasks: response.tasks,
+                    citations: response.citations
                 }
             ]);
 
-        // setFiles([]); 
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [
@@ -87,6 +87,22 @@ function App() {
         }
     };
 
+    const handleOpenSatellite = () => {
+        setIsSatelliteOpen(true);
+    };
+
+    const handleCloseSatellite = () => {
+        setIsSatelliteOpen(false);
+    };
+
+    const handleOpenWeather = () => {
+        setIsWeatherOpen(true);
+    };
+
+    const handleCloseWeather = () => {
+        setIsWeatherOpen(false);
+    };
+
     return (
         <div className="app-container">
             <Header />
@@ -96,14 +112,112 @@ function App() {
                     onUpload={handleFileUpload}
                     onRemove={handleRemoveFile}
                 />
-                <ChatArea
-                    files={files}
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
-                    isLoading={isLoading}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <ChatArea
+                        files={files}
+                        messages={messages}
+                        onSendMessage={handleSendMessage}
+                        isLoading={isLoading}
+                    />
+                </div>
+                <SidebarRight
+                    handleOpenSatellite={handleOpenSatellite}
+                    handleOpenWeather={handleOpenWeather}
                 />
-                <SidebarRight />
             </div>
+
+            {isSatelliteOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        position: 'relative',
+                        width: '80%',
+                        height: '80%',
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                    }}>
+                        <button
+                            onClick={handleCloseSatellite}
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                backgroundColor: 'red',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            X
+                        </button>
+                        <SatelliteMap
+                            farmLocation={farmLocation}
+                            setFarmLocation={setFarmLocation}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {isWeatherOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        position: 'relative',
+                        width: '80%',
+                        height: '80%',
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                    }}>
+                        <button
+                            onClick={handleCloseWeather}
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                backgroundColor: 'red',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            X
+                        </button>
+                        {farmLocation ? (
+                            <Weather lat={farmLocation.lat} lon={farmLocation.lng} />
+                        ) : (
+                            <div>Please select a farm location first.</div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

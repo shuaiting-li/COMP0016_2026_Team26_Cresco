@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@turf/area": "^7.3.3",
+    "@turf/helpers": "^7.3.3",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
