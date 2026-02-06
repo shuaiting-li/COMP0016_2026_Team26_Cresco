@@ -69,7 +69,7 @@ uv run python scripts/index_documents.py
 uv run uvicorn cresco.main:app --reload --port 8000
 ```
 
-The API documentation will be available at: http://localhost:8001/docs
+The API documentation will be available at: http://localhost:8000/docs
 
 ### Frontend Setup
 
