@@ -39,8 +39,27 @@ const createDotIcon = (isGhost = false) => {
   });
 };
 
+const createCenterIcon = () => {
+  return L.divIcon({
+    className: "custom-center-icon",
+    html: `
+      <div style="
+        background-color: #004488;  
+        width: 12px; 
+        height: 12px; 
+        border-radius: 50%; 
+        border: 2px solid white; 
+        box-shadow: 0 0 4px rgba(0,0,0,0.6);
+      "></div>
+    `,
+    iconSize: [16, 16],
+    iconAnchor: [10, 10], 
+  });
+};
+
 const realDotIcon = createDotIcon(false);  // Solid Red
 const ghostDotIcon = createDotIcon(true);  // Semi-transparent Red
+const centerDotIcon = createCenterIcon();  // Solid Blue
 
 
 //main function
@@ -82,6 +101,20 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
   const areaData = calculateGeoArea();
 
+  const polygonCenter = useMemo(() => {
+    if (positions.length === 0) return null;
+
+    let sumLat = 0;
+    let sumLng = 0;
+
+    positions.forEach(pos => {
+      sumLat += pos[0];
+      sumLng += pos[1];
+    });
+
+    return [sumLat / positions.length, sumLng / positions.length];
+  }, [positions]);
+
 
   //this is the ghost markers that can be clicked to give real markers
   const midpoints = useMemo(() => {
@@ -110,6 +143,20 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
   const updatePosition = (index, newLatLng) => {
     const newPositions = [...positions];
     newPositions[index] = [newLatLng.lat, newLatLng.lng];
+    setPositions(newPositions);
+  };
+
+  const handleCenterDrag = (newLatLng) => {
+    if (!polygonCenter) return;
+
+    const latDiff = newLatLng.lat - polygonCenter[0];
+    const lngDiff = newLatLng.lng - polygonCenter[1];
+
+    const newPositions = positions.map(pos => [
+      pos[0] + latDiff,
+      pos[1] + lngDiff
+    ]);
+
     setPositions(newPositions);
   };
 
@@ -344,6 +391,14 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
               onDrop={insertNewPoint}
             />
           ))}
+
+          {polygonCenter && (
+            <CenterMarker
+              position={polygonCenter}
+              onDrag={handleCenterDrag}
+              onDragEnd={(newLatLng) => setMapCenter([newLatLng.lat, newLatLng.lng])}
+            />
+          )}
         </MapContainer>
       </div>
 
@@ -396,6 +451,37 @@ function FlyToLocation({ center }) {
   }, [center]);
 
   return null;
+}
+
+function CenterMarker({ position, onDrag, onDragEnd }) {
+  const markerRef = useRef(null);
+
+  const eventHandlers = useMemo(
+    () => ({
+      drag() {
+        if (markerRef.current) {
+          onDrag(markerRef.current.getLatLng());
+        }
+      },
+      dragend() {
+        if (markerRef.current) {
+          onDragEnd(markerRef.current.getLatLng());
+        }
+      }
+    }),
+    [onDrag, onDragEnd]
+  );
+
+  return (
+    <Marker
+      draggable={true}
+      eventHandlers={eventHandlers}
+      position={position}
+      ref={markerRef}
+      icon={centerDotIcon}
+      zIndexOffset={100}
+    />
+  );
 }
 
 // helper component for ghost markers
