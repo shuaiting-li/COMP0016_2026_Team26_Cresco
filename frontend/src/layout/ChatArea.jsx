@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from 'react';
 import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen } from 'lucide-react';
 import styles from './ChatArea.module.css';
+import ReactMarkdown from 'react-markdown';
+
 
 export default function ChatArea({ files, messages, onSendMessage, isLoading }) {
     const [input, setInput] = useState("");
@@ -66,7 +68,7 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                     {!isUser && <div className={styles.botAvatar}><Bot size={18} /></div>}
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>
-                                            {msg.content}
+                                            <ReactMarkdown>{msg.content}</ReactMarkdown>
                                         </div>
 
                                         {/* Render Tasks if present */}
