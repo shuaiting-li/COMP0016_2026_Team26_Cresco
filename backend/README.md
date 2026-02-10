@@ -33,16 +33,3 @@ uv run pytest tests/test_api.py -v
 uv run ruff check .
 uv run ruff format .
 ```
-
-## Test Coverage
-
-The project maintains a minimum test coverage of 80%. Current coverage: **93%**
-
-```
-cresco/__init__.py          100%
-cresco/agent/               91%
-cresco/api/                 97%
-cresco/config.py            100%
-cresco/main.py              100%
-cresco/rag/                 95%
-```
