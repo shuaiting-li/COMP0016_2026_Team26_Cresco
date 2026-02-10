@@ -19,7 +19,14 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
                 <h3>Data Sources</h3>
             </div>
 
-            <input type="file" multiple ref={fileInputRef} style={{ display: 'none' }} onChange={onUpload} />
+            <input 
+                type="file" 
+                multiple 
+                accept=".md,.pdf"
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                onChange={onUpload} 
+            />
 
             <button className={styles.addBtn} onClick={() => fileInputRef.current.click()}>
                 <Plus size={18} />
