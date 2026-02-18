@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     api_port: int = 8000
     debug: bool = True
 
+    # Auth settings
+    jwt_secret_key: str = ""  # Required — set JWT_SECRET_KEY in .env
+    jwt_expiry_hours: int = 24
+    users_file: str = "./data/users.json"
+
     @property
     def chroma_path(self) -> Path:
         """Get ChromaDB persist directory as Path."""
