@@ -3,7 +3,8 @@ import Header from './layout/Header';
 import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
-import { sendMessage, uploadAndIndexFile } from './services/api';
+import AuthPage from './layout/AuthPage';
+import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 
@@ -15,6 +16,7 @@ const layoutStyle = {
 };
 
 function App() {
+    const [authenticated, setAuthenticated] = useState(isLoggedIn());
     const [files, setFiles] = useState([]);
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +24,20 @@ function App() {
     const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
+
+    const handleAuth = () => setAuthenticated(true);
+
+    const handleLogout = () => {
+        logout();
+        setAuthenticated(false);
+        setMessages([]);
+        setConversationId(null);
+        setFiles([]);
+    };
+
+    if (!authenticated) {
+        return <AuthPage onAuth={handleAuth} />;
+    }
 
     const handleFileUpload = async (e) => {
         setIsLoading(true);
@@ -105,7 +121,7 @@ function App() {
 
     return (
         <div className="app-container">
-            <Header />
+            <Header onLogout={handleLogout} username={getUsername()} />
             <div style={layoutStyle}>
                 <SidebarLeft
                     files={files}
