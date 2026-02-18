@@ -33,7 +33,7 @@ class FarmData(BaseModel):
 # Add a new endpoint to receive weather data
 class WeatherData(BaseModel):
     location: str
-    currentWeather: dict
+    current_weather: dict
     forecast: dict
 
 
@@ -68,7 +68,7 @@ async def save_weather_data(weather: WeatherData):
         user_id = "default_user"
         farm_data[user_id]["weather"] = {
             "location": weather.location,
-            "currentWeather": weather.currentWeather,
+            "current_weather": weather.current_weather,
             "forecast": weather.forecast,  # Include forecast data
         }
         return {
@@ -101,11 +101,15 @@ async def chat(
 
         user_id = "default_user"
         if user_id in farm_data:
-            farm_context = f"\n\n[Farm Data Context]:\nLocation: {farm_data[user_id]['location']}, Area: {farm_data[user_id]['area']} km²"
+            farm_context = f"\n\n[Farm Data Context]:\n\
+            Location: {farm_data[user_id]['location']}, Area: {farm_data[user_id]['area']} km²"
             message += farm_context
 
             if "weather" in farm_data[user_id]:
-                weather_context = f"\n\n[Weather Data Context]:\nLocation: {farm_data[user_id]['weather']['location']}, Current Weather: {farm_data[user_id]['weather']['currentWeather']['weather'][0]['description']}, Temperature: {farm_data[user_id]['weather']['currentWeather']['main']['temp']}°C"
+                weather_context = f"\n\n[Weather Data Context]:\n\
+                Location: {farm_data[user_id]['weather']['location']}, Current Weather: \
+                {farm_data[user_id]['weather']['current_weather']['weather'][0]['description']},\
+                Temperature: {farm_data[user_id]['weather']['current_weather']['main']['temp']}°C"
                 message += weather_context
         if request.files and len(request.files) > 0:
             file_context = "\n\n[Uploaded Files Context]:\n"

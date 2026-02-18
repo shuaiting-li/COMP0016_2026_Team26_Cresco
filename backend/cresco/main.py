@@ -3,15 +3,14 @@
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-
-load_dotenv()  # Load .env before other imports
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from cresco import __version__
 from cresco.api import router
 from cresco.config import get_settings
+
+load_dotenv()
 
 
 @asynccontextmanager

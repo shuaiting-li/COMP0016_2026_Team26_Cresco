@@ -129,11 +129,14 @@ class CrescoAgent:
         sources = []
         for i in range(
             len(result["messages"]) - 1, len(result["messages"]) - 3, -1
-        ):  # Check the last 2 messages for artifacts (tool message is usually the second last message)
+        ):  # Check the last 2 messages for artifacts
+            # (tool message is usually the second last message)
             msg = result["messages"][i]
             if hasattr(msg, "artifact") and msg.artifact:
                 for doc in msg.artifact:
-                    # Support both Document objects and dicts  -> TODO: short term fix, might be a deeper issue to resolve? probably just from json conversion during upload
+                    # Support both Document objects and dicts
+                    # TODO: short term fix, might be a deeper issue to resolve?
+                    # probably just from json conversion during upload
                     metadata = getattr(doc, "metadata", None)
                     if metadata is None and isinstance(doc, dict):
                         metadata = doc.get("metadata", {})

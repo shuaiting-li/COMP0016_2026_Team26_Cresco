@@ -41,7 +41,9 @@ def is_indexed(settings: Settings) -> bool:
         return False
 
 
-async def index_knowledge_base(settings: Settings, force: bool = False, upload_file:str = None) -> int:
+async def index_knowledge_base(
+    settings: Settings, force: bool = False, upload_file: str = None
+) -> int:
     """Index all knowledge base documents into ChromaDB.
 
     Args:
@@ -76,11 +78,11 @@ async def index_knowledge_base(settings: Settings, force: bool = False, upload_f
     documents = load_knowledge_base(settings)
 
     if upload_file:
-        documents = [doc for doc in documents if doc.metadata.get("filename") == upload_file]
-
+        documents = [
+            doc for doc in documents if doc.metadata.get("filename") == upload_file
+        ]
 
     chunks = split_documents(documents)
-
 
     print(f"[*] Loaded {len(documents)} documents, split into {len(chunks)} chunks")
     print(f"[*] Indexing in batches of {BATCH_SIZE} with {BATCH_DELAY}s delay...")

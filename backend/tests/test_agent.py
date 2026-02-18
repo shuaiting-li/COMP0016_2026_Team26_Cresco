@@ -155,7 +155,8 @@ class TestCrescoAgentChat:
                             }
                         ]
                     )
-                    response_with_tasks = f"Here is your answer.\n\n---TASKS---\n{tasks_json}\n---END_TASKS---"
+                    response_with_tasks = f"Here is your answer.\n\n\
+                    ---TASKS---\n{tasks_json}\n---END_TASKS---"
 
                     mock_message = MagicMock()
                     mock_message.content = response_with_tasks
