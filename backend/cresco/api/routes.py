@@ -62,9 +62,7 @@ async def get_farm_data(current_user: dict = Depends(get_current_user)):
 
 # Update the /weather-data endpoint to parse and store both current weather and forecast data
 @router.post("/weather-data")
-async def save_weather_data(
-    weather: WeatherData, current_user: dict = Depends(get_current_user)
-):
+async def save_weather_data(weather: WeatherData, current_user: dict = Depends(get_current_user)):
     try:
         user_id = current_user["user_id"]
         farm_data[user_id]["weather"] = {

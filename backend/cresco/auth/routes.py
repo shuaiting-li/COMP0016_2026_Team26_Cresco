@@ -39,7 +39,5 @@ async def login(request: LoginRequest) -> TokenResponse:
             detail="Invalid username or password",
         )
 
-    token = create_access_token(
-        user["id"], user["username"], is_admin=user.get("is_admin", False)
-    )
+    token = create_access_token(user["id"], user["username"], is_admin=user.get("is_admin", False))
     return TokenResponse(access_token=token, username=user["username"])

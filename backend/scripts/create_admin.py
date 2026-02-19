@@ -12,9 +12,9 @@ from pathlib import Path
 # Load .env file before importing config
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent.parent.parent / ".env")
-
 from cresco.auth.users import create_user, get_user_by_username
+
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
 def main() -> None:

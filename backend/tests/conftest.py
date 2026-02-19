@@ -156,9 +156,11 @@ def auth_client(mock_settings, tmp_users_file):
     app.dependency_overrides[get_agent] = lambda: mock_agent_instance
     app.dependency_overrides[get_settings] = lambda: mock_settings
 
-    with patch("cresco.api.routes.is_indexed", return_value=True), \
-         patch("cresco.auth.users.get_settings", return_value=mock_settings), \
-         patch("cresco.auth.jwt.get_settings", return_value=mock_settings):
+    with (
+        patch("cresco.api.routes.is_indexed", return_value=True),
+        patch("cresco.auth.users.get_settings", return_value=mock_settings),
+        patch("cresco.auth.jwt.get_settings", return_value=mock_settings),
+    ):
         yield TestClient(app)
 
     app.dependency_overrides.clear()

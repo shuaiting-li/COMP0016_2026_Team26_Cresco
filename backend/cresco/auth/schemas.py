@@ -6,12 +6,8 @@ from pydantic import BaseModel, Field
 class RegisterRequest(BaseModel):
     """Request model for user registration (admin only)."""
 
-    username: str = Field(
-        ..., min_length=3, max_length=50, description="Unique username"
-    )
-    password: str = Field(
-        ..., min_length=8, max_length=128, description="User password"
-    )
+    username: str = Field(..., min_length=3, max_length=50, description="Unique username")
+    password: str = Field(..., min_length=8, max_length=128, description="User password")
     is_admin: bool = Field(
         default=False, description="Whether the new user should have admin privileges"
     )
