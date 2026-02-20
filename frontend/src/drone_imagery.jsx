@@ -7,6 +7,8 @@ const DroneImagery = () => {
     const [rgbPreview, setRgbPreview] = useState(null);
     const [nirPreview, setNirPreview] = useState(null);
     const [uploadStatus, setUploadStatus] = useState("");
+    const [resultImageUrl, setResultImageUrl] = useState(null);
+
 
     const handleRgbChange = (e) => {
         const file = e.target.files[0];
@@ -37,6 +39,9 @@ const DroneImagery = () => {
                 body: formData,
             });
             if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);  //bc its sending back a whole file, not just a url
+                setResultImageUrl(url);
                 setUploadStatus("Upload successful!");
             } else {
                 setUploadStatus("Upload failed.");
@@ -69,7 +74,13 @@ const DroneImagery = () => {
             </div>
             <button onClick={handleUpload} style={{ marginTop: 16 }}>Upload</button>
             {uploadStatus && <div style={{ marginTop: 8, color: "white" }}>{uploadStatus}</div>}
-        </div>
+            <br />
+            {resultImageUrl && (
+                <div style={{ marginTop: 16 }}>
+                    <h3 style={{color: "white" }} >NDVI Result Image:</h3>
+                    <img src={resultImageUrl} alt="Result" style={{ maxWidth: 400 }} />
+                </div>
+)}        </div>
     );
 };
 

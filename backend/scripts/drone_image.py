@@ -7,9 +7,8 @@ async def process_drone_images(nir_bytes: bytes, rgb_bytes: bytes):
     # rgb_bytes: the RGB image file content (JPEG)
     # 
     #ndvi here pls ! (or just reuse this somewhere else idm)
-    return {
-        "nir_size": len(nir_bytes),
-        "rgb_size": len(rgb_bytes)
-    }
+    result_bytes = rgb_bytes  # Replace with actual image processing result
+
+    return result_bytes
 
     

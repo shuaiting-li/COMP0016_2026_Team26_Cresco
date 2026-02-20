@@ -1,5 +1,7 @@
 """API routes for Cresco chatbot."""
 
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, FastAPI
 from pydantic import BaseModel
 
@@ -11,6 +13,7 @@ from scripts.drone_image import process_drone_images
 import shutil
 from pathlib import Path
 from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
 from cresco.rag.indexer import index_knowledge_base
 
 from .schemas import (
@@ -20,7 +23,6 @@ from .schemas import (
     IndexRequest,
     IndexResponse,
     FileUploadResponse,
-    DroneImageUploadResponse,
 )
 
 router = APIRouter()
@@ -153,26 +155,11 @@ async def upload_file(
     
     
 
-@router.post("/droneimage", response_model=DroneImageUploadResponse, tags=["Files"])
+@router.post("/droneimage", tags=["Files"])  #pydantic not used bc it will return a file, not json
 async def upload_file(
     files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
 ):
-    # try:  -- in case we want to save the files to disk as well
-    #     upload_dir = settings.knowledge_base
-    #     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    #     for file in files:
-    #         file_path = upload_dir / file.filename
-    #         with file_path.open("wb") as buffer:
-    #             shutil.copyfileobj(file.file, buffer)
-
-    #     # Trigger reindexing
-
-    #     await index_knowledge_base(settings, force=False, upload_file=file.filename)
-
-    #     return {"filename": file.filename, "status": "indexed"}
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
     try:
         if len(files) != 2:
@@ -180,13 +167,11 @@ async def upload_file(
 
         rgb = await files[0].read()
         nir = await files[1].read()
-        result = await process_drone_images(nir, rgb)
+        result = await process_drone_images(nir, rgb)  ##result is expected to be bytes of the resulting image 
 
-        return DroneImageUploadResponse(
-            filename=files[0].filename + " + " + files[1].filename, 
-            status="indexed",
-        )    
+        return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
     except Exception as e:
+        print (f"Error processing drone images: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
