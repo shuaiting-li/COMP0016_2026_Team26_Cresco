@@ -4,6 +4,7 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
+from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
 
 from cresco.config import Settings, get_settings
@@ -66,10 +67,16 @@ class CrescoAgent:
             )
             return serialized, retrieved_docs
 
-        # Create agent with retrieval tool and checkpointer for memory
+        # Internet search tool for real-time information
+        internet_search = TavilySearch(
+            max_results=5,
+            topic="general",
+        )
+
+        # Create agent with retrieval and search tools, plus checkpointer for memory
         agent = create_agent(
             model=model,
-            tools=[retrieve_agricultural_info],
+            tools=[retrieve_agricultural_info, internet_search],
             system_prompt=SYSTEM_PROMPT,
             checkpointer=self.checkpointer,
         )
