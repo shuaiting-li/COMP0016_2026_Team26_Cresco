@@ -1,15 +1,15 @@
 """Tests for RAG document loader."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from langchain_core.documents import Document
 
 from cresco.rag.document_loader import (
+    _categorize_document,
     load_knowledge_base,
     split_documents,
-    _categorize_document,
 )
 
 
@@ -31,10 +31,7 @@ class TestCategorizeDocument:
     def test_nutrient_management_category(self):
         """Test nutrient files are categorized correctly."""
         assert _categorize_document("nutrient_application.md") == "nutrient_management"
-        assert (
-            _categorize_document("fertilizer_recommendations.md")
-            == "nutrient_management"
-        )
+        assert _categorize_document("fertilizer_recommendations.md") == "nutrient_management"
         assert _categorize_document("deficiency_symptoms.md") == "nutrient_management"
 
     def test_seeds_standards_category(self):
@@ -119,9 +116,7 @@ class TestLoadKnowledgeBase:
         with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
             mock_doc = MagicMock()
             mock_doc.page_content = "Test content"
-            mock_doc.metadata = {
-                "source": str(temp_knowledge_base / "disease_guide.md")
-            }
+            mock_doc.metadata = {"source": str(temp_knowledge_base / "disease_guide.md")}
             mock_loader.return_value.load.return_value = [mock_doc]
 
             documents = load_knowledge_base(mock_settings)
@@ -153,9 +148,7 @@ class TestSplitDocuments:
         chunks = split_documents(sample_documents)
 
         # At least one chunk should have the custom metadata
-        custom_chunks = [
-            c for c in chunks if c.metadata.get("custom_field") == "test_value"
-        ]
+        custom_chunks = [c for c in chunks if c.metadata.get("custom_field") == "test_value"]
         assert len(custom_chunks) > 0
 
     def test_chunk_size_reasonable(self, sample_documents):

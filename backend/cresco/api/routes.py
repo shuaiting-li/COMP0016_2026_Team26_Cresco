@@ -1,24 +1,22 @@
 """API routes for Cresco chatbot."""
 
-from fastapi import APIRouter, Depends, HTTPException, FastAPI
+import shutil
+
+from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from cresco import __version__
-from cresco.agent.agent import get_agent, CrescoAgent
+from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-import shutil
-from pathlib import Path
-from fastapi import UploadFile, File
-from cresco.rag.indexer import index_knowledge_base
 
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    FileUploadResponse,
     HealthResponse,
     IndexRequest,
     IndexResponse,
-    FileUploadResponse,
 )
 
 router = APIRouter()
@@ -35,7 +33,7 @@ class FarmData(BaseModel):
 # Add a new endpoint to receive weather data
 class WeatherData(BaseModel):
     location: str
-    currentWeather: dict
+    current_weather: dict
     forecast: dict
 
 
@@ -70,7 +68,7 @@ async def save_weather_data(weather: WeatherData):
         user_id = "default_user"
         farm_data[user_id]["weather"] = {
             "location": weather.location,
-            "currentWeather": weather.currentWeather,
+            "current_weather": weather.current_weather,
             "forecast": weather.forecast,  # Include forecast data
         }
         return {
@@ -103,11 +101,15 @@ async def chat(
 
         user_id = "default_user"
         if user_id in farm_data:
-            farm_context = f"\n\n[Farm Data Context]:\nLocation: {farm_data[user_id]['location']}, Area: {farm_data[user_id]['area']} km²"
+            farm_context = f"\n\n[Farm Data Context]:\n\
+            Location: {farm_data[user_id]['location']}, Area: {farm_data[user_id]['area']} km²"
             message += farm_context
 
             if "weather" in farm_data[user_id]:
-                weather_context = f"\n\n[Weather Data Context]:\nLocation: {farm_data[user_id]['weather']['location']}, Current Weather: {farm_data[user_id]['weather']['currentWeather']['weather'][0]['description']}, Temperature: {farm_data[user_id]['weather']['currentWeather']['main']['temp']}°C"
+                weather_context = f"\n\n[Weather Data Context]:\n\
+                Location: {farm_data[user_id]['weather']['location']}, Current Weather: \
+                {farm_data[user_id]['weather']['current_weather']['weather'][0]['description']},\
+                Temperature: {farm_data[user_id]['weather']['current_weather']['main']['temp']}°C"
                 message += weather_context
         if request.files and len(request.files) > 0:
             file_context = "\n\n[Uploaded Files Context]:\n"
@@ -128,9 +130,7 @@ async def chat(
 
 
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
-async def upload_file(
-    file: UploadFile = File(...), settings: Settings = Depends(get_settings)
-):
+async def upload_file(file: UploadFile = File(...), settings: Settings = Depends(get_settings)):
     try:
         upload_dir = settings.knowledge_base
         upload_dir.mkdir(parents=True, exist_ok=True)

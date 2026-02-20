@@ -1,7 +1,6 @@
 """Tests for RAG embeddings."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from cresco.rag.embeddings import get_embeddings
 
@@ -17,15 +16,11 @@ class TestGetEmbeddings:
 
         with patch("cresco.rag.embeddings.AzureOpenAIEmbeddings") as mock_embeddings:
             with patch("cresco.rag.embeddings.get_settings") as mock_settings:
-                mock_settings.return_value.azure_openai_embedding_deployment = (
-                    "test-embed"
-                )
-                mock_settings.return_value.azure_openai_endpoint = (
-                    "https://test.azure.com"
-                )
+                mock_settings.return_value.azure_openai_embedding_deployment = "test-embed"
+                mock_settings.return_value.azure_openai_endpoint = "https://test.azure.com"
                 mock_settings.return_value.azure_openai_api_version = "2024-08-01"
 
-                embeddings = get_embeddings()
+                get_embeddings()
 
                 assert mock_embeddings.called
 
@@ -37,12 +32,8 @@ class TestGetEmbeddings:
 
         with patch("cresco.rag.embeddings.AzureOpenAIEmbeddings") as mock_embeddings:
             with patch("cresco.rag.embeddings.get_settings") as mock_settings:
-                mock_settings.return_value.azure_openai_embedding_deployment = (
-                    "test-embed"
-                )
-                mock_settings.return_value.azure_openai_endpoint = (
-                    "https://test.azure.com"
-                )
+                mock_settings.return_value.azure_openai_embedding_deployment = "test-embed"
+                mock_settings.return_value.azure_openai_endpoint = "https://test.azure.com"
                 mock_settings.return_value.azure_openai_api_version = "2024-08-01"
                 mock_embeddings.return_value = MagicMock()
 
@@ -60,15 +51,9 @@ class TestGetEmbeddings:
 
         with patch("cresco.rag.embeddings.AzureOpenAIEmbeddings") as mock_embeddings:
             with patch("cresco.rag.embeddings.get_settings") as mock_settings:
-                mock_settings.return_value.azure_openai_embedding_deployment = (
-                    "my-deployment"
-                )
-                mock_settings.return_value.azure_openai_endpoint = (
-                    "https://my-endpoint.azure.com"
-                )
-                mock_settings.return_value.azure_openai_api_version = (
-                    "2024-08-01-preview"
-                )
+                mock_settings.return_value.azure_openai_embedding_deployment = "my-deployment"
+                mock_settings.return_value.azure_openai_endpoint = "https://my-endpoint.azure.com"
+                mock_settings.return_value.azure_openai_api_version = "2024-08-01-preview"
 
                 get_embeddings()
 

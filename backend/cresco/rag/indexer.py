@@ -1,12 +1,11 @@
 """Document indexing for the vector store."""
 
 import asyncio
-from fileinput import filename
-import time
 
 from langchain_chroma import Chroma
 
 from cresco.config import Settings
+
 from .document_loader import load_knowledge_base, split_documents
 from .embeddings import get_embeddings
 
@@ -42,7 +41,9 @@ def is_indexed(settings: Settings) -> bool:
         return False
 
 
-async def index_knowledge_base(settings: Settings, force: bool = False, upload_file:str = None) -> int:
+async def index_knowledge_base(
+    settings: Settings, force: bool = False, upload_file: str = None
+) -> int:
     """Index all knowledge base documents into ChromaDB.
 
     Args:
@@ -79,9 +80,7 @@ async def index_knowledge_base(settings: Settings, force: bool = False, upload_f
     if upload_file:
         documents = [doc for doc in documents if doc.metadata.get("filename") == upload_file]
 
-
     chunks = split_documents(documents)
-
 
     print(f"[*] Loaded {len(documents)} documents, split into {len(chunks)} chunks")
     print(f"[*] Indexing in batches of {BATCH_SIZE} with {BATCH_DELAY}s delay...")
@@ -121,12 +120,12 @@ async def index_knowledge_base(settings: Settings, force: bool = False, upload_f
             print(f"[ERROR] {e}")
             # On rate limit, wait longer and retry
             if "rate" in str(e).lower() or "429" in str(e):
-                print(f"  [!] Rate limited, waiting 30s...")
+                print("  [!] Rate limited, waiting 30s...")
                 await asyncio.sleep(30)
                 try:
                     vectorstore.add_documents(batch)
                     total_indexed += len(batch)
-                    print(f"  [OK] Retry successful")
+                    print("  [OK] Retry successful")
                 except Exception as retry_error:
                     print(f"  [ERROR] Retry failed: {retry_error}")
                     raise

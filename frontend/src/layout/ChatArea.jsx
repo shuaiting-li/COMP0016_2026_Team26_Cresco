@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ files, messages, onSendMessage, isLoading }) {
+export default function ChatArea({ messages, onSendMessage, isLoading }) {
     const [input, setInput] = useState("");
     const [activeTab, setActiveTab] = useState('chat');
     const messagesEndRef = useRef(null);
@@ -75,7 +75,7 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                 rehypePlugins={[rehypeKatex]}
-                                                components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
                                                 >
                                                 {msg.content}
                                             </ReactMarkdown>

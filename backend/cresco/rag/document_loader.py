@@ -88,9 +88,7 @@ def _categorize_document(filename: str) -> str:
 
     if any(term in filename_lower for term in ["disease", "pest", "fungicide"]):
         return "disease_management"
-    elif any(
-        term in filename_lower for term in ["growth", "guide", "wheat", "oat", "barley"]
-    ):
+    elif any(term in filename_lower for term in ["growth", "guide", "wheat", "oat", "barley"]):
         return "crop_guides"
     elif any(term in filename_lower for term in ["nutri", "fertilizer", "deficiency"]):
         return "nutrient_management"

@@ -1,13 +1,12 @@
 """Tests for RAG indexer."""
 
-import pytest
-import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, patch
 
-from cresco.config import Settings
-from cresco.rag.indexer import is_indexed, index_knowledge_base, BATCH_SIZE, BATCH_DELAY
+import pytest
+
+from cresco.rag.indexer import BATCH_DELAY, BATCH_SIZE, index_knowledge_base, is_indexed
 
 
 class TestIsIndexed:
@@ -133,9 +132,7 @@ class TestIndexKnowledgeBase:
                             mock_vectorstore._collection.count.return_value = len(docs)
                             mock_chroma.return_value = mock_vectorstore
 
-                            count = await index_knowledge_base(
-                                mock_settings, force=True
-                            )
+                            await index_knowledge_base(mock_settings, force=True)
 
                             # Should have called add_documents at least twice
                             assert mock_vectorstore.add_documents.call_count >= 2

@@ -3,15 +3,14 @@
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-
-load_dotenv()  # Load .env before other imports
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from cresco import __version__
 from cresco.api import router
 from cresco.config import get_settings
+
+load_dotenv()
 
 
 @asynccontextmanager
@@ -29,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    settings = get_settings()
+    get_settings()
 
     app = FastAPI(
         title="Cresco",

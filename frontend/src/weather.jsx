@@ -50,7 +50,7 @@ const Weather = ({ lat, lon }) => {
                     },
                     body: JSON.stringify({
                         location: weatherData.name,
-                        currentWeather: weatherData,
+                        current_weather: weatherData,
                         forecast: forecastData
                     })
                 });

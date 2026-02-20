@@ -3,12 +3,13 @@
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.tools import tool
+from langchain_core.runnables import RunnableConfig
 from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
-from langchain_core.runnables import RunnableConfig
 
 from cresco.config import Settings, get_settings
 from cresco.rag.retriever import get_vector_store
+
 from .prompts import SYSTEM_PROMPT
 
 
@@ -103,9 +104,7 @@ class CrescoAgent:
         ai_message = result["messages"][-1]
 
         # Handle different content formats (string or list of content blocks)
-        content = (
-            ai_message.content if hasattr(ai_message, "content") else str(ai_message)
-        )
+        content = ai_message.content if hasattr(ai_message, "content") else str(ai_message)
         if isinstance(content, list):
             # Extract text from content blocks like [{'type': 'text', 'text': '...'}]
             answer = "".join(
@@ -127,7 +126,7 @@ class CrescoAgent:
                 tasks = json.loads(task_json)
                 # Remove the task section from the answer
                 answer = answer[: answer.index("---TASKS---")].strip()
-            except (ValueError, json.JSONDecodeError) as e:
+            except (ValueError, json.JSONDecodeError):
                 # If parsing fails, just leave tasks empty
                 pass
 
@@ -135,11 +134,14 @@ class CrescoAgent:
         sources = []
         for i in range(
             len(result["messages"]) - 1, len(result["messages"]) - 3, -1
-        ):  # Check the last 2 messages for artifacts (tool message is usually the second last message)
+        ):  # Check the last 2 messages for artifacts
+            # (tool message is usually the second last message)
             msg = result["messages"][i]
             if hasattr(msg, "artifact") and msg.artifact:
                 for doc in msg.artifact:
-                    # Support both Document objects and dicts  -> TODO: short term fix, might be a deeper issue to resolve? probably just from json conversion during upload
+                    # Support both Document objects and dicts
+                    # TODO: short term fix, might be a deeper issue to resolve?
+                    # probably just from json conversion during upload
                     metadata = getattr(doc, "metadata", None)
                     if metadata is None and isinstance(doc, dict):
                         metadata = doc.get("metadata", {})

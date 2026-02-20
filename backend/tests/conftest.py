@@ -1,13 +1,12 @@
 """Shared pytest fixtures for Cresco backend tests."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
 import tempfile
-import shutil
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from cresco.config import Settings
 
@@ -89,10 +88,9 @@ def mock_agent():
 def client():
     """Create FastAPI test client with mocked dependencies."""
     # Import here to avoid circular imports
-    from cresco.main import app
     from cresco.agent.agent import get_agent
     from cresco.config import get_settings
-    from cresco.rag.indexer import is_indexed
+    from cresco.main import app
 
     # Create mock agent
     mock_agent = AsyncMock()
@@ -120,9 +118,9 @@ def client():
 @pytest.fixture
 async def async_client():
     """Create async test client for async tests."""
-    from cresco.main import app
     from cresco.agent.agent import get_agent
     from cresco.config import get_settings
+    from cresco.main import app
 
     # Create mock agent
     mock_agent = AsyncMock()
@@ -139,9 +137,7 @@ async def async_client():
     app.dependency_overrides[get_agent] = lambda: mock_agent
     app.dependency_overrides[get_settings] = lambda: mock_settings
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         with patch("cresco.api.routes.is_indexed", return_value=True):
             yield ac
 
