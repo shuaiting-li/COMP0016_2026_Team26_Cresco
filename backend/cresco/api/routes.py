@@ -178,9 +178,9 @@ async def upload_file(
         if len(files) != 2:
             raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
 
-        img = await files[0].read()
+        rgb = await files[0].read()
         nir = await files[1].read()
-        result = await process_drone_images(nir, img)
+        result = await process_drone_images(nir, rgb)
 
         return DroneImageUploadResponse(
             filename=files[0].filename + " + " + files[1].filename, 

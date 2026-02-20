@@ -1,0 +1,47 @@
+/* Drone Imagery.css */
+
+.drone-imagery-container {
+    background-color: rgb(47, 47, 47);
+    color: rgb(47, 47, 47);
+    padding: 2rem;
+    border-radius: 8px;
+    font-family: sans-serif;
+    max-height: 72vh; /* Restrict height to 80% of the viewport */
+    overflow-y: auto; /* Enable vertical scrolling */
+
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.drone-imagery-title {
+    font-size: 24px;
+    margin-bottom: 1rem;
+    color: rgb(255, 255, 255);
+}
+
+.text-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: rgb(255, 255, 255);
+}
+
+.drone-imagery-form {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.drone-imagery-form > div {
+    flex: 1;
+    min-width: 200px;
+}
+
+
+.weather-card {
+    background-color: #333;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
