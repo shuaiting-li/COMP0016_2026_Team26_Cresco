@@ -94,7 +94,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
         sqMeters: areaSqMeters.toFixed(0),
         sqKm: (areaSqMeters / 1_000_000).toFixed(3)
       };
-    } catch (e) {
+    } catch {
       return { sqMeters: 0, sqKm: 0 };
     }
   };
@@ -414,7 +414,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 export default SatelliteMap;
 
 // helper component for real marker
-function DraggableMarker({ position, index, onDrag, onRemove, opacity }) {
+function DraggableMarker({ position, index, onDrag, onRemove }) {
   const markerRef = useRef(null);
   const eventHandlers = useMemo(
     () => ({
@@ -448,7 +448,7 @@ function FlyToLocation({ center }) {
     if (center) {
       map.flyTo(center, 15); // Zoom level 16
     }
-  }, [center]);
+  }, [center, map]);
 
   return null;
 }

@@ -48,7 +48,7 @@ function App() {
                 await uploadAndIndexFile(file);
                 setFiles(prev => [...prev, file]);
                 setIsLoading(false);
-            } catch (error) {
+            } catch {
                 console.error("Failed to upload and index:", file.name);
             }
         };
@@ -130,7 +130,6 @@ function App() {
                 />
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <ChatArea
-                        files={files}
                         messages={messages}
                         onSendMessage={handleSendMessage}
                         isLoading={isLoading}
