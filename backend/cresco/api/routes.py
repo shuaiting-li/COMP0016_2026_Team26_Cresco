@@ -1,5 +1,6 @@
 """API routes for Cresco chatbot."""
 
+import asyncio
 import shutil
 
 import httpx
@@ -77,6 +78,56 @@ async def save_weather_data(weather: WeatherData, current_user: dict = Depends(g
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@router.get("/weather", tags=["Weather"])
+async def get_weather(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Fetch current weather and forecast from OpenWeatherMap, store it, and return it."""
+    api_key = settings.openweather_api_key
+    if not api_key:
+        raise HTTPException(
+            status_code=500, detail="OPENWEATHER_API_KEY is not configured on the server."
+        )
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            weather_resp, forecast_resp = await asyncio.gather(
+                client.get(
+                    "https://api.openweathermap.org/data/2.5/weather",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
+                ),
+                client.get(
+                    "https://api.openweathermap.org/data/2.5/forecast",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
+                ),
+            )
+            weather_resp.raise_for_status()
+            forecast_resp.raise_for_status()
+
+        weather_data = weather_resp.json()
+        forecast_data = forecast_resp.json()
+
+        # Store in memory (same as the old POST /weather-data endpoint)
+        user_id = current_user["user_id"]
+        if user_id not in farm_data:
+            farm_data[user_id] = {}
+        farm_data[user_id]["weather"] = {
+            "location": weather_data.get("name", "Unknown"),
+            "current_weather": weather_data,
+            "forecast": forecast_data,
+        }
+
+        return {
+            "current_weather": weather_data,
+            "forecast": forecast_data,
+        }
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Weather API request failed: {e}")
 
 
 @router.get("/geocode/search", tags=["Geocoding"])

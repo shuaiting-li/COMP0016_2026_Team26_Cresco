@@ -282,15 +282,16 @@ export async function saveFarmData(farmData) {
 }
 
 /**
- * Save weather and forecast data to the backend.
- * @param {{ location: string, current_weather: object, forecast: object }} weatherData
- * @returns {Promise<{ message: string, data: object }>}
+ * Fetch current weather and forecast for given coordinates via the backend proxy.
+ * The backend fetches from OpenWeatherMap (keeping the API key server-side) and stores the data.
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<{ current_weather: object, forecast: object }>}
  */
-export async function saveWeatherData(weatherData) {
-    const response = await fetch(`${API_BASE_URL}/weather-data`, {
-        method: 'POST',
+export async function fetchWeather(lat, lon) {
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+    const response = await fetch(`${API_BASE_URL}/weather?${params}`, {
         headers: authHeaders(),
-        body: JSON.stringify(weatherData),
     });
 
     if (response.status === 401 || response.status === 403) {
@@ -299,7 +300,7 @@ export async function saveWeatherData(weatherData) {
     }
 
     if (!response.ok) {
-        throw new Error(`Failed to save weather data (${response.status})`);
+        throw new Error(`Failed to fetch weather data (${response.status})`);
     }
 
     return await response.json();
