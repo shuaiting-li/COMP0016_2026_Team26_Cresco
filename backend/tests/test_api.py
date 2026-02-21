@@ -2,6 +2,8 @@
 
 from unittest.mock import AsyncMock, patch
 
+import httpx
+
 
 class TestHealthEndpoint:
     """Tests for the /health endpoint."""
@@ -185,3 +187,80 @@ class TestErrorHandling:
             headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 422
+
+
+class TestGeocodeSearchEndpoint:
+    """Tests for the /geocode/search proxy endpoint."""
+
+    def test_geocode_search_returns_results(self, client):
+        """Test forward geocoding proxy returns Nominatim results."""
+        mock_response = httpx.Response(
+            200,
+            json=[{"lat": "51.5074", "lon": "-0.1278", "display_name": "London, UK"}],
+            request=httpx.Request("GET", "https://nominatim.openstreetmap.org/search"),
+        )
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                return_value=mock_response
+            )
+            response = client.get("/api/v1/geocode/search", params={"q": "London"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert data[0]["display_name"] == "London, UK"
+
+    def test_geocode_search_requires_query(self, client):
+        """Test forward geocoding requires the q parameter."""
+        response = client.get("/api/v1/geocode/search")
+        assert response.status_code == 422
+
+    def test_geocode_search_handles_upstream_failure(self, client):
+        """Test forward geocoding returns 502 when Nominatim fails."""
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                side_effect=httpx.HTTPError("Connection refused")
+            )
+            response = client.get("/api/v1/geocode/search", params={"q": "London"})
+
+        assert response.status_code == 502
+
+
+class TestGeocodeReverseEndpoint:
+    """Tests for the /geocode/reverse proxy endpoint."""
+
+    def test_geocode_reverse_returns_location(self, client):
+        """Test reverse geocoding proxy returns a display name."""
+        mock_response = httpx.Response(
+            200,
+            json={"display_name": "London, UK", "lat": "51.5074", "lon": "-0.1278"},
+            request=httpx.Request("GET", "https://nominatim.openstreetmap.org/reverse"),
+        )
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                return_value=mock_response
+            )
+            response = client.get(
+                "/api/v1/geocode/reverse", params={"lat": 51.5074, "lon": -0.1278}
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["display_name"] == "London, UK"
+
+    def test_geocode_reverse_requires_params(self, client):
+        """Test reverse geocoding requires lat and lon parameters."""
+        response = client.get("/api/v1/geocode/reverse")
+        assert response.status_code == 422
+
+    def test_geocode_reverse_handles_upstream_failure(self, client):
+        """Test reverse geocoding returns 502 when Nominatim fails."""
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                side_effect=httpx.HTTPError("Connection refused")
+            )
+            response = client.get(
+                "/api/v1/geocode/reverse", params={"lat": 51.5074, "lon": -0.1278}
+            )
+
+        assert response.status_code == 502
