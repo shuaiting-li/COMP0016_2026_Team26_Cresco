@@ -108,11 +108,7 @@ class CrescoAgent:
             # Format current conditions
             main = current.get("main", {})
             wind = current.get("wind", {})
-            desc = (
-                current["weather"][0]["description"]
-                if current.get("weather")
-                else "N/A"
-            )
+            desc = current["weather"][0]["description"] if current.get("weather") else "N/A"
             parts = [
                 f"Weather for {location}:",
                 f"  Condition: {desc}",
@@ -135,11 +131,7 @@ class CrescoAgent:
 
             for date, entry in list(seen.items())[:5]:
                 e_main = entry.get("main", {})
-                e_desc = (
-                    entry["weather"][0]["description"]
-                    if entry.get("weather")
-                    else "N/A"
-                )
+                e_desc = entry["weather"][0]["description"] if entry.get("weather") else "N/A"
                 e_wind = entry.get("wind", {})
                 rain_mm = entry.get("rain", {}).get("3h", 0)
                 parts.append(
@@ -151,8 +143,7 @@ class CrescoAgent:
             if "location" in user_data and "area" in user_data:
                 parts.append("")
                 parts.append(
-                    f"Farm location: {user_data['location']}, "
-                    f"area: {user_data['area']} km²"
+                    f"Farm location: {user_data['location']}, area: {user_data['area']} km²"
                 )
 
             return "\n".join(parts)
