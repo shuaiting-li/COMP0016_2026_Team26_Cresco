@@ -67,10 +67,10 @@ const centerDotIcon = createCenterIcon();  // Solid Blue
 const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
   //list of markers
   const [positions, setPositions] = useState([
-    [40.785091, -73.968285],
-    [40.790091, -73.968285],
-    [40.790091, -73.960285],
-    [40.785091, -73.960285],
+    [51.5236, -0.1360],
+    [51.5256, -0.1360],
+    [51.5256, -0.1320],
+    [51.5236, -0.1320],
   ]);
 
   const [mapCenter, setMapCenter] = useState(null);  //map center variable
@@ -258,7 +258,9 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
         const farmData = {
           location: locationName,
-          area: areaData.sqKm
+          area: areaData.sqKm,
+          lat: centerLat,
+          lon: centerLng
         };
 
         console.log("Farm data to send:", farmData);
@@ -336,7 +338,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
       <div style={{ height: '500px', width: '100%', border: '2px solid #333' }}>
         <MapContainer
-          center={[40.787, -73.964]}
+          center={[51.5246, -0.1340]}
           zoom={15}
           style={{ height: '100%', width: '100%' }}
         >

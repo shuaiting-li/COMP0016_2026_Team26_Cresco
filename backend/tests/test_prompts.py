@@ -24,6 +24,14 @@ class TestSystemPrompt:
         """Test prompt mentions the retrieval tool."""
         assert "retrieve_agricultural_info" in SYSTEM_PROMPT
 
+    def test_prompt_mentions_weather_tool(self):
+        """Test prompt mentions the weather tool."""
+        assert "get_weather_data" in SYSTEM_PROMPT
+
+    def test_prompt_mentions_search_tool(self):
+        """Test prompt mentions the internet search tool."""
+        assert "tavily_search" in SYSTEM_PROMPT
+
     def test_prompt_includes_expertise_areas(self):
         """Test prompt includes key expertise areas."""
         expertise = [
