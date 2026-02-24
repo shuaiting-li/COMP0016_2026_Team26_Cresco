@@ -45,3 +45,9 @@ nohup.out
 *.sqlite
 *.sqlite3
 backend/data/chroma_db/
+
+# Coverage
+.coverage
+
+# Sensitive files
+backend/data/users.json

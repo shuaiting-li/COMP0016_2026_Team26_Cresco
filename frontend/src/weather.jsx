@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./Weather.css"; // Importing Weather.css for styling
+import { fetchWeather } from './services/api';
 
 const Weather = ({ lat, lon }) => {
     const [weather, setWeather] = useState(null);
@@ -10,63 +11,22 @@ const Weather = ({ lat, lon }) => {
     useEffect(() => {
         if (!lat || !lon) return;
 
-        const fetchWeather = async () => {
-            const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
-
-            if (!apiKey) {
-                setError("API key is missing. Please set VITE_OPENWEATHER_API_KEY in your .env file.");
-                return;
-            }
-
+        const loadWeather = async () => {
             try {
-                // Fetch current weather
-                const weatherResponse = await fetch(
-                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
-                );
-                if (!weatherResponse.ok) {
-                    throw new Error("Failed to fetch current weather data");
-                }
-                const weatherData = await weatherResponse.json();
-                setWeather(weatherData);
+                const data = await fetchWeather(lat, lon);
 
-                // Extract location name from weather data
-                setLocationName(weatherData.name);
+                setWeather(data.current_weather);
+                setForecast(data.forecast);
+                setLocationName(data.current_weather?.name);
 
-                // Fetch forecast weather
-                const forecastResponse = await fetch(
-                    `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
-                );
-                if (!forecastResponse.ok) {
-                    throw new Error("Failed to fetch forecast data");
-                }
-                const forecastData = await forecastResponse.json();
-                setForecast(forecastData);
-
-                // Send weather and forecast data to the backend
-                const backendResponse = await fetch("http://127.0.0.1:8000/api/v1/weather-data", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        location: weatherData.name,
-                        current_weather: weatherData,
-                        forecast: forecastData
-                    })
-                });
-
-                if (!backendResponse.ok) {
-                    throw new Error("Failed to send weather data to the backend");
-                }
-
-                console.log("Weather data sent to backend successfully", weatherData, forecastData);
+                console.log("Weather data loaded successfully", data);
             } catch (err) {
-                console.error("Error in fetchWeather:", err); // Debugging log for errors
+                console.error("Error loading weather:", err);
                 setError(err.message);
             }
         };
 
-        fetchWeather();
+        loadWeather();
     }, [lat, lon]);
 
     if (error) {

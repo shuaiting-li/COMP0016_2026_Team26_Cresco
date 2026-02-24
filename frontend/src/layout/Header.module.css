@@ -80,19 +80,30 @@
 }
 
 .dropdownLabel {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
 }
 
-.initialsDropdown input {
-    background: var(--bg-app);
-    border: 1px solid var(--border);
+.logoutBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 4px;
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 0.8rem;
+    cursor: pointer;
     border-radius: 4px;
-    padding: 6px;
-    color: var(--accent);
-    font-weight: 700;
-    outline: none;
-    text-align: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.logoutBtn:hover {
+    background: var(--bg-hover);
+    color: #f87171;
 }

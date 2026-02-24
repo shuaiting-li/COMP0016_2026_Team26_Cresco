@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from cresco import __version__
 from cresco.api import router
+from cresco.auth import auth_router
 from cresco.config import get_settings
 
 load_dotenv()
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     )
 
     # Include API routes
+    app.include_router(auth_router, prefix="/api/v1")
     app.include_router(router, prefix="/api/v1")
 
     return app
