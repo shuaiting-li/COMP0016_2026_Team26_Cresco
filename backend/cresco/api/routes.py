@@ -4,7 +4,7 @@ import asyncio
 import shutil
 
 import httpx
-from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from cresco import __version__
@@ -31,23 +31,32 @@ farm_data = {}
 class FarmData(BaseModel):
     location: str
     area: float
-
-
-# Add a new endpoint to receive weather data
-class WeatherData(BaseModel):
-    location: str
-    current_weather: dict
-    forecast: dict
-
-
-app = FastAPI()
+    lat: float | None = None
+    lon: float | None = None
 
 
 @router.post("/farm-data")
-async def save_farm_data(farm: FarmData, current_user: dict = Depends(get_current_user)):
+async def save_farm_data(
+    farm: FarmData,
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
     try:
         user_id = current_user["user_id"]
-        farm_data[user_id] = {"location": farm.location, "area": farm.area}
+        farm_data[user_id] = {
+            "location": farm.location,
+            "area": farm.area,
+            "lat": farm.lat,
+            "lon": farm.lon,
+        }
+
+        # Auto-fetch weather if coordinates are provided
+        if farm.lat is not None and farm.lon is not None:
+            api_key = settings.openweather_api_key
+            if api_key:
+                await fetch_weather(user_id, farm.lat, farm.lon, api_key)
+                # Failure is silent — user can still open the weather panel manually
+
         return {"message": "Farm data saved successfully", "data": farm_data[user_id]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
@@ -62,22 +71,34 @@ async def get_farm_data(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="No farm data found for the user")
 
 
-# Update the /weather-data endpoint to parse and store both current weather and forecast data
-@router.post("/weather-data")
-async def save_weather_data(weather: WeatherData, current_user: dict = Depends(get_current_user)):
+async def fetch_weather(user_id: str, lat: float, lon: float, api_key: str) -> bool:
+    """Fetch weather + forecast from OWM and store in farm_data. Returns True on success."""
     try:
-        user_id = current_user["user_id"]
+        async with httpx.AsyncClient(timeout=10) as client:
+            weather_resp, forecast_resp = await asyncio.gather(
+                client.get(
+                    "https://api.openweathermap.org/data/2.5/weather",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
+                ),
+                client.get(
+                    "https://api.openweathermap.org/data/2.5/forecast",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
+                ),
+            )
+            weather_resp.raise_for_status()
+            forecast_resp.raise_for_status()
+
+        weather_json = weather_resp.json()
+        if user_id not in farm_data:
+            farm_data[user_id] = {}
         farm_data[user_id]["weather"] = {
-            "location": weather.location,
-            "current_weather": weather.current_weather,
-            "forecast": weather.forecast,  # Include forecast data
+            "location": weather_json.get("name", "Unknown"),
+            "current_weather": weather_json,
+            "forecast": forecast_resp.json(),
         }
-        return {
-            "message": "Weather data saved successfully",
-            "data": farm_data[user_id]["weather"],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        return True
+    except httpx.HTTPError:
+        return False
 
 
 @router.get("/weather", tags=["Weather"])
@@ -94,40 +115,16 @@ async def get_weather(
             status_code=500, detail="OPENWEATHER_API_KEY is not configured on the server."
         )
 
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            weather_resp, forecast_resp = await asyncio.gather(
-                client.get(
-                    "https://api.openweathermap.org/data/2.5/weather",
-                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
-                ),
-                client.get(
-                    "https://api.openweathermap.org/data/2.5/forecast",
-                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
-                ),
-            )
-            weather_resp.raise_for_status()
-            forecast_resp.raise_for_status()
+    user_id = current_user["user_id"]
+    success = await fetch_weather(user_id, lat, lon, api_key)
+    if not success:
+        raise HTTPException(status_code=502, detail="Weather API request failed.")
 
-        weather_data = weather_resp.json()
-        forecast_data = forecast_resp.json()
-
-        # Store in memory (same as the old POST /weather-data endpoint)
-        user_id = current_user["user_id"]
-        if user_id not in farm_data:
-            farm_data[user_id] = {}
-        farm_data[user_id]["weather"] = {
-            "location": weather_data.get("name", "Unknown"),
-            "current_weather": weather_data,
-            "forecast": forecast_data,
-        }
-
-        return {
-            "current_weather": weather_data,
-            "forecast": forecast_data,
-        }
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"Weather API request failed: {e}")
+    weather_block = farm_data[user_id]["weather"]
+    return {
+        "current_weather": weather_block["current_weather"],
+        "forecast": weather_block["forecast"],
+    }
 
 
 @router.get("/geocode/search", tags=["Geocoding"])
@@ -189,21 +186,9 @@ async def chat(
 ) -> ChatResponse:
     """Send a message to the Cresco chatbot."""
     try:
-        # Build the message, including farm and weather data context if available
         message = request.message
 
         user_id = current_user["user_id"]
-        if user_id in farm_data:
-            farm_context = f"\n\n[Farm Data Context]:\n\
-            Location: {farm_data[user_id]['location']}, Area: {farm_data[user_id]['area']} km²"
-            message += farm_context
-
-            if "weather" in farm_data[user_id]:
-                weather_context = f"\n\n[Weather Data Context]:\n\
-                Location: {farm_data[user_id]['weather']['location']}, Current Weather: \
-                {farm_data[user_id]['weather']['current_weather']['weather'][0]['description']},\
-                Temperature: {farm_data[user_id]['weather']['current_weather']['main']['temp']}°C"
-                message += weather_context
         if request.files and len(request.files) > 0:
             file_context = "\n\n[Uploaded Files Context]:\n"
             for file in request.files:
@@ -211,7 +196,7 @@ async def chat(
                 file_content = file.get("content", "")
                 file_context += f"\n--- {file_name} ---\n{file_content}\n"
             message = message + file_context
-        result = await agent.chat(message, thread_id=user_id)
+        result = await agent.chat(message, thread_id=user_id, user_id=user_id)
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
@@ -261,7 +246,3 @@ async def index_documents(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Indexing error: {str(e)}")
-
-
-# Include the router in the FastAPI app with the prefix `/api/v1`
-app.include_router(router, prefix="/api/v1")

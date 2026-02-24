@@ -4,10 +4,10 @@
     background-color: black;
     color: white;
     padding: 2rem;
-    border-radius: 8px;
     font-family: sans-serif;
-    max-height: 72vh; /* Restrict height to 80% of the viewport */
-    overflow-y: auto; /* Enable vertical scrolling */
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
 }
 
 .weather-title {

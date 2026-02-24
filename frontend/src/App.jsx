@@ -160,7 +160,7 @@ function App() {
                         height: '80%',
                         backgroundColor: '#0f1110',
                         borderRadius: '8px',
-                        overflow: 'hidden'
+                        overflow: 'auto'
                     }}>
                         <button
                             onClick={handleCloseSatellite}
@@ -228,7 +228,16 @@ function App() {
                         {farmLocation ? (
                             <Weather lat={farmLocation.lat} lon={farmLocation.lng} />
                         ) : (
-                            <div>Please select a farm location first.</div>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: '100%',
+                                fontSize: '18px',
+                                color: 'white'
+                            }}>
+                                Please select a farm location first.
+                            </div>
                         )}
                     </div>
                 </div>
