@@ -69,7 +69,7 @@ class CrescoAgent:
 
         # Weather tool — reads from the in-memory farm_data store.
         @tool
-        def get_weather_data(user_id: str) -> str:
+        def get_weather_data(config: RunnableConfig) -> str:
             """Retrieve the current weather and 5-day forecast for the user's farm.
 
             This data is automatically available once the user has selected
@@ -77,12 +77,10 @@ class CrescoAgent:
             the conversation involves weather, planting timing, spraying
             windows, frost risk, harvest scheduling, or any weather-dependent
             farming decision.
-
-            Args:
-                user_id: The authenticated user's ID (provided in the conversation).
             """
             from cresco.api.routes import farm_data
 
+            user_id = config["configurable"].get("user_id", "")
             user_data = farm_data.get(user_id, {})
 
             if not user_data:
@@ -164,17 +162,18 @@ class CrescoAgent:
 
         return agent
 
-    async def chat(self, message: str, thread_id: str = "default") -> dict:
+    async def chat(self, message: str, thread_id: str = "default", user_id: str = "") -> dict:
         """Process a chat message and return response with sources.
 
         Args:
             message: User's question
             thread_id: Conversation thread ID for memory persistence
+            user_id: Authenticated user's ID, injected into tools via config
 
         Returns:
             Dict with 'answer', 'sources', and 'tasks' keys
         """
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
         result = await self._agent.ainvoke(
             {"messages": [{"role": "user", "content": message}]},

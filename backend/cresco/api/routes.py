@@ -189,8 +189,6 @@ async def chat(
         message = request.message
 
         user_id = current_user["user_id"]
-        # Inject user_id so the weather tool can look up stored data
-        message += f"\n\n[user_id: {user_id}]"
         if request.files and len(request.files) > 0:
             file_context = "\n\n[Uploaded Files Context]:\n"
             for file in request.files:
@@ -198,7 +196,7 @@ async def chat(
                 file_content = file.get("content", "")
                 file_context += f"\n--- {file_name} ---\n{file_content}\n"
             message = message + file_context
-        result = await agent.chat(message, thread_id=user_id)
+        result = await agent.chat(message, thread_id=user_id, user_id=user_id)
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
