@@ -42,18 +42,28 @@ const Weather = ({ lat, lon }) => {
             <h1 className="weather-title">Weather in {locationName || "Selected Location"}</h1>
             <div className="weather-card">
                 <p>Temperature: {weather.main.temp}°C</p>
-                <p>Condition: {weather.weather[0].description}</p>
+                <p>Condition: {weather.weather[0].description.replace(/\b\w/g, c => c.toUpperCase())}</p>
                 <p>Humidity: {weather.main.humidity}%</p>
                 <p>Wind Speed: {weather.wind.speed} m/s</p>
             </div>
 
-            <h2 className="weather-title">10-Day Forecast</h2>
+            <h2 className="weather-title">5-Day Forecast</h2>
             <div className="forecast-grid">
-                {forecast.list.slice(0, 10).map((entry, index) => (
+                {Object.values(
+                    forecast.list.reduce((days, entry) => {
+                        const date = entry.dt_txt.split(' ')[0];
+                        const hour = entry.dt_txt.split(' ')[1];
+                        // Prefer the midday entry; fall back to first entry seen for the day
+                        if (!days[date] || hour === '12:00:00') days[date] = entry;
+                        return days;
+                    }, {})
+                ).slice(0, 5).map((entry, index) => (
                     <div key={index} className="forecast-card">
-                        <p><strong>{new Date(entry.dt * 1000).toLocaleString()}</strong></p>
+                        <p><strong>{new Date(entry.dt * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</strong></p>
                         <p>Temp: {entry.main.temp}°C</p>
-                        <p>{entry.weather[0].description}</p>
+                        <p>{entry.weather[0].description.replace(/\b\w/g, c => c.toUpperCase())}</p>
+                        <p>Wind: {entry.wind.speed} m/s</p>
+                        {entry.rain?.['3h'] && <p>Rain: {entry.rain['3h']} mm</p>}
                     </div>
                 ))}
             </div>

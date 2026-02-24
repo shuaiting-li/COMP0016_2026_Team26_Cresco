@@ -204,7 +204,7 @@ function App() {
                         position: 'relative',
                         width: '80%',
                         height: '80%',
-                        backgroundColor: 'white',
+                        backgroundColor: 'black',
                         borderRadius: '8px',
                         overflow: 'hidden'
                     }}>
@@ -228,7 +228,16 @@ function App() {
                         {farmLocation ? (
                             <Weather lat={farmLocation.lat} lon={farmLocation.lng} />
                         ) : (
-                            <div>Please select a farm location first.</div>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: '100%',
+                                fontSize: '18px',
+                                color: 'white'
+                            }}>
+                                Please select a farm location first.
+                            </div>
                         )}
                     </div>
                 </div>
