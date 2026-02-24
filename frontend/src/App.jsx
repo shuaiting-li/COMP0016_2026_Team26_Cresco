@@ -95,7 +95,7 @@ function App() {
                 {
                     id: Date.now() + 1,
                     role: 'assistant',
-                    content: "Sorry, I encountered an error communicating with the server. Is the backend running?"
+                    content: "Sorry, I encountered an error communicating with the server."
                 }
             ]);
         } finally {
