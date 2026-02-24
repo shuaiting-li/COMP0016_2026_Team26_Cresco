@@ -6,7 +6,6 @@ import pytest
 
 from cresco.agent.agent import CrescoAgent
 
-
 SAMPLE_WEATHER = {
     "weather": [{"description": "light rain"}],
     "main": {"temp": 12.5, "feels_like": 10.0, "humidity": 78},

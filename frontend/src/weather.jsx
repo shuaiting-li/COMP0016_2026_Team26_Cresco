@@ -11,7 +11,6 @@ const Weather = ({ lat, lon }) => {
     useEffect(() => {
         if (!lat || !lon) return;
 
-        const controller = new AbortController();
         let cancelled = false;
 
         const loadWeather = async () => {
