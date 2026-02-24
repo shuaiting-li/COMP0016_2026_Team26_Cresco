@@ -76,7 +76,7 @@ React 19 + Vite. Plain JSX (no TypeScript). CSS Modules for layout. API calls vi
 - **Auth**: JWT in `localStorage` (`cresco_token` / `cresco_username`). Auto-logout on 401/403.
 - **Response mapping**: Backend `{answer, sources, tasks}` → frontend `{reply, citations, tasks}`.
 - **Rendering**: `react-markdown` + `remark-gfm` + `remark-math` + `rehype-katex`.
-- **Env vars**: `VITE_API_URL` (default `http://localhost:8000/api/v1`), `VITE_OPENWEATHER_API_KEY`.
+- **Env vars**: `VITE_API_URL` (default `http://localhost:8000/api/v1`), `OPENWEATHER_API_KEY`.
 
 ## Quick Start
 
