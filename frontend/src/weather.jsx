@@ -11,22 +11,25 @@ const Weather = ({ lat, lon }) => {
     useEffect(() => {
         if (!lat || !lon) return;
 
+        const controller = new AbortController();
+        let cancelled = false;
+
         const loadWeather = async () => {
             try {
                 const data = await fetchWeather(lat, lon);
-
+                if (cancelled) return;
                 setWeather(data.current_weather);
                 setForecast(data.forecast);
                 setLocationName(data.current_weather?.name);
-
-                console.log("Weather data loaded successfully", data);
             } catch (err) {
+                if (cancelled) return;
                 console.error("Error loading weather:", err);
                 setError(err.message);
             }
         };
 
         loadWeather();
+        return () => { cancelled = true; };
     }, [lat, lon]);
 
     if (error) {
