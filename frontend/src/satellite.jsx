@@ -1,5 +1,5 @@
 //imports
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -195,11 +195,6 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
     setFarmLocation({ lat, lng });
   };
 
-  useEffect(() => {
-    if (farmLocation) {
-      setMapCenter([farmLocation.lat, farmLocation.lng]);
-    }
-  }, [farmLocation]);
 
   const handleLocateMe = () => {
     // check if the browser actually supports this feature
@@ -269,6 +264,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
         console.log("Farm data to send:", farmData);
 
         setFarmLocation({ lat: centerLat, lng: centerLng });
+        setMapCenter([centerLat, centerLng]);
 
         const result = await saveFarmData(farmData);
         console.log("Farm data saved successfully:", result);
