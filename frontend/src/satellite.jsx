@@ -258,7 +258,9 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
         const farmData = {
           location: locationName,
-          area: areaData.sqKm
+          area: areaData.sqKm,
+          lat: centerLat,
+          lon: centerLng
         };
 
         console.log("Farm data to send:", farmData);
