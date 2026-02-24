@@ -160,7 +160,7 @@ function App() {
                         height: '80%',
                         backgroundColor: 'white',
                         borderRadius: '8px',
-                        overflow: 'hidden'
+                        overflow: 'auto'
                     }}>
                         <button
                             onClick={handleCloseSatellite}
