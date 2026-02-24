@@ -6,6 +6,7 @@ import ChatArea from './layout/ChatArea';
 import { sendMessage, uploadAndIndexFile } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
+import DroneImagery from './drone_imagery';
 
 const layoutStyle = {
     display: 'flex',
@@ -21,6 +22,7 @@ function App() {
     const [conversationId, setConversationId] = useState(null);
     const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
+    const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
 
     const handleFileUpload = async (e) => {
@@ -103,6 +105,14 @@ function App() {
         setIsWeatherOpen(false);
     };
 
+    const handleOpenDroneImagery = () => {
+        setIsDroneImageryOpen(true);
+    };
+
+    const handleCloseDroneImagery = () => {
+        setIsDroneImageryOpen(false);
+    };
+
     return (
         <div className="app-container">
             <Header />
@@ -123,6 +133,7 @@ function App() {
                 <SidebarRight
                     handleOpenSatellite={handleOpenSatellite}
                     handleOpenWeather={handleOpenWeather}
+                    handleOpenDroneImagery={handleOpenDroneImagery}
                 />
             </div>
 
@@ -168,6 +179,50 @@ function App() {
                             farmLocation={farmLocation}
                             setFarmLocation={setFarmLocation}
                         />
+                    </div>
+                </div>
+            )}
+
+
+            {isDroneImageryOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        position: 'relative',
+                        width: '80%',
+                        height: '80%',
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                    }}>
+                        <button
+                            onClick={handleCloseDroneImagery}
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                backgroundColor: 'red',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            X
+                        </button>
+                        <DroneImagery />
                     </div>
                 </div>
             )}

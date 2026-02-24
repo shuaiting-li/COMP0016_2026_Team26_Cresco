@@ -1,5 +1,7 @@
 """API routes for Cresco chatbot."""
 
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, FastAPI
 from pydantic import BaseModel
 
@@ -7,9 +9,11 @@ from cresco import __version__
 from cresco.agent.agent import get_agent, CrescoAgent
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
+from scripts.drone_image import process_drone_images
 import shutil
 from pathlib import Path
 from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
 from cresco.rag.indexer import index_knowledge_base
 
 from .schemas import (
@@ -142,9 +146,32 @@ async def upload_file(
         # Trigger reindexing
 
         await index_knowledge_base(settings, force=False, upload_file=file.filename)
-
-        return {"filename": file.filename, "status": "indexed"}
+        return FileUploadResponse(
+            filename=file.filename,
+            status="indexed",
+        )
     except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+    
+    
+
+@router.post("/droneimage", tags=["Files"])  #pydantic not used bc it will return a file, not json
+async def upload_file(
+    files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
+):
+
+
+    try:
+        if len(files) != 2:
+            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
+
+        rgb = await files[0].read()
+        nir = await files[1].read()
+        result = await process_drone_images(nir, rgb)  ##result is expected to be bytes of the resulting image 
+
+        return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
+    except Exception as e:
+        print (f"Error processing drone images: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
