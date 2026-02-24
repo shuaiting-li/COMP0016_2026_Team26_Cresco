@@ -158,7 +158,7 @@ function App() {
                         position: 'relative',
                         width: '80%',
                         height: '80%',
-                        backgroundColor: 'white',
+                        backgroundColor: '#0f1110',
                         borderRadius: '8px',
                         overflow: 'hidden'
                     }}>
@@ -204,7 +204,7 @@ function App() {
                         position: 'relative',
                         width: '80%',
                         height: '80%',
-                        backgroundColor: 'white',
+                        backgroundColor: '#0f1110',
                         borderRadius: '8px',
                         overflow: 'hidden'
                     }}>
