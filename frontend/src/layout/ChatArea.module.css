@@ -3,35 +3,6 @@
     background-color: var(--bg-app);
 }
 
-/* --- Tab Switcher --- */
-.topBar {
-    padding: 8px 16px;
-    display: flex;
-    justify-content: center;
-}
-
-.tabs {
-    display: flex; background: var(--bg-panel); padding: 4px;
-    border-radius: 20px; border: 1px solid var(--border);
-}
-.tab {
-    background: transparent; border: none; color: var(--text-muted);
-    padding: 6px 20px; font-size: 0.8rem; border-radius: 16px;
-    cursor: pointer; transition: 0.2s;
-}
-.activeTab {
-    background: var(--bg-hover);
-    color: var(--text-main);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-.tabLabel { display: block; position: relative; font-weight: 500; }
-.activeTab .tabLabel { font-weight: 600; }
-.tabLabel::before {
-    display: block; content: attr(title); font-weight: 600;
-    height: 0; overflow: hidden; visibility: hidden;
-}
-
 /* --- Chat Content --- */
 .contentArea { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
