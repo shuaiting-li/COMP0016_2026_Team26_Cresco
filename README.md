@@ -42,6 +42,7 @@ RAG-powered agricultural chatbot for UK farmers — **Python/FastAPI backend** a
 │   ├── src/
 │   │   ├── layout/              # UI layout components (CSS Modules)
 │   │   ├── services/            # API services (native fetch)
+│   │   ├── tests/               # Vitest + React Testing Library tests
 │   │   ├── tools/               # Utility modules
 │   │   ├── App.jsx              # Main React component (state)
 │   │   ├── satellite.jsx        # Leaflet map + @turf/area
@@ -140,6 +141,9 @@ uv run ruff check . && uv run ruff format .
 ```bash
 cd frontend
 
+npm test          # Run tests (Vitest)
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
 npm run lint      # ESLint
 npm run build     # Production build
 ```
@@ -151,12 +155,22 @@ npm run build     # Production build
 
 ## Testing Conventions
 
+### Backend (pytest)
+
 - Always use classes: `class TestFeatureName:` — no bare test functions.
 - Docstring per test method describing what it verifies.
 - File naming: `test_<module>.py` mirrors source structure.
 - Async tests: `asyncio_mode = "auto"` — no `@pytest.mark.asyncio` needed.
 - Mock all external services; zero real API calls.
 - Reset singletons before tests (e.g., `cresco.rag.embeddings._embeddings = None`).
+
+### Frontend (Vitest + React Testing Library)
+
+- **Framework**: Vitest with jsdom environment, `@testing-library/react`, `@testing-library/user-event`.
+- **File naming**: `test_<component>.test.jsx` (or `.js` for non-component modules) in `src/tests/`.
+- **Global setup**: `src/tests/setup.js` — mocks `localStorage`, `fetch`, `scrollIntoView`, canvas `getContext`, and `import.meta.env`.
+- **Test behaviour, not copy**: assert on structure, element roles, and callbacks — avoid hardcoding UI labels that may change with design updates.
+- **Mock all external calls**: use `vi.fn()` / `vi.mock()` for `fetch`, Leaflet, and third-party libraries.
 
 ## License
 
