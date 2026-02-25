@@ -51,11 +51,16 @@ uv run python scripts/create_admin.py <user> <pass>  # Bootstrap first admin
 
 # Frontend (run from frontend/)
 npm install && npm run dev    # Dev server (port 3000)
+\npm test                      # Run tests (Vitest)
+npm run test:watch            # Watch mode
+npm run test:coverage         # Coverage report
 npm run build                 # Production build
 npm run lint                  # ESLint
 ```
 
 ## Testing Conventions
+
+### Backend (pytest)
 
 - **Always use classes**: `class TestFeatureName:` — no bare test functions.
 - **Docstring per test method** describing what it verifies.
@@ -69,6 +74,14 @@ npm run lint                  # ESLint
   - `async_client` — `AsyncClient` with `ASGITransport`, auth bypassed.
   - All fixtures patch `cresco.api.routes.is_indexed` and call `app.dependency_overrides.clear()` on teardown.
 - **Auth test helpers**: `_create_admin_and_get_token(mock_settings)` / `_create_regular_user_and_get_token(mock_settings)` — seed users directly and return JWTs for endpoint testing.
+
+### Frontend (Vitest + React Testing Library)
+
+- **Framework**: Vitest with jsdom environment, `@testing-library/react`, `@testing-library/user-event`.
+- **File naming**: `test_<component>.test.jsx` (or `.js` for non-component modules) in `src/tests/`.
+- **Global setup**: `src/tests/setup.js` — mocks `localStorage`, `fetch`, `scrollIntoView`, canvas `getContext`, and `import.meta.env`.
+- **Test behaviour, not copy**: assert on structure, element roles, and callbacks — avoid hardcoding UI labels that may change with design updates.
+- **Mock all external calls**: use `vi.fn()` / `vi.mock()` for `fetch`, Leaflet, and third-party libraries. Zero real API or network calls.
 
 ## Code Style
 
