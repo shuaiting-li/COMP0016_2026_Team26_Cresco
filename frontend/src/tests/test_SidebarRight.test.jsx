@@ -34,9 +34,9 @@ describe('SidebarRight', () => {
         expect(screen.getByText('Toolbox')).toBeInTheDocument();
     });
 
-    it('renders a button for each studio item', () => {
+    it('renders a button for each studio item', async () => {
         /** Verifies the sidebar renders one button per STUDIO_ITEMS entry. */
-        const { STUDIO_ITEMS } = require('../tools/toolMenu');
+        const { STUDIO_ITEMS } = await import('../tools/toolMenu');
         render(
             <SidebarRight
                 handleOpenSatellite={handleOpenSatellite}

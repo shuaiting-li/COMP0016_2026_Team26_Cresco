@@ -5,7 +5,7 @@
  * inside describe blocks (analogous to Python test classes).
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as api from '../services/api.js';
 
 const API_BASE = 'http://localhost:8000/api/v1';
