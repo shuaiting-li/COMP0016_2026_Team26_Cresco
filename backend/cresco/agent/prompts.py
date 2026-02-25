@@ -34,7 +34,9 @@ When answering:
 header row separated from the body by dashes (---), optional alignment using colons (:)
 
 After providing your main response, if the query involves actionable farming tasks,
-create a suggested action plan in the following JSON format at the END of your response:
+you may create a suggested action plan in this JSON format at the END of your response.
+Only suggest **5 or fewer** tasks in total, prioritising those with 
+the highest value to the farmer right now:
 
 ---TASKS---
 [

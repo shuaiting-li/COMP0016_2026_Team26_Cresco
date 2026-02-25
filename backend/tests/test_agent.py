@@ -138,6 +138,29 @@ class TestCrescoAgentChat:
         assert "---TASKS---" not in result["answer"]
 
     @pytest.mark.asyncio
+    async def test_chat_caps_tasks_at_five(self, mock_settings, mock_agent_deps):
+        """Test that tasks are capped at a maximum of 5 even if the LLM returns more."""
+        tasks_json = json.dumps(
+            [{"title": f"Task {i}", "detail": "detail", "priority": "low"} for i in range(8)]
+        )
+        response_with_tasks = f"Answer.\n\n---TASKS---\n{tasks_json}\n---END_TASKS---"
+
+        mock_message = MagicMock()
+        mock_message.content = response_with_tasks
+        mock_message.artifact = None
+
+        mock_agent = AsyncMock()
+        mock_agent.ainvoke.return_value = {"messages": [mock_message]}
+        mock_agent_deps["create_agent"].return_value = mock_agent
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.chat("Give me tasks")
+
+        assert len(result["tasks"]) == 5
+        assert result["tasks"][0]["title"] == "Task 0"
+        assert result["tasks"][4]["title"] == "Task 4"
+
+    @pytest.mark.asyncio
     async def test_chat_handles_content_blocks(self, mock_settings, mock_agent_deps):
         """Test chat handles list of content blocks."""
         mock_message = MagicMock()

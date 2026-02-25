@@ -123,7 +123,7 @@ class CrescoAgent:
                 task_start = answer.index("---TASKS---") + len("---TASKS---")
                 task_end = answer.index("---END_TASKS---")
                 task_json = answer[task_start:task_end].strip()
-                tasks = json.loads(task_json)
+                tasks = json.loads(task_json)[:5]
                 # Remove the task section from the answer
                 answer = answer[: answer.index("---TASKS---")].strip()
             except (ValueError, json.JSONDecodeError):

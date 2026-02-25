@@ -43,6 +43,10 @@ class TestSystemPrompt:
         assert "---TASKS---" in SYSTEM_PROMPT
         assert "---END_TASKS---" in SYSTEM_PROMPT
 
+    def test_prompt_limits_tasks_to_five(self):
+        """Test prompt instructs the LLM to suggest no more than five tasks."""
+        assert "no more than 5" in SYSTEM_PROMPT
+
     def test_prompt_mentions_metric_units(self):
         """Test prompt mentions UK metric units."""
         assert "kg/ha" in SYSTEM_PROMPT or "metric" in SYSTEM_PROMPT.lower()
