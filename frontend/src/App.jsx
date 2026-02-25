@@ -95,7 +95,7 @@ function App() {
                 {
                     id: Date.now() + 1,
                     role: 'assistant',
-                    content: "Sorry, I encountered an error communicating with the server. Is the backend running?"
+                    content: "Sorry, I encountered an error communicating with the server."
                 }
             ]);
         } finally {
@@ -158,7 +158,7 @@ function App() {
                         position: 'relative',
                         width: '80%',
                         height: '80%',
-                        backgroundColor: 'white',
+                        backgroundColor: '#0f1110',
                         borderRadius: '8px',
                         overflow: 'auto'
                     }}>
@@ -204,7 +204,7 @@ function App() {
                         position: 'relative',
                         width: '80%',
                         height: '80%',
-                        backgroundColor: 'black',
+                        backgroundColor: '#0f1110',
                         borderRadius: '8px',
                         overflow: 'hidden'
                     }}>
