@@ -8,4 +8,10 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/tests/setup.js',
+    css: { modules: { classNameStrategy: 'non-scoped' } },
+  },
 })
