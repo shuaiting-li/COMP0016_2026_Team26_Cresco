@@ -1,0 +1,18 @@
+{
+  "images": [
+    {
+      "id": "ba642cef-6297-4e00-9997-f1248fd755fd",
+      "filename": "ndvi_ba642cef-6297-4e00-9997-f1248fd755fd.png",
+      "timestamp": "2026-02-26T16:36:21.849243Z",
+      "rgb_filename": "rgb.png",
+      "nir_filename": "nir.png"
+    },
+    {
+      "id": "a1d5752d-da7f-4c53-8c6d-d986ed13ba44",
+      "filename": "ndvi_a1d5752d-da7f-4c53-8c6d-d986ed13ba44.png",
+      "timestamp": "2026-02-26T16:37:09.507631Z",
+      "rgb_filename": "96.png",
+      "nir_filename": "96.png"
+    }
+  ]
+}

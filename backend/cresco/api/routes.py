@@ -9,11 +9,11 @@ from cresco import __version__
 from cresco.agent.agent import get_agent, CrescoAgent
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-from scripts.drone_image import process_drone_images
+from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
 import shutil
 from pathlib import Path
 from fastapi import UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from cresco.rag.indexer import index_knowledge_base
 
 from .schemas import (
@@ -132,22 +132,22 @@ async def chat(
 
 
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
-async def upload_file(
+async def upload_file_drone(
     file: UploadFile = File(...), settings: Settings = Depends(get_settings)
 ):
     try:
         upload_dir = settings.knowledge_base
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        file_path = upload_dir / file.filename
+        filename = file.filename if file.filename else "unknown"
+        file_path = upload_dir / filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         # Trigger reindexing
-
-        await index_knowledge_base(settings, force=False, upload_file=file.filename)
+        await index_knowledge_base(settings, force=False, upload_file=filename)
         return FileUploadResponse(
-            filename=file.filename,
+            filename=filename,
             status="indexed",
         )
     except Exception as e:
@@ -159,20 +159,46 @@ async def upload_file(
 async def upload_file(
     files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
 ):
-
-
     try:
         if len(files) != 2:
             raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
 
         rgb = await files[0].read()
         nir = await files[1].read()
-        result = await process_drone_images(nir, rgb)  ##result is expected to be bytes of the resulting image 
+        rgb_filename = files[0].filename or "rgb.png"
+        nir_filename = files[1].filename or "nir.png"
+        
+        # Compute NDVI and save to disk
+        result = compute_ndvi_image(rgb, nir, rgb_filename, nir_filename, save_to_disk=True)
 
-        return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
+        return StreamingResponse(io.BytesIO(result["image_bytes"]), media_type="image/png")
     except Exception as e:
-        print (f"Error processing drone images: {str(e)}")
+        print(f"Error processing drone images: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+@router.get("/ndvi-images", tags=["Files"])
+async def get_ndvi_images():
+    """Get list of all saved NDVI images with metadata."""
+    try:
+        metadata = load_metadata()
+        return metadata
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
+
+
+@router.get("/ndvi-images/{filename}", tags=["Files"])
+async def get_ndvi_image(filename: str):
+    """Get a specific NDVI image file."""
+    try:
+        file_path = NDVI_IMAGES_DIR / filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return FileResponse(file_path, media_type="image/png")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])
