@@ -5,11 +5,15 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import ChartRenderer from '../ChartRenderer';
+
+
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ messages, onSendMessage, isLoading }) {
+export default function ChatArea({ files, messages, onSendMessage, isLoading }) {
     const [input, setInput] = useState("");
+    const [activeTab, setActiveTab] = useState('chat');
     const messagesEndRef = useRef(null);
 
     useEffect(() => {
@@ -28,6 +32,29 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
 
     return (
         <main className={styles.main}>
+            <div className={styles.topBar}>
+                <div className={styles.tabs}>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'chat' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('chat')}
+                    >
+                        <span className={styles.tabLabel} title="Chat">Chat</span>
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'visuals' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('visuals')}
+                    >
+                        <span className={styles.tabLabel} title="Visuals">Visuals</span>
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'data' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('data')}
+                    >
+                        <span className={styles.tabLabel} title="Raw Data">Raw Data</span>
+                    </button>
+                </div>
+            </div>
+
             <div className={styles.contentArea}>
                 {messages.length === 0 ? (
                     <div className={styles.emptyContainer}>
@@ -50,7 +77,7 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                 rehypePlugins={[rehypeKatex]}
-                                                components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
+                                                components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
                                                 >
                                                 {msg.content}
                                             </ReactMarkdown>
