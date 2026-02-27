@@ -74,14 +74,91 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                     {!isUser && <div className={styles.botAvatar}><Bot size={18} /></div>}
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm, remarkMath]}
-                                                rehypePlugins={[rehypeKatex]}
-                                                components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
-                                                >
-                                                {msg.content}
-                                            </ReactMarkdown>
+                                            {/* Render message content with inline charts */}
+                                            {(() => {
+                                                console.log('Rendering message, charts count:', Array.isArray(msg.charts) ? msg.charts.length : 0);
+                                                if (!msg.charts || msg.charts.length === 0) {
+                                                    return (
+                                                        <ReactMarkdown
+                                                            remarkPlugins={[remarkGfm, remarkMath]}
+                                                            rehypePlugins={[rehypeKatex]}
+                                                            components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                        >
+                                                            {msg.content}
+                                                        </ReactMarkdown>
+                                                    );
+                                                }
+                                                // Sort charts by position
+                                                const sortedCharts = [...msg.charts].sort((a, b) => a.position - b.position);
+                                                const elements = [];
+                                                let lastIdx = 0;
+                                                for (let i = 0; i < sortedCharts.length; i++) {
+                                                    const chart = sortedCharts[i];
+                                                    // Text before this chart
+                                                    const textSegment = msg.content.slice(lastIdx, chart.position);
+                                                    if (textSegment) {
+                                                        elements.push(
+                                                            <ReactMarkdown
+                                                                key={`text-${i}`}
+                                                                remarkPlugins={[remarkGfm, remarkMath]}
+                                                                rehypePlugins={[rehypeKatex]}
+                                                                components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                            >
+                                                                {textSegment}
+                                                            </ReactMarkdown>
+                                                        );
+                                                    }
+                                                    // Chart itself
+                                                    elements.push(
+                                                        <div key={`chart-${i}`} style={{margin: '1.5em 0'}}>
+                                                            <ChartRenderer
+                                                                chartData={chart.data}
+                                                                chartType={chart.type}
+                                                                xKey={chart.xKey}
+                                                                yKey={chart.yKey}
+                                                            />
+                                                            {chart.title && <div style={{textAlign: 'center', fontWeight: 500, marginTop: 8}}>{chart.title}</div>}
+                                                        </div>
+                                                    );
+                                                    lastIdx = chart.position;
+                                                }
+                                                // Remaining text after last chart
+                                                const lastText = msg.content.slice(lastIdx);
+                                                if (lastText) {
+                                                    elements.push(
+                                                        <ReactMarkdown
+                                                            key={`text-final`}
+                                                            remarkPlugins={[remarkGfm, remarkMath]}
+                                                            rehypePlugins={[rehypeKatex]}
+                                                            components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                        >
+                                                            {lastText}
+                                                        </ReactMarkdown>
+                                                    );
+                                                }
+                                                return elements;
+                                            })()}
                                         </div>
+
+
+                                        {/* Render charts  if present */}
+                                        {msg.charts && msg.charts.length > 0 && (
+                                            <div className={styles.chartsContainer}>
+                                                <div className={styles.sectionTitle}>
+                                                    <ClipboardList size={14} /> <span>Charts</span>
+                                                </div>
+                                                <ul className={styles.taskList}>
+                                                    {msg.charts.map((chart, idx) => (
+                                                        <li key={idx} className={styles.taskItem}>
+                                                            <strong>{chart.title}</strong>
+                                                            <p>{chart.detail}</p>
+                                                            {chart.priority && <span className={styles.tag}>{chart.priority}</span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
 
                                         {/* Render Tasks if present */}
                                         {msg.tasks && msg.tasks.length > 0 && (
@@ -100,6 +177,7 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                 </ul>
                                             </div>
                                         )}
+
 
                                         {/* Render Citations if present */}
                                         {msg.citations && msg.citations.length > 0 && (

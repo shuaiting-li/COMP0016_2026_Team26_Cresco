@@ -171,7 +171,7 @@ class CrescoAgent:
             user_id: Authenticated user's ID, injected into tools via config
 
         Returns:
-            Dict with 'answer', 'sources', and 'tasks' keys
+            Dict with 'answer', 'sources', 'charts', and 'tasks' keys
         """
         config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
@@ -210,6 +210,28 @@ class CrescoAgent:
                 # If parsing fails, just leave tasks empty
                 pass
 
+        # Parse charts from the response if present (inline, multiple allowed)
+        charts = []
+        print("Debug: Raw answer before chart parsing:", answer)
+        try:
+            import json
+            while "---CHART---" in answer and "---END_CHART---" in answer:
+                chart_marker_start = answer.index("---CHART---")
+                chart_start = chart_marker_start + len("---CHART---")
+                chart_end = answer.index("---END_CHART---")
+                chart_json = answer[chart_start:chart_end].strip()
+                chart = json.loads(chart_json)
+                chart["position"] = chart_marker_start -1
+                charts.append(chart)
+                print(f"Debug: Extracted chart: {chart}, position in answer: {chart_marker_start}")
+                # Remove the chart section from the answer, including the markers and any surrounding whitespace/newlines
+                before = answer[:chart_marker_start].rstrip()
+                after = answer[chart_end + len("---END_CHART---"):].lstrip()
+                answer = before + ("\n" if before and after else "") + after
+        except (ValueError, json.JSONDecodeError):
+            # If parsing fails, just leave charts empty
+            pass
+
         # Extract sources from tool artifacts if available
         sources = []
         for i in range(
@@ -235,6 +257,7 @@ class CrescoAgent:
             "answer": answer,
             "sources": sources,
             "tasks": tasks,
+            "charts": charts
         }
 
     def clear_memory(self, thread_id: str = "default") -> None:

@@ -98,7 +98,7 @@ export async function login(username, password) {
  * @param {string} message - The user's message
  * @param {string} conversationId - Optional conversation ID for context
  * @param {Array<File>} files - Optional array of uploaded files
- * @returns {Promise<{reply: string, tasks: Array, citations: Array}>}
+ * @returns {Promise<{reply: string, tasks: Array, citations: Array, charts: Array, conversationId: string}>}
  */
 export async function sendMessage(message, conversationId = null, files = []) {
     const controller = new AbortController();
@@ -139,11 +139,13 @@ export async function sendMessage(message, conversationId = null, files = []) {
         const data = await response.json();
 
         // Transform backend response to frontend format
-        // Backend returns: { answer: string, sources: string[], tasks: array, conversation_id?: string }
-        // Frontend expects: { reply: string, tasks: Array, citations: Array }
+        // Backend returns: { answer: string, sources: string[], tasks: array, charts: array, conversation_id?: string }
+        // Frontend expects: { reply: string, tasks: Array, citations: Array, charts: Array }
+        console.log('Received chart response:', Array.isArray(data.charts) ? data.charts.length : 0);
         return {
             reply: data.answer,
             tasks: data.tasks || [], // Backend now provides tasks
+            charts: data.charts || [], // Backend now provides charts
             citations: data.sources || [],
             conversationId: data.conversation_id,
         };
