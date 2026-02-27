@@ -5,11 +5,7 @@ export const STUDIO_ITEMS = [
     { title: "...", icon: TrophyIcon },
     { title: "Yield Forecast", icon: LineChart },
     { title: "Add Farm", icon: Sprout },
-<<<<<<< HEAD
-    { title: "Satellite Imagery", icon: TrophyIcon }
-
-=======
+    { title: "Satellite Imagery", icon: TrophyIcon },
     { title: "Drone Monitoring", icon: Drone }
->>>>>>> ui/drone-imagery
     
 ];
