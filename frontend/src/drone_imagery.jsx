@@ -72,6 +72,7 @@ const DroneImagery = () => {
             }
         } catch (err) {
             setUploadStatus("Error uploading files.");
+            console.error("Error uploading files:", err);
         }
     };
 

@@ -1,12 +1,12 @@
 """API routes for Cresco chatbot."""
 
-import io
-
 import asyncio
+import io
 import shutil
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, FastAPI
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from cresco import __version__
@@ -14,12 +14,7 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
-import shutil
-from pathlib import Path
-from fastapi import UploadFile, File
-from fastapi.responses import StreamingResponse, FileResponse
-from cresco.rag.indexer import index_knowledge_base
+from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
 
 from .schemas import (
     ChatRequest,
@@ -238,8 +233,7 @@ async def upload_file(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
-    
-    
+
 
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
@@ -247,13 +241,15 @@ async def upload_file_drone(
 ):
     try:
         if len(files) != 2:
-            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
+            raise HTTPException(
+                status_code=400, detail="Exactly 2 files (NIR and RGB) are required"
+            )
 
         rgb = await files[0].read()
         nir = await files[1].read()
         rgb_filename = files[0].filename or "rgb.png"
         nir_filename = files[1].filename or "nir.png"
-        
+
         # Compute NDVI and save to disk
         result = compute_ndvi_image(rgb, nir, rgb_filename, nir_filename, save_to_disk=True)
 
@@ -271,6 +267,7 @@ async def get_ndvi_images():
         return metadata
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
+
 
 # Gets a specific NDVI image. Uh. It it's ever needed
 @router.get("/ndvi-images/{filename}", tags=["Files"])
