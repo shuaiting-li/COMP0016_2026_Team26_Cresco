@@ -11,7 +11,7 @@ import ChartRenderer from '../ChartRenderer';
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ files, messages, onSendMessage, isLoading }) {
+export default function ChatArea({ messages, onSendMessage, isLoading }) {
     const [input, setInput] = useState("");
     const [activeTab, setActiveTab] = useState('chat');
     const messagesEndRef = useRef(null);
@@ -83,7 +83,7 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                         <ReactMarkdown
                                                             remarkPlugins={[remarkGfm, remarkMath]}
                                                             rehypePlugins={[rehypeKatex]}
-                                                            components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                            components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
                                                         >
                                                             {msg.content}
                                                         </ReactMarkdown>
@@ -92,18 +92,18 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                 // Sort charts by position
                                                 const sortedCharts = [...msg.charts].sort((a, b) => a.position - b.position);
                                                 const elements = [];
-                                                let lastIdx = 0;
+                                                let chartPos = 0;
                                                 for (let i = 0; i < sortedCharts.length; i++) {
                                                     const chart = sortedCharts[i];
                                                     // Text before this chart
-                                                    const textSegment = msg.content.slice(lastIdx, chart.position);
+                                                    const textSegment = msg.content.slice(chartPos, chart.position);
                                                     if (textSegment) {
                                                         elements.push(
                                                             <ReactMarkdown
                                                                 key={`text-${i}`}
                                                                 remarkPlugins={[remarkGfm, remarkMath]}
                                                                 rehypePlugins={[rehypeKatex]}
-                                                                components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                                components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
                                                             >
                                                                 {textSegment}
                                                             </ReactMarkdown>
@@ -121,17 +121,17 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                             {chart.title && <div style={{textAlign: 'center', fontWeight: 500, marginTop: 8}}>{chart.title}</div>}
                                                         </div>
                                                     );
-                                                    lastIdx = chart.position;
+                                                    chartPos = chart.position;
                                                 }
                                                 // Remaining text after last chart
-                                                const lastText = msg.content.slice(lastIdx);
+                                                const lastText = msg.content.slice(chartPos);
                                                 if (lastText) {
                                                     elements.push(
                                                         <ReactMarkdown
                                                             key={`text-final`}
                                                             remarkPlugins={[remarkGfm, remarkMath]}
                                                             rehypePlugins={[rehypeKatex]}
-                                                            components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                            components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
                                                         >
                                                             {lastText}
                                                         </ReactMarkdown>
@@ -217,7 +217,7 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                         <ReactMarkdown
                                                             remarkPlugins={[remarkGfm, remarkMath]}
                                                             rehypePlugins={[rehypeKatex]}
-                                                            components={{table: ({node, ...props}) => <table className={styles['markdown-table']} {...props} /> }}
+                                                            components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
                                                         >
                                                             {msg.content}
                                                         </ReactMarkdown>
@@ -226,7 +226,6 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                 // Sort charts by position
                                                 const sortedCharts = [...msg.charts].sort((a, b) => a.position - b.position);
                                                 const elements = [];
-                                                let lastIdx = 0;
                                                 for (let i = 0; i < sortedCharts.length; i++) {
                                                     const chart = sortedCharts[i];
                                                     // Chart itself
@@ -241,7 +240,6 @@ export default function ChatArea({ files, messages, onSendMessage, isLoading }) 
                                                             {chart.title && <div style={{textAlign: 'center', fontWeight: 500, marginTop: 8}}>{chart.title}</div>}
                                                         </div>
                                                     );
-                                                    lastIdx = chart.position;
                                                 }
                                                 return elements;
                                             })()}

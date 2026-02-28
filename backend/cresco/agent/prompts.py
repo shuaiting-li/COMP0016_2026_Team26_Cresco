@@ -1,4 +1,4 @@
-"""System prompts for the Cresco chatbot."""
+"""System prompts for the Cresco chatbot."""  # noqa: E501
 
 SYSTEM_PROMPT = """You are Cresco,
 an AI agricultural assistant designed specifically for UK farmers.
