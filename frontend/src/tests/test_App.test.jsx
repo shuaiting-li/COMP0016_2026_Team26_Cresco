@@ -166,4 +166,36 @@ describe('App', () => {
 
         expect(screen.queryByText(/please select a farm location first/i)).not.toBeInTheDocument();
     });
+
+    it('deletes last user–assistant exchange', async () => {
+        /** Verifies the delete button removes the last user+assistant message pair. */
+        api.isLoggedIn.mockReturnValue(true);
+        api.sendMessage.mockResolvedValueOnce({
+            reply: 'Response text',
+            tasks: [],
+            citations: [],
+        });
+
+        render(<App />);
+        const user = userEvent.setup();
+
+        const input = screen.getByPlaceholderText(/message cresco/i);
+        await user.type(input, 'hello{Enter}');
+
+        // Wait for assistant response
+        await waitFor(() => {
+            expect(screen.getByText('Response text')).toBeInTheDocument();
+        });
+
+        // Delete button should now be visible
+        const deleteBtn = screen.getByRole('button', { name: /delete last exchange/i });
+        await user.click(deleteBtn);
+
+        // Both messages should be removed
+        expect(screen.queryByText('hello')).not.toBeInTheDocument();
+        expect(screen.queryByText('Response text')).not.toBeInTheDocument();
+
+        // Empty state should return
+        expect(screen.getByText('Cresco Intelligence')).toBeInTheDocument();
+    });
 });

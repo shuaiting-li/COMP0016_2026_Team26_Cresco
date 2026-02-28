@@ -11,9 +11,11 @@ describe('ChatArea', () => {
     /** Tests for the main chat interface. */
 
     let onSendMessage;
+    let onDeleteLastExchange;
 
     beforeEach(() => {
         onSendMessage = vi.fn();
+        onDeleteLastExchange = vi.fn();
     });
 
     it('renders empty state with Cresco Intelligence heading', () => {
@@ -172,5 +174,63 @@ describe('ChatArea', () => {
         fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
 
         expect(onSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('shows delete button on last user message after response', async () => {
+        /** Verifies the delete button appears beside the last user message once the assistant responds. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+            { id: 2, role: 'assistant', content: 'hi there' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false} />,
+        );
+
+        expect(screen.getByRole('button', { name: /delete last exchange/i })).toBeInTheDocument();
+    });
+
+    it('does not show delete button while loading', () => {
+        /** Verifies the delete button is hidden while the bot is still processing. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+            { id: 2, role: 'assistant', content: 'hi there' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={true} />,
+        );
+
+        expect(screen.queryByRole('button', { name: /delete last exchange/i })).not.toBeInTheDocument();
+    });
+
+    it('does not show delete button when last message is user only', () => {
+        /** Verifies the delete button does not appear before the assistant responds. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false} />,
+        );
+
+        expect(screen.queryByRole('button', { name: /delete last exchange/i })).not.toBeInTheDocument();
+    });
+
+    it('calls onDeleteLastExchange when delete button is clicked', async () => {
+        /** Verifies the delete callback fires when the delete button is clicked. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+            { id: 2, role: 'assistant', content: 'hi there' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false} />,
+        );
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /delete last exchange/i }));
+
+        expect(onDeleteLastExchange).toHaveBeenCalledTimes(1);
     });
 });
