@@ -1,16 +1,12 @@
 """API routes for Cresco chatbot."""
 
-<<<<<<< HEAD
 import asyncio
 import shutil
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-=======
 import io
 
-from fastapi import APIRouter, Depends, HTTPException, FastAPI
->>>>>>> ui/drone-imagery
+from fastapi import APIRouter, Depends, HTTPException, FastAPI,File, UploadFile, Query
 from pydantic import BaseModel
 
 from cresco import __version__
@@ -18,15 +14,12 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-<<<<<<< HEAD
-=======
 from scripts.drone_image import process_drone_images
 import shutil
 from pathlib import Path
 from fastapi import UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 from cresco.rag.indexer import index_knowledge_base
->>>>>>> ui/drone-imagery
 
 from .schemas import (
     ChatRequest,
