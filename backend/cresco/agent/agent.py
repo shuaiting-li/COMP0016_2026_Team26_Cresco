@@ -222,7 +222,6 @@ class CrescoAgent:
                 chart = json.loads(chart_json)
                 chart["position"] = chart_marker_start -1
                 charts.append(chart)
-                # Remove the chart section from the answer, including the markers and any surrounding whitespace/newlines
                 before = answer[:chart_marker_start].rstrip()
                 after = answer[chart_end + len("---END_CHART---"):].lstrip()
                 answer = before + ("\n" if before and after else "") + after

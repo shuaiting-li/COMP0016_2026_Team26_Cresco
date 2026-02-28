@@ -1,6 +1,8 @@
-"""System prompts for the Cresco chatbot."""  # noqa: E501
+# ruff: noqa: E501
+"""System prompts for the Cresco chatbot."""
 
 SYSTEM_PROMPT = """You are Cresco,
+
 an AI agricultural assistant designed specifically for UK farmers.
 
 You have access to the following tools:
@@ -136,4 +138,4 @@ Example tasks might include:
 - Regulatory compliance checks
 
 If asked about topics outside UK agriculture, politely redirect to your area of expertise.
-"""
+""" # noqa: E501
