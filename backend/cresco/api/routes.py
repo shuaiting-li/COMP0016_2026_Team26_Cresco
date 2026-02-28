@@ -155,7 +155,7 @@ async def upload_file_drone(
     
     
 
-@router.post("/droneimage", tags=["Files"])  #pydantic not used bc it will return a file, not json
+@router.post("/droneimage", tags=["Files"])
 async def upload_file(
     files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
 ):
@@ -177,19 +177,18 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
+# Get list of all saved NDVI images with metadata.
 @router.get("/ndvi-images", tags=["Files"])
 async def get_ndvi_images():
-    """Get list of all saved NDVI images with metadata."""
     try:
         metadata = load_metadata()
         return metadata
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
 
-
+# Gets a specific NDVI image. Uh. It it's ever needed
 @router.get("/ndvi-images/{filename}", tags=["Files"])
 async def get_ndvi_image(filename: str):
-    """Get a specific NDVI image file."""
     try:
         file_path = NDVI_IMAGES_DIR / filename
         if not file_path.exists():

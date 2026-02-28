@@ -11,7 +11,7 @@ const DroneImagery = () => {
     const [savedImages, setSavedImages] = useState([]);
     const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
-    // Fetch saved NDVI images on component mount
+    // Fetch saved NDVI images
     useEffect(() => {
         fetchSavedImages();
     }, []);

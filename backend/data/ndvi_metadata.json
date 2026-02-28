@@ -13,6 +13,34 @@
       "timestamp": "2026-02-26T16:37:09.507631Z",
       "rgb_filename": "96.png",
       "nir_filename": "96.png"
+    },
+    {
+      "id": "f8d788dc-21dc-405c-9ffb-435322ddb2a4",
+      "filename": "ndvi_f8d788dc-21dc-405c-9ffb-435322ddb2a4.png",
+      "timestamp": "2026-02-27T02:58:15.753472Z",
+      "rgb_filename": "84.png",
+      "nir_filename": "84.png"
+    },
+    {
+      "id": "13e292a8-0013-423a-ac81-3f07a0c99c0c",
+      "filename": "evi_13e292a8-0013-423a-ac81-3f07a0c99c0c.png",
+      "timestamp": "2026-02-27T03:05:01.745918Z",
+      "rgb_filename": "92.png",
+      "nir_filename": "92.png"
+    },
+    {
+      "id": "eafed63d-5e20-4a24-8422-1e625b23dd50",
+      "filename": "evi_eafed63d-5e20-4a24-8422-1e625b23dd50.png",
+      "timestamp": "2026-02-27T09:47:28.364713Z",
+      "rgb_filename": "84.png",
+      "nir_filename": "84.png"
+    },
+    {
+      "id": "1ed4356e-5f81-450b-8473-a0a407309af4",
+      "filename": "ndvi_1ed4356e-5f81-450b-8473-a0a407309af4.png",
+      "timestamp": "2026-02-28T16:09:29.146310Z",
+      "rgb_filename": "89.png",
+      "nir_filename": "89.png"
     }
   ]
 }

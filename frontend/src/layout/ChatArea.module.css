@@ -38,7 +38,7 @@
 .messageList {
     padding: 20px 20px 40px 20px;
     display: flex; flex-direction: column; gap: 24px;
-    max-width: 700px; margin: 0 auto; width: 100%;
+    max-width: 550px; margin: 0 auto; width: 100%;
 }
 
 .messageRow { display: flex; gap: 16px; align-items: flex-start; }
