@@ -17,7 +17,7 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
     }, [messages, isLoading]);
 
     const handleSend = () => {
-        if(!input.trim()) return;
+        if(!input.trim() || isLoading) return;
         onSendMessage(input);
         setInput("");
     };
@@ -101,16 +101,17 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
                 <div className={styles.inputContainer}>
                     <input
                         type="text"
-                        placeholder="Message Cresco..."
+                        placeholder={isLoading ? "Waiting for response..." : "Message Cresco..."}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
+                        disabled={isLoading}
                     />
 
                     <button
-                        className={`${styles.sendBtn} ${input.trim() ? styles.sendActive : ''}`}
+                        className={`${styles.sendBtn} ${input.trim() && !isLoading ? styles.sendActive : ''}`}
                         onClick={handleSend}
-                        disabled={!input.trim()}
+                        disabled={!input.trim() || isLoading}
                     >
                         <ArrowUp size={20} strokeWidth={2.5}/>
                     </button>
