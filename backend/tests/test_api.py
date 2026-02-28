@@ -1,8 +1,8 @@
 """Tests for API endpoints."""
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
 
 
 class TestHealthEndpoint:
@@ -47,9 +47,7 @@ class TestChatEndpoint:
 
     def test_chat_endpoint_accepts_valid_message(self, client):
         """Test chat endpoint accepts valid messages."""
-        response = client.post(
-            "/api/v1/chat", json={"message": "What diseases affect wheat?"}
-        )
+        response = client.post("/api/v1/chat", json={"message": "What diseases affect wheat?"})
         assert response.status_code == 200
         data = response.json()
         assert "answer" in data
@@ -88,9 +86,7 @@ class TestChatEndpoint:
 
     def test_chat_response_has_correct_structure(self, client):
         """Test chat response has all required fields."""
-        response = client.post(
-            "/api/v1/chat", json={"message": "How do I manage septoria?"}
-        )
+        response = client.post("/api/v1/chat", json={"message": "How do I manage septoria?"})
         assert response.status_code == 200
         data = response.json()
 
@@ -110,9 +106,7 @@ class TestIndexEndpoint:
 
     def test_index_endpoint_default_no_force(self, client):
         """Test index endpoint accepts request without force flag."""
-        with patch(
-            "cresco.api.routes.index_knowledge_base", new_callable=AsyncMock
-        ) as mock_index:
+        with patch("cresco.api.routes.index_knowledge_base", new_callable=AsyncMock) as mock_index:
             mock_index.return_value = 50
             response = client.post("/api/v1/index", json={})
             assert response.status_code == 200
@@ -122,9 +116,7 @@ class TestIndexEndpoint:
 
     def test_index_endpoint_with_force_reindex(self, client):
         """Test index endpoint with force_reindex flag."""
-        with patch(
-            "cresco.api.routes.index_knowledge_base", new_callable=AsyncMock
-        ) as mock_index:
+        with patch("cresco.api.routes.index_knowledge_base", new_callable=AsyncMock) as mock_index:
             mock_index.return_value = 100
             response = client.post("/api/v1/index", json={"force_reindex": True})
             assert response.status_code == 200
@@ -135,9 +127,7 @@ class TestIndexEndpoint:
 
     def test_index_endpoint_returns_document_count(self, client):
         """Test index endpoint returns correct document count."""
-        with patch(
-            "cresco.api.routes.index_knowledge_base", new_callable=AsyncMock
-        ) as mock_index:
+        with patch("cresco.api.routes.index_knowledge_base", new_callable=AsyncMock) as mock_index:
             mock_index.return_value = 75
             response = client.post("/api/v1/index", json={})
             data = response.json()
@@ -146,9 +136,7 @@ class TestIndexEndpoint:
 
     def test_index_endpoint_handles_errors(self, client):
         """Test index endpoint handles indexing errors gracefully."""
-        with patch(
-            "cresco.api.routes.index_knowledge_base", new_callable=AsyncMock
-        ) as mock_index:
+        with patch("cresco.api.routes.index_knowledge_base", new_callable=AsyncMock) as mock_index:
             mock_index.side_effect = Exception("Database error")
             response = client.post("/api/v1/index", json={})
             assert response.status_code == 500
@@ -172,9 +160,7 @@ class TestCORS:
 
     def test_cors_headers_present(self, client):
         """Test CORS headers are present in response."""
-        response = client.get(
-            "/api/v1/health", headers={"Origin": "http://localhost:3000"}
-        )
+        response = client.get("/api/v1/health", headers={"Origin": "http://localhost:3000"})
         # When CORS is configured with allow_origins=["*"]
         # the header should be present
         assert response.status_code == 200
@@ -201,3 +187,151 @@ class TestErrorHandling:
             headers={"Content-Type": "application/json"},
         )
         assert response.status_code == 422
+
+
+class TestGeocodeSearchEndpoint:
+    """Tests for the /geocode/search proxy endpoint."""
+
+    def test_geocode_search_returns_results(self, client):
+        """Test forward geocoding proxy returns Nominatim results."""
+        mock_response = httpx.Response(
+            200,
+            json=[{"lat": "51.5074", "lon": "-0.1278", "display_name": "London, UK"}],
+            request=httpx.Request("GET", "https://nominatim.openstreetmap.org/search"),
+        )
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                return_value=mock_response
+            )
+            response = client.get("/api/v1/geocode/search", params={"q": "London"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert data[0]["display_name"] == "London, UK"
+
+    def test_geocode_search_requires_query(self, client):
+        """Test forward geocoding requires the q parameter."""
+        response = client.get("/api/v1/geocode/search")
+        assert response.status_code == 422
+
+    def test_geocode_search_handles_upstream_failure(self, client):
+        """Test forward geocoding returns 502 when Nominatim fails."""
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                side_effect=httpx.HTTPError("Connection refused")
+            )
+            response = client.get("/api/v1/geocode/search", params={"q": "London"})
+
+        assert response.status_code == 502
+
+
+class TestGeocodeReverseEndpoint:
+    """Tests for the /geocode/reverse proxy endpoint."""
+
+    def test_geocode_reverse_returns_location(self, client):
+        """Test reverse geocoding proxy returns a display name."""
+        mock_response = httpx.Response(
+            200,
+            json={"display_name": "London, UK", "lat": "51.5074", "lon": "-0.1278"},
+            request=httpx.Request("GET", "https://nominatim.openstreetmap.org/reverse"),
+        )
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                return_value=mock_response
+            )
+            response = client.get(
+                "/api/v1/geocode/reverse", params={"lat": 51.5074, "lon": -0.1278}
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["display_name"] == "London, UK"
+
+    def test_geocode_reverse_requires_params(self, client):
+        """Test reverse geocoding requires lat and lon parameters."""
+        response = client.get("/api/v1/geocode/reverse")
+        assert response.status_code == 422
+
+    def test_geocode_reverse_handles_upstream_failure(self, client):
+        """Test reverse geocoding returns 502 when Nominatim fails."""
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                side_effect=httpx.HTTPError("Connection refused")
+            )
+            response = client.get(
+                "/api/v1/geocode/reverse", params={"lat": 51.5074, "lon": -0.1278}
+            )
+
+        assert response.status_code == 502
+
+
+class TestWeatherEndpoint:
+    """Tests for the /weather proxy endpoint."""
+
+    def test_weather_returns_current_and_forecast(self, client):
+        """Test weather endpoint returns both current weather and forecast data."""
+        mock_weather = httpx.Response(
+            200,
+            json={"name": "London", "main": {"temp": 15}, "weather": [{"description": "clear"}]},
+            request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/weather"),
+        )
+        mock_forecast = httpx.Response(
+            200,
+            json={"list": [{"dt": 1700000000, "main": {"temp": 14}}]},
+            request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/forecast"),
+        )
+
+        async def fake_get(url, **kwargs):
+            if "forecast" in url:
+                return mock_forecast
+            return mock_weather
+
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                side_effect=fake_get
+            )
+            with patch("cresco.api.routes.get_settings") as mock_gs:
+                mock_s = MagicMock()
+                mock_s.openweather_api_key = "test-key"
+                mock_gs.return_value = mock_s
+                response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "current_weather" in data
+        assert "forecast" in data
+        assert data["current_weather"]["name"] == "London"
+
+    def test_weather_requires_lat_lon(self, client):
+        """Test weather endpoint requires lat and lon parameters."""
+        response = client.get("/api/v1/weather")
+        assert response.status_code == 422
+
+    def test_weather_handles_upstream_failure(self, client):
+        """Test weather endpoint returns 502 when OpenWeatherMap fails."""
+        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+            mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
+                side_effect=httpx.HTTPError("Connection refused")
+            )
+            with patch("cresco.api.routes.get_settings") as mock_gs:
+                mock_s = MagicMock()
+                mock_s.openweather_api_key = "test-key"
+                mock_gs.return_value = mock_s
+                response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+
+        assert response.status_code == 502
+
+    def test_weather_fails_without_api_key(self, client):
+        """Test weather endpoint returns 500 when API key is not configured."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        mock_s = MagicMock()
+        mock_s.openweather_api_key = ""
+        mock_s.knowledge_base = MagicMock()
+        app.dependency_overrides[get_settings] = lambda: mock_s
+
+        response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+
+        assert response.status_code == 500

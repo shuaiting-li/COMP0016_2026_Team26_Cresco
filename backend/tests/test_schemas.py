@@ -124,9 +124,7 @@ class TestHealthResponse:
 
     def test_valid_response(self):
         """Test valid health response."""
-        response = HealthResponse(
-            status="healthy", version="0.1.0", knowledge_base_loaded=True
-        )
+        response = HealthResponse(status="healthy", version="0.1.0", knowledge_base_loaded=True)
         assert response.status == "healthy"
         assert response.version == "0.1.0"
         assert response.knowledge_base_loaded is True
@@ -138,9 +136,7 @@ class TestHealthResponse:
 
     def test_knowledge_base_false(self):
         """Test knowledge_base_loaded can be False."""
-        response = HealthResponse(
-            status="healthy", version="0.1.0", knowledge_base_loaded=False
-        )
+        response = HealthResponse(status="healthy", version="0.1.0", knowledge_base_loaded=False)
         assert response.knowledge_base_loaded is False
 
 

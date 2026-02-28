@@ -7,12 +7,8 @@ from fastapi.responses import StreamingResponse
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
 
-    message: str = Field(
-        ..., min_length=1, max_length=2000, description="User's question"
-    )
-    conversation_id: str | None = Field(
-        None, description="Optional conversation ID for context"
-    )
+    message: str = Field(..., min_length=1, max_length=2000, description="User's question")
+    conversation_id: str | None = Field(None, description="Optional conversation ID for context")
     files: list[dict] | None = Field(
         None, description="Optional uploaded files with name and content"
     )
@@ -22,15 +18,9 @@ class ChatResponse(BaseModel):
     """Response model for chat endpoint."""
 
     answer: str = Field(..., description="AI-generated response")
-    sources: list[str] = Field(
-        default_factory=list, description="Source documents used"
-    )
-    tasks: list[dict] = Field(
-        default_factory=list, description="Suggested action plan tasks"
-    )
-    conversation_id: str | None = Field(
-        None, description="Conversation ID for follow-up"
-    )
+    sources: list[str] = Field(default_factory=list, description="Source documents used")
+    tasks: list[dict] = Field(default_factory=list, description="Suggested action plan tasks")
+    conversation_id: str | None = Field(None, description="Conversation ID for follow-up")
 
 
 class HealthResponse(BaseModel):
@@ -38,17 +28,13 @@ class HealthResponse(BaseModel):
 
     status: str = Field(..., description="Service status")
     version: str = Field(..., description="API version")
-    knowledge_base_loaded: bool = Field(
-        ..., description="Whether knowledge base is indexed"
-    )
+    knowledge_base_loaded: bool = Field(..., description="Whether knowledge base is indexed")
 
 
 class IndexRequest(BaseModel):
     """Request model for indexing endpoint."""
 
-    force_reindex: bool = Field(
-        False, description="Force re-indexing even if index exists"
-    )
+    force_reindex: bool = Field(False, description="Force re-indexing even if index exists")
 
 
 class IndexResponse(BaseModel):
@@ -61,6 +47,7 @@ class IndexResponse(BaseModel):
 
 class FileUploadResponse(BaseModel):
     """Response model for file upload endpoint."""
+
     filename: str = Field(..., description="Name of the uploaded file")
     status: str = Field(..., description="Upload status")
 

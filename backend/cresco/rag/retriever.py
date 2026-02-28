@@ -4,6 +4,7 @@ from langchain_chroma import Chroma
 from langchain_core.retrievers import BaseRetriever
 
 from cresco.config import get_settings
+
 from .embeddings import get_embeddings
 
 # Module-level singletons

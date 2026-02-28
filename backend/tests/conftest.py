@@ -1,13 +1,12 @@
 """Shared pytest fixtures for Cresco backend tests."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
 import tempfile
-import shutil
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from cresco.config import Settings
 
@@ -29,6 +28,9 @@ def mock_settings():
             api_host="0.0.0.0",
             api_port=8000,
             debug=True,
+            jwt_secret_key="test-secret-key-for-testing-only",
+            jwt_expiry_hours=24,
+            users_file=str(Path(tmpdir) / "users.json"),
         )
         # Create the knowledge base directory
         Path(settings.knowledge_base_path).mkdir(parents=True, exist_ok=True)
@@ -87,12 +89,12 @@ def mock_agent():
 
 @pytest.fixture
 def client():
-    """Create FastAPI test client with mocked dependencies."""
+    """Create FastAPI test client with mocked dependencies (auth bypassed)."""
     # Import here to avoid circular imports
-    from cresco.main import app
     from cresco.agent.agent import get_agent
+    from cresco.auth.dependencies import get_current_user
     from cresco.config import get_settings
-    from cresco.rag.indexer import is_indexed
+    from cresco.main import app
 
     # Create mock agent
     mock_agent = AsyncMock()
@@ -106,9 +108,14 @@ def client():
     mock_settings = MagicMock()
     mock_settings.knowledge_base = Path("/tmp/kb")
 
-    # Override dependencies
+    # Override dependencies — bypass auth for existing API tests
     app.dependency_overrides[get_agent] = lambda: mock_agent
     app.dependency_overrides[get_settings] = lambda: mock_settings
+    app.dependency_overrides[get_current_user] = lambda: {
+        "user_id": "test-user-id",
+        "username": "testuser",
+        "is_admin": False,
+    }
 
     with patch("cresco.api.routes.is_indexed", return_value=True):
         yield TestClient(app)
@@ -118,11 +125,54 @@ def client():
 
 
 @pytest.fixture
-async def async_client():
-    """Create async test client for async tests."""
-    from cresco.main import app
+def tmp_users_file(mock_settings):
+    """Ensure users_file points to a temporary file and is clean for each test."""
+    users_path = Path(mock_settings.users_file)
+    users_path.parent.mkdir(parents=True, exist_ok=True)
+    # Start with empty users
+    users_path.write_text('{"users": {}}', encoding="utf-8")
+    yield users_path
+    # Cleanup
+    if users_path.exists():
+        users_path.unlink()
+
+
+@pytest.fixture
+def auth_client(mock_settings, tmp_users_file):
+    """Create FastAPI test client with mocked deps and real auth (using tmp users file)."""
     from cresco.agent.agent import get_agent
     from cresco.config import get_settings
+    from cresco.main import app
+
+    # Create mock agent
+    mock_agent_instance = AsyncMock()
+    mock_agent_instance.chat.return_value = {
+        "answer": "Test response",
+        "sources": ["test.md"],
+        "tasks": [],
+    }
+
+    # Override dependencies — use real auth but mock agent and settings
+    app.dependency_overrides[get_agent] = lambda: mock_agent_instance
+    app.dependency_overrides[get_settings] = lambda: mock_settings
+
+    with (
+        patch("cresco.api.routes.is_indexed", return_value=True),
+        patch("cresco.auth.users.get_settings", return_value=mock_settings),
+        patch("cresco.auth.jwt.get_settings", return_value=mock_settings),
+    ):
+        yield TestClient(app)
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def async_client():
+    """Create async test client for async tests."""
+    from cresco.agent.agent import get_agent
+    from cresco.auth.dependencies import get_current_user
+    from cresco.config import get_settings
+    from cresco.main import app
 
     # Create mock agent
     mock_agent = AsyncMock()
@@ -138,10 +188,13 @@ async def async_client():
 
     app.dependency_overrides[get_agent] = lambda: mock_agent
     app.dependency_overrides[get_settings] = lambda: mock_settings
+    app.dependency_overrides[get_current_user] = lambda: {
+        "user_id": "test-user-id",
+        "username": "testuser",
+        "is_admin": False,
+    }
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         with patch("cresco.api.routes.is_indexed", return_value=True):
             yield ac
 

@@ -1,10 +1,11 @@
 //imports
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css'; 
+import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import area from '@turf/area';
 import { polygon } from '@turf/helpers';
+import { saveFarmData, geocodeSearch, geocodeReverse } from './services/api';
 
 
 //reimported images cos it was breaking 
@@ -53,7 +54,7 @@ const createCenterIcon = () => {
       "></div>
     `,
     iconSize: [16, 16],
-    iconAnchor: [10, 10], 
+    iconAnchor: [10, 10],
   });
 };
 
@@ -66,35 +67,35 @@ const centerDotIcon = createCenterIcon();  // Solid Blue
 const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
   //list of markers
   const [positions, setPositions] = useState([
-    [40.785091, -73.968285],
-    [40.790091, -73.968285],
-    [40.790091, -73.960285],
-    [40.785091, -73.960285],
+    [51.5236, -0.1360],
+    [51.5256, -0.1360],
+    [51.5256, -0.1320],
+    [51.5236, -0.1320],
   ]);
 
-   const [mapCenter, setMapCenter] = useState(null);  //map center variable
-   const [searchQuery, setSearchQuery] = useState(""); // for search queries
+  const [mapCenter, setMapCenter] = useState(null);  //map center variable
+  const [searchQuery, setSearchQuery] = useState(""); // for search queries
 
   //function that calculates the area
   const calculateGeoArea = () => {
     try {
-    // converst Leaflet [Lat, Lng] to GeoJSON [Lng, Lat] -> changes the leaflet to orl (y x) -> (x y)
-      const turfPoints = positions.map(p => [p[1], p[0]]); 
+      // converst Leaflet [Lat, Lng] to GeoJSON [Lng, Lat] -> changes the leaflet to orl (y x) -> (x y)
+      const turfPoints = positions.map(p => [p[1], p[0]]);
 
-    // the polygon needs to be closed for area calcs, so this adds the first point back on, to create an array of 5 points, where the last is the same as the first and the loop is closed.
-    // should be able to add more points as necessary
-      turfPoints.push(turfPoints[0]); 
+      // the polygon needs to be closed for area calcs, so this adds the first point back on, to create an array of 5 points, where the last is the same as the first and the loop is closed.
+      // should be able to add more points as necessary
+      turfPoints.push(turfPoints[0]);
 
       // creates Turf Object and calculates area
       const poly = polygon([turfPoints]);
       const areaSqMeters = area(poly);
-      
+
       // Convert to sq km and format and return
       return {
         sqMeters: areaSqMeters.toFixed(0),
         sqKm: (areaSqMeters / 1_000_000).toFixed(3)
       };
-    } catch (e) {
+    } catch {
       return { sqMeters: 0, sqKm: 0 };
     }
   };
@@ -178,13 +179,13 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
 
   const resetPolygon = (lat, lng) => {
-    const offset = 0.0025; 
+    const offset = 0.0025;
 
     const newPositions = [
       [lat + offset, lng - offset],
-      [lat + offset, lng + offset], 
-      [lat - offset, lng + offset], 
-      [lat - offset, lng - offset], 
+      [lat + offset, lng + offset],
+      [lat - offset, lng + offset],
+      [lat - offset, lng - offset],
     ];
 
     setPositions(newPositions);
@@ -194,11 +195,6 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
     setFarmLocation({ lat, lng });
   };
 
-  useEffect(() => {
-    if (farmLocation) {
-      setMapCenter([farmLocation.lat, farmLocation.lng]);
-    }
-  }, [farmLocation]);
 
   const handleLocateMe = () => {
     // check if the browser actually supports this feature
@@ -225,14 +221,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
     if (!searchQuery) return;
 
     try {
-      const encodedQuery = encodeURIComponent(searchQuery);
-      
-      //sends request to OpenStreetMap (Nominatim) 
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}`
-      );
-
-      const data = await response.json();
+      const data = await geocodeSearch(searchQuery);
 
       if (data && data.length > 0) {  //actually returns a list of results, so choose firt results (most accurate) - can have a dropdown menu asw?
         const firstResult = data[0];
@@ -254,66 +243,55 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
   const handleSelectAsFarm = async () => {
     if (positions.length > 0) {
+      try {
+        const centerLat = positions.reduce((sum, pos) => sum + pos[0], 0) / positions.length;
+        const centerLng = positions.reduce((sum, pos) => sum + pos[1], 0) / positions.length;
+
+        // Fetch the location name using reverse geocoding via backend proxy
+        let locationName = `${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}`;
         try {
-            const centerLat = positions.reduce((sum, pos) => sum + pos[0], 0) / positions.length;
-            const centerLng = positions.reduce((sum, pos) => sum + pos[1], 0) / positions.length;
-
-            // Fetch the location name using reverse geocoding
-            const reverseGeocodeUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${centerLat}&lon=${centerLng}`;
-            const reverseGeocodeResponse = await fetch(reverseGeocodeUrl);
-
-            if (!reverseGeocodeResponse.ok) {
-                throw new Error("Failed to fetch location name from reverse geocoding API");
-            }
-
-            const reverseGeocodeData = await reverseGeocodeResponse.json();
-            const locationName = reverseGeocodeData.display_name || "Unknown Location";
-
-            const farmData = {
-                location: locationName,
-                area: areaData.sqKm
-            };
-
-            console.log("Farm data to send:", farmData);
-
-            setFarmLocation({ lat: centerLat, lng: centerLng });
-
-            const response = await fetch("http://127.0.0.1:8000/api/v1/farm-data", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(farmData)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to send farm data to the backend. Status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            console.log("Farm data saved successfully:", result);
-            alert(`Farm location saved: ${locationName}, Area: ${areaData.sqKm} km²`);
-        } catch (error) {
-            console.error("Error in handleSelectAsFarm:", error);
-            alert("An error occurred while saving farm data. Please check the console for details.");
+          const reverseGeocodeData = await geocodeReverse(centerLat, centerLng);
+          locationName = reverseGeocodeData.display_name || locationName;
+        } catch (geoErr) {
+          console.warn("Reverse geocoding failed, using coordinates:", geoErr);
         }
+
+        const farmData = {
+          location: locationName,
+          area: areaData.sqKm,
+          lat: centerLat,
+          lon: centerLng
+        };
+
+        console.log("Farm data to send:", farmData);
+
+        setFarmLocation({ lat: centerLat, lng: centerLng });
+        setMapCenter([centerLat, centerLng]);
+
+        const result = await saveFarmData(farmData);
+        console.log("Farm data saved successfully:", result);
+        alert(`Farm location saved: ${locationName}, Area: ${areaData.sqKm} km²`);
+      } catch (error) {
+        console.error("Error in handleSelectAsFarm:", error);
+        alert("An error occurred while saving farm data. Please check the console for details.");
+      }
     } else {
-        alert("No polygon defined to select as farm.");
+      alert("No polygon defined to select as farm.");
     }
   };
 
   return (
 
     //the actual returned webstire
-    <div style={{ 
-      padding: '20px', 
-      fontFamily: 'sans-serif', 
+    <div style={{
+      padding: '20px',
+      fontFamily: 'sans-serif',
       maxWidth: '800px',
-      margin: '0 auto'   
+      margin: '0 auto'
     }}>
       {/* Control Panel */}
       <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-        <button 
+        <button
           onClick={handleLocateMe}
           style={{ padding: '8px 12px', cursor: 'pointer' }}
         >
@@ -321,29 +299,29 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
         </button>
 
         {/*search Input*/}
-        <input 
-          type="text" 
-          placeholder="City, Address, or Postcode" 
+        <input
+          type="text"
+          placeholder="City, Address, or Postcode"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          style={{ 
-            padding: '8px', 
-            flexGrow: 1, 
-            minWidth: '200px', 
+          style={{
+            padding: '8px',
+            flexGrow: 1,
+            minWidth: '200px',
             color: '#000',
             backgroundColor: '#fff'
           }}
         />
 
-        <button 
+        <button
           onClick={handleSearch}
           style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#004488', color: 'white', border: 'none', borderRadius: '4px' }}
         >
           Search
         </button>
 
-        <button 
+        <button
           onClick={handleSelectAsFarm}
           style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}
         >
@@ -359,12 +337,12 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
       )}
 
       <div style={{ height: '500px', width: '100%', border: '2px solid #333' }}>
-        <MapContainer 
-          center={[40.787, -73.964]} 
-          zoom={15} 
+        <MapContainer
+          center={[51.5246, -0.1340]}
+          zoom={15}
           style={{ height: '100%', width: '100%' }}
         >
-          <FlyToLocation center={mapCenter} />  
+          <FlyToLocation center={mapCenter} />
 
           <TileLayer
             attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
@@ -374,11 +352,11 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
           <Polygon positions={positions} pathOptions={{ color: 'yellow', fillColor: 'yellow', fillOpacity: 0.4 }} />
 
           {positions.map((pos, index) => (
-            <DraggableMarker 
-              key={index} 
-              position={pos} 
-              index={index} 
-              onDrag={updatePosition} 
+            <DraggableMarker
+              key={index}
+              position={pos}
+              index={index}
+              onDrag={updatePosition}
               onRemove={removePoint}
             />
           ))}
@@ -402,9 +380,9 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
         </MapContainer>
       </div>
 
-      <div style={{ marginTop: '15px', padding: '15px', background: '#f4f4f4', borderRadius: '5px',color: '#004488' }}>
-        <strong>Calculated Area:</strong> <br/>
-        {areaData.sqMeters} m² <br/>
+      <div style={{ marginTop: '15px', padding: '15px', background: '#f4f4f4', borderRadius: '5px', color: '#004488' }}>
+        <strong>Calculated Area:</strong> <br />
+        {areaData.sqMeters} m² <br />
         {areaData.sqKm} km²
       </div>
     </div>
@@ -414,7 +392,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 export default SatelliteMap;
 
 // helper component for real marker
-function DraggableMarker({ position, index, onDrag, onRemove, opacity }) {
+function DraggableMarker({ position, index, onDrag, onRemove }) {
   const markerRef = useRef(null);
   const eventHandlers = useMemo(
     () => ({
@@ -439,16 +417,16 @@ function DraggableMarker({ position, index, onDrag, onRemove, opacity }) {
     />
   );
 }
-    // funct that moves the map when center coordinates change  //moved out of main map component so its not redrawn when map is changed
+// funct that moves the map when center coordinates change  //moved out of main map component so its not redrawn when map is changed
 function FlyToLocation({ center }) {
   const map = useMap();
-  
+
   // Whenever 'center' changes, fly to the new spot
   React.useEffect(() => {
     if (center) {
       map.flyTo(center, 15); // Zoom level 16
     }
-  }, [center]);
+  }, [center, map]);
 
   return null;
 }
@@ -507,7 +485,7 @@ function GhostMarker({ position, insertIndex, onDrop }) {
       position={position}
       ref={markerRef}
       icon={ghostDotIcon}
-      zIndexOffset={-100} 
+      zIndexOffset={-100}
     />
   );
 }

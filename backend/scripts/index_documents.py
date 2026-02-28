@@ -11,10 +11,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # Load .env file before importing config
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from cresco.config import get_settings
 from cresco.rag.indexer import index_knowledge_base
+
+load_dotenv()
 
 
 async def main():

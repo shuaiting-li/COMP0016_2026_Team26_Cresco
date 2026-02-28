@@ -3,7 +3,8 @@ import Header from './layout/Header';
 import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
-import { sendMessage, uploadAndIndexFile } from './services/api';
+import AuthPage from './layout/AuthPage';
+import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
@@ -16,6 +17,7 @@ const layoutStyle = {
 };
 
 function App() {
+    const [authenticated, setAuthenticated] = useState(isLoggedIn());
     const [files, setFiles] = useState([]);
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -24,6 +26,20 @@ function App() {
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
+
+    const handleAuth = () => setAuthenticated(true);
+
+    const handleLogout = () => {
+        logout();
+        setAuthenticated(false);
+        setMessages([]);
+        setConversationId(null);
+        setFiles([]);
+    };
+
+    if (!authenticated) {
+        return <AuthPage onAuth={handleAuth} />;
+    }
 
     const handleFileUpload = async (e) => {
         setIsLoading(true);
@@ -34,7 +50,7 @@ function App() {
                 await uploadAndIndexFile(file);
                 setFiles(prev => [...prev, file]);
                 setIsLoading(false);
-            } catch (error) {
+            } catch {
                 console.error("Failed to upload and index:", file.name);
             }
         };
@@ -81,7 +97,7 @@ function App() {
                 {
                     id: Date.now() + 1,
                     role: 'assistant',
-                    content: "Sorry, I encountered an error communicating with the server. Is the backend running?"
+                    content: "Sorry, I encountered an error communicating with the server."
                 }
             ]);
         } finally {
@@ -115,7 +131,7 @@ function App() {
 
     return (
         <div className="app-container">
-            <Header />
+            <Header onLogout={handleLogout} username={getUsername()} />
             <div style={layoutStyle}>
                 <SidebarLeft
                     files={files}
@@ -124,7 +140,6 @@ function App() {
                 />
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <ChatArea
-                        files={files}
                         messages={messages}
                         onSendMessage={handleSendMessage}
                         isLoading={isLoading}
@@ -156,7 +171,7 @@ function App() {
                         height: '80%',
                         backgroundColor: '#0f1110',
                         borderRadius: '8px',
-                        overflow: 'hidden'
+                        overflow: 'auto'
                     }}>
                         <button
                             onClick={handleCloseSatellite}
@@ -268,7 +283,16 @@ function App() {
                         {farmLocation ? (
                             <Weather lat={farmLocation.lat} lon={farmLocation.lng} />
                         ) : (
-                            <div>Please select a farm location first.</div>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: '100%',
+                                fontSize: '18px',
+                                color: 'white'
+                            }}>
+                                Please select a farm location first.
+                            </div>
                         )}
                     </div>
                 </div>

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sprout, ChevronDown } from 'lucide-react';
+import { Sprout, ChevronDown, LogOut } from 'lucide-react';
 import styles from './Header.module.css';
 
-export default function Header() {
-    const [initials, setInitials] = useState("JD");
+export default function Header({ onLogout, username }) {
+    const initials = username ? username.slice(0, 2).toUpperCase() : 'CR';
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -35,14 +35,11 @@ export default function Header() {
 
                 {isOpen && (
                     <div className={styles.initialsDropdown}>
-                        <label className={styles.dropdownLabel}>INITIALS</label>
-                        <input
-                            type="text"
-                            maxLength={2}
-                            value={initials}
-                            onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                            autoFocus
-                        />
+                        <span className={styles.dropdownLabel}>{username || 'User'}</span>
+                        <button className={styles.logoutBtn} onClick={onLogout}>
+                            <LogOut size={14} />
+                            Sign out
+                        </button>
                     </div>
                 )}
             </div>

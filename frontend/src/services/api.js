@@ -5,6 +5,94 @@
 // Use environment variable or default to localhost:8000
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+// --- Auth helpers ---
+
+const TOKEN_KEY = 'cresco_token';
+const USERNAME_KEY = 'cresco_username';
+
+/** Get the stored JWT token. */
+export function getToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
+
+/** Get the stored username. */
+export function getUsername() {
+    return localStorage.getItem(USERNAME_KEY);
+}
+
+/** Check whether the user is logged in. */
+export function isLoggedIn() {
+    return !!getToken();
+}
+
+/** Clear auth state (logout). */
+export function logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USERNAME_KEY);
+}
+
+function saveAuth(data) {
+    localStorage.setItem(TOKEN_KEY, data.access_token);
+    localStorage.setItem(USERNAME_KEY, data.username);
+}
+
+/** Build standard headers, attaching the Bearer token when available. */
+function authHeaders(extra = {}) {
+    const headers = { 'Content-Type': 'application/json', ...extra };
+    const token = getToken();
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+/**
+ * Register a new user (admin-only endpoint — called from admin tools, not the login page).
+ * @param {string} username
+ * @param {string} password
+ * @param {boolean} isAdmin
+ * @returns {Promise<{access_token: string, username: string}>}
+ */
+export async function register(username, password, isAdmin = false) {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ username, password, is_admin: isAdmin }),
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Registration failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    saveAuth(data);
+    return data;
+}
+
+/**
+ * Log in an existing user.
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<{access_token: string, username: string}>}
+ */
+export async function login(username, password) {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Login failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    saveAuth(data);
+    return data;
+}
+
 /**
  * Send a message to the chatbot and get a response
  * @param {string} message - The user's message
@@ -30,9 +118,7 @@ export async function sendMessage(message, conversationId = null, files = []) {
 
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: authHeaders(),
             body: JSON.stringify({
                 message,
                 conversation_id: conversationId,
@@ -40,6 +126,11 @@ export async function sendMessage(message, conversationId = null, files = []) {
             }),
             signal: controller.signal,
         });
+
+        if (response.status === 401 || response.status === 403) {
+            logout();
+            throw new Error('Session expired. Please log in again.');
+        }
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -96,9 +187,7 @@ export async function indexKnowledgeBase(forceReindex = false) {
     try {
         const response = await fetch(`${API_BASE_URL}/index`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: authHeaders(),
             body: JSON.stringify({
                 force_reindex: forceReindex,
             }),
@@ -121,12 +210,115 @@ export async function indexKnowledgeBase(forceReindex = false) {
  * @returns {Promise<{filename: string, status: string}>}
  */
 
+/**
+ * Forward geocode a search query (city, address, postcode) via the backend proxy.
+ * @param {string} query
+ * @returns {Promise<Array<{ lat: string, lon: string, display_name: string }>>}
+ */
+export async function geocodeSearch(query) {
+    const params = new URLSearchParams({ q: query });
+    const response = await fetch(`${API_BASE_URL}/geocode/search?${params}`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Geocode search failed (${response.status})`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Reverse geocode coordinates via the backend proxy.
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<{ display_name: string }>}
+ */
+export async function geocodeReverse(lat, lon) {
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+    const response = await fetch(`${API_BASE_URL}/geocode/reverse?${params}`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Reverse geocode failed (${response.status})`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Save farm location and area data to the backend.
+ * @param {{ location: string, area: string }} farmData
+ * @returns {Promise<{ message: string, data: object }>}
+ */
+export async function saveFarmData(farmData) {
+    const response = await fetch(`${API_BASE_URL}/farm-data`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(farmData),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to save farm data (${response.status})`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Fetch current weather and forecast for given coordinates via the backend proxy.
+ * The backend fetches from OpenWeatherMap (keeping the API key server-side) and stores the data.
+ * @param {number} lat
+ * @param {number} lon
+ * @returns {Promise<{ current_weather: object, forecast: object }>}
+ */
+export async function fetchWeather(lat, lon) {
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lon) });
+    const response = await fetch(`${API_BASE_URL}/weather?${params}`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch weather data (${response.status})`);
+    }
+
+    return await response.json();
+}
+
 export const uploadAndIndexFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
 
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
+        headers,
         body: formData,
     });
 

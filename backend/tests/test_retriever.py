@@ -1,9 +1,8 @@
 """Tests for RAG retriever and vector store."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from cresco.rag.retriever import get_vector_store, get_retriever
+from cresco.rag.retriever import get_retriever, get_vector_store
 
 
 class TestGetVectorStore:
@@ -21,7 +20,7 @@ class TestGetVectorStore:
                 with patch("cresco.rag.retriever.get_settings") as mock_settings:
                     mock_settings.return_value.chroma_path = "/tmp/chroma"
 
-                    store = get_vector_store()
+                    get_vector_store()
 
                     assert mock_chroma.called
 

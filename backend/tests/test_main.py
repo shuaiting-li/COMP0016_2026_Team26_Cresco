@@ -1,10 +1,11 @@
 """Tests for FastAPI application setup."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from cresco.main import create_app, app
+import pytest
+
 from cresco import __version__
+from cresco.main import app, create_app
 
 
 class TestCreateApp:

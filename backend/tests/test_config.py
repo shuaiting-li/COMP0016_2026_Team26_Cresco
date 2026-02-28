@@ -1,9 +1,8 @@
 """Tests for configuration settings."""
 
-import pytest
 import os
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 from cresco.config import Settings, get_settings
 

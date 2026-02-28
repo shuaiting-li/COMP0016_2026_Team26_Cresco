@@ -2,11 +2,16 @@
 
 import io
 
-from fastapi import APIRouter, Depends, HTTPException, FastAPI
+import asyncio
+import shutil
+
+import httpx
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, FastAPI
 from pydantic import BaseModel
 
 from cresco import __version__
-from cresco.agent.agent import get_agent, CrescoAgent
+from cresco.agent.agent import CrescoAgent, get_agent
+from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
 from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
@@ -19,10 +24,10 @@ from cresco.rag.indexer import index_knowledge_base
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    FileUploadResponse,
     HealthResponse,
     IndexRequest,
     IndexResponse,
-    FileUploadResponse,
 )
 
 router = APIRouter()
@@ -34,55 +39,141 @@ farm_data = {}
 class FarmData(BaseModel):
     location: str
     area: float
-
-
-# Add a new endpoint to receive weather data
-class WeatherData(BaseModel):
-    location: str
-    currentWeather: dict
-    forecast: dict
-
-
-app = FastAPI()
+    lat: float | None = None
+    lon: float | None = None
 
 
 @router.post("/farm-data")
-async def save_farm_data(farm: FarmData):
+async def save_farm_data(
+    farm: FarmData,
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
     try:
-        # For simplicity, using a single key for now
-        user_id = "default_user"
-        farm_data[user_id] = {"location": farm.location, "area": farm.area}
+        user_id = current_user["user_id"]
+        farm_data[user_id] = {
+            "location": farm.location,
+            "area": farm.area,
+            "lat": farm.lat,
+            "lon": farm.lon,
+        }
+
+        # Auto-fetch weather if coordinates are provided
+        if farm.lat is not None and farm.lon is not None:
+            api_key = settings.openweather_api_key
+            if api_key:
+                await fetch_weather(user_id, farm.lat, farm.lon, api_key)
+                # Failure is silent — user can still open the weather panel manually
+
         return {"message": "Farm data saved successfully", "data": farm_data[user_id]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
 @router.get("/farm-data")
-async def get_farm_data():
-    user_id = "default_user"
+async def get_farm_data(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
     if user_id in farm_data:
         return {"data": farm_data[user_id]}
     else:
         raise HTTPException(status_code=404, detail="No farm data found for the user")
 
 
-# Update the /weather-data endpoint to parse and store both current weather and forecast data
-@router.post("/weather-data")
-async def save_weather_data(weather: WeatherData):
+async def fetch_weather(user_id: str, lat: float, lon: float, api_key: str) -> bool:
+    """Fetch weather + forecast from OWM and store in farm_data. Returns True on success."""
     try:
-        # For simplicity, using a single key for now
-        user_id = "default_user"
+        async with httpx.AsyncClient(timeout=10) as client:
+            weather_resp, forecast_resp = await asyncio.gather(
+                client.get(
+                    "https://api.openweathermap.org/data/2.5/weather",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
+                ),
+                client.get(
+                    "https://api.openweathermap.org/data/2.5/forecast",
+                    params={"lat": lat, "lon": lon, "units": "metric", "appid": api_key},
+                ),
+            )
+            weather_resp.raise_for_status()
+            forecast_resp.raise_for_status()
+
+        weather_json = weather_resp.json()
+        if user_id not in farm_data:
+            farm_data[user_id] = {}
         farm_data[user_id]["weather"] = {
-            "location": weather.location,
-            "currentWeather": weather.currentWeather,
-            "forecast": weather.forecast,  # Include forecast data
+            "location": weather_json.get("name", "Unknown"),
+            "current_weather": weather_json,
+            "forecast": forecast_resp.json(),
         }
-        return {
-            "message": "Weather data saved successfully",
-            "data": farm_data[user_id]["weather"],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        return True
+    except httpx.HTTPError:
+        return False
+
+
+@router.get("/weather", tags=["Weather"])
+async def get_weather(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Fetch current weather and forecast from OpenWeatherMap, store it, and return it."""
+    api_key = settings.openweather_api_key
+    if not api_key:
+        raise HTTPException(
+            status_code=500, detail="OPENWEATHER_API_KEY is not configured on the server."
+        )
+
+    user_id = current_user["user_id"]
+    success = await fetch_weather(user_id, lat, lon, api_key)
+    if not success:
+        raise HTTPException(status_code=502, detail="Weather API request failed.")
+
+    weather_block = farm_data[user_id]["weather"]
+    return {
+        "current_weather": weather_block["current_weather"],
+        "forecast": weather_block["forecast"],
+    }
+
+
+@router.get("/geocode/search", tags=["Geocoding"])
+async def geocode_search(
+    q: str = Query(..., description="Search query (city, address, postcode)"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Proxy forward geocoding requests to Nominatim."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"format": "json", "q": q},
+                headers={"User-Agent": "Cresco/1.0"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Geocoding request failed: {e}")
+
+
+@router.get("/geocode/reverse", tags=["Geocoding"])
+async def geocode_reverse(
+    lat: float = Query(..., description="Latitude"),
+    lon: float = Query(..., description="Longitude"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Proxy reverse geocoding requests to Nominatim."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"format": "json", "lat": lat, "lon": lon},
+                headers={"User-Agent": "Cresco/1.0"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Reverse geocoding request failed: {e}")
 
 
 @router.get("/health", response_model=HealthResponse, tags=["System"])
@@ -98,21 +189,14 @@ async def health_check(settings: Settings = Depends(get_settings)) -> HealthResp
 @router.post("/chat", response_model=ChatResponse, tags=["Chat"])
 async def chat(
     request: ChatRequest,
+    current_user: dict = Depends(get_current_user),
     agent: CrescoAgent = Depends(get_agent),
 ) -> ChatResponse:
     """Send a message to the Cresco chatbot."""
     try:
-        # Build the message, including farm and weather data context if available
         message = request.message
 
-        user_id = "default_user"
-        if user_id in farm_data:
-            farm_context = f"\n\n[Farm Data Context]:\nLocation: {farm_data[user_id]['location']}, Area: {farm_data[user_id]['area']} km²"
-            message += farm_context
-
-            if "weather" in farm_data[user_id]:
-                weather_context = f"\n\n[Weather Data Context]:\nLocation: {farm_data[user_id]['weather']['location']}, Current Weather: {farm_data[user_id]['weather']['currentWeather']['weather'][0]['description']}, Temperature: {farm_data[user_id]['weather']['currentWeather']['main']['temp']}°C"
-                message += weather_context
+        user_id = current_user["user_id"]
         if request.files and len(request.files) > 0:
             file_context = "\n\n[Uploaded Files Context]:\n"
             for file in request.files:
@@ -120,7 +204,7 @@ async def chat(
                 file_content = file.get("content", "")
                 file_context += f"\n--- {file_name} ---\n{file_content}\n"
             message = message + file_context
-        result = await agent.chat(message)
+        result = await agent.chat(message, thread_id=user_id, user_id=user_id)
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
@@ -132,8 +216,10 @@ async def chat(
 
 
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
-async def upload_file_drone(
-    file: UploadFile = File(...), settings: Settings = Depends(get_settings)
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     try:
         upload_dir = settings.knowledge_base
@@ -156,7 +242,7 @@ async def upload_file_drone(
     
 
 @router.post("/droneimage", tags=["Files"])
-async def upload_file(
+async def upload_file_drone(
     files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
 ):
     try:
@@ -203,6 +289,7 @@ async def get_ndvi_image(filename: str):
 @router.post("/index", response_model=IndexResponse, tags=["System"])
 async def index_documents(
     request: IndexRequest,
+    current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> IndexResponse:
     """Index or re-index the knowledge base documents."""
@@ -215,7 +302,3 @@ async def index_documents(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Indexing error: {str(e)}")
-
-
-# Include the router in the FastAPI app with the prefix `/api/v1`
-app.include_router(router, prefix="/api/v1")

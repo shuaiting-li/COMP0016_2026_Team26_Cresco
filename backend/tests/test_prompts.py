@@ -1,7 +1,5 @@
 """Tests for agent prompts."""
 
-import pytest
-
 from cresco.agent.prompts import SYSTEM_PROMPT
 
 
@@ -26,6 +24,14 @@ class TestSystemPrompt:
         """Test prompt mentions the retrieval tool."""
         assert "retrieve_agricultural_info" in SYSTEM_PROMPT
 
+    def test_prompt_mentions_weather_tool(self):
+        """Test prompt mentions the weather tool."""
+        assert "get_weather_data" in SYSTEM_PROMPT
+
+    def test_prompt_mentions_search_tool(self):
+        """Test prompt mentions the internet search tool."""
+        assert "tavily_search" in SYSTEM_PROMPT
+
     def test_prompt_includes_expertise_areas(self):
         """Test prompt includes key expertise areas."""
         expertise = [
@@ -44,6 +50,10 @@ class TestSystemPrompt:
         """Test prompt includes task format instructions."""
         assert "---TASKS---" in SYSTEM_PROMPT
         assert "---END_TASKS---" in SYSTEM_PROMPT
+
+    def test_prompt_limits_tasks_to_five(self):
+        """Test prompt instructs the LLM to suggest no more than five tasks."""
+        assert "5 or fewer" in SYSTEM_PROMPT
 
     def test_prompt_mentions_metric_units(self):
         """Test prompt mentions UK metric units."""
