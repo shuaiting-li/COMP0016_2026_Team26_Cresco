@@ -8,6 +8,28 @@ const DroneImagery = () => {
     const [nirPreview, setNirPreview] = useState(null);
     const [uploadStatus, setUploadStatus] = useState("");
     const [resultImageUrl, setResultImageUrl] = useState(null);
+    const [savedImages, setSavedImages] = useState([]);
+    const [isLoadingGallery, setIsLoadingGallery] = useState(false);
+
+    // Fetch saved NDVI images
+    useEffect(() => {
+        fetchSavedImages();
+    }, []);
+
+    const fetchSavedImages = async () => {
+        setIsLoadingGallery(true);
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/v1/ndvi-images");
+            if (response.ok) {
+                const data = await response.json();
+                setSavedImages(data.images || []);
+            }
+        } catch (err) {
+            console.error("Error fetching saved images:", err);
+        } finally {
+            setIsLoadingGallery(false);
+        }
+    };
 
 
     const handleRgbChange = (e) => {
@@ -43,6 +65,8 @@ const DroneImagery = () => {
                 const url = URL.createObjectURL(blob);  //bc its sending back a whole file, not just a url
                 setResultImageUrl(url);
                 setUploadStatus("Upload successful!");
+                // Refresh the gallery after successful upload
+                fetchSavedImages();
             } else {
                 setUploadStatus("Upload failed.");
             }
@@ -80,7 +104,35 @@ const DroneImagery = () => {
                     <h3 style={{color: "white" }} >NDVI Result Image:</h3>
                     <img src={resultImageUrl} alt="Result" style={{ maxWidth: 400 }} />
                 </div>
-)}        </div>
+            )}
+
+            {/* Saved Images Gallery */}
+            <div style={{ marginTop: 32 }}>
+                <h2 className="drone-imagery-title">Saved NDVI Images</h2>
+                {isLoadingGallery ? (
+                    <div style={{ color: "white" }}>Loading saved images...</div>
+                ) : savedImages.length > 0 ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px", marginTop: "16px" }}>
+                        {savedImages.map((image) => (
+                            <div key={image.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px", backgroundColor: "rgba(255, 255, 255, 0.1)" }}>
+                                <img 
+                                    src={`http://127.0.0.1:8000/api/v1/ndvi-images/${image.filename}`} 
+                                    alt={`NDVI ${image.id}`} 
+                                    style={{ width: "100%", borderRadius: "4px" }} 
+                                />
+                                <div style={{ marginTop: "8px", color: "white", fontSize: "12px" }}>
+                                    <div><strong>Created:</strong> {new Date(image.timestamp).toLocaleString()}</div>
+                                    <div><strong>RGB:</strong> {image.rgb_filename}</div>
+                                    <div><strong>NIR:</strong> {image.nir_filename}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ color: "white" }}>No saved images yet. Upload some images to get started!</div>
+                )}
+            </div>
+        </div>
     );
 };
 
