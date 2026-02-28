@@ -58,6 +58,18 @@ function App() {
         setFiles(files.filter((_, i) => i !== index));
     };
 
+    const handleDeleteLastExchange = () => {
+        setMessages(prev => {
+            if (prev.length < 2) return prev;
+            const last = prev[prev.length - 1];
+            const secondLast = prev[prev.length - 2];
+            if (last.role === 'assistant' && secondLast.role === 'user') {
+                return prev.slice(0, -2);
+            }
+            return prev;
+        });
+    };
+
     const handleSendMessage = async (text) => {
         if (!text.trim()) return;
 
@@ -132,6 +144,7 @@ function App() {
                     <ChatArea
                         messages={messages}
                         onSendMessage={handleSendMessage}
+                        onDeleteLastExchange={handleDeleteLastExchange}
                         isLoading={isLoading}
                     />
                 </div>

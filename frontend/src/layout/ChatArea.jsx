@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen } from 'lucide-react';
+import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen, Trash2 } from 'lucide-react';
 import styles from './ChatArea.module.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ messages, onSendMessage, isLoading }) {
+export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading }) {
     const [input, setInput] = useState("");
     const messagesEndRef = useRef(null);
 
@@ -39,11 +39,24 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
                     </div>
                 ) : (
                     <div className={styles.messageList}>
-                        {messages.map((msg) => {
+                        {messages.map((msg, index) => {
                             if(msg.role === 'event') return null;
                             const isUser = msg.role === 'user';
+                            const isLastUserMsg = isUser
+                                && !isLoading
+                                && index === messages.length - 2
+                                && messages[messages.length - 1]?.role === 'assistant';
                             return (
                                 <div key={msg.id} className={`${styles.messageRow} ${isUser ? styles.userRow : styles.botRow}`}>
+                                    {isLastUserMsg && (
+                                        <button
+                                            className={styles.deleteExchangeBtn}
+                                            onClick={onDeleteLastExchange}
+                                            aria-label="Delete last exchange"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                     {!isUser && <div className={styles.botAvatar}><Bot size={18} /></div>}
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>

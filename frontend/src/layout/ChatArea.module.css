@@ -15,6 +15,13 @@
 .messageRow { display: flex; gap: 16px; align-items: flex-start; }
 .userRow { justify-content: flex-end; }
 
+.deleteExchangeBtn {
+    background: transparent; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 4px; display: flex; align-items: center;
+    transition: 0.2s; align-self: center;
+}
+.deleteExchangeBtn:hover { color: #ff6b6b; transform: scale(1.1); }
+
 .botAvatar {
     width: 28px; height: 28px;
     background: var(--bg-panel); color: var(--accent);
