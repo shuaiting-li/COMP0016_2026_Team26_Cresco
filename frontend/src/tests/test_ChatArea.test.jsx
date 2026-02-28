@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ChatArea from '../layout/ChatArea';
 
@@ -145,5 +145,32 @@ describe('ChatArea', () => {
 
         expect(screen.queryByText('System event')).not.toBeInTheDocument();
         expect(screen.getByText('Hello')).toBeInTheDocument();
+    });
+
+    it('disables input and send button while loading', () => {
+        /** Verifies the input is disabled and shows a loading placeholder during processing. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={true} />);
+
+        expect(screen.getByPlaceholderText(/waiting for response/i)).toBeDisabled();
+        expect(screen.getByRole('button', { name: '' })).toBeDisabled();
+    });
+
+    it('does not send on Enter while loading', () => {
+        /** Verifies the isLoading guard in handleSend blocks dispatch even with text typed. */
+        const { rerender } = render(
+            <ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />,
+        );
+
+        // Type text so input state is non-empty, then switch to loading
+        const input = screen.getByRole('textbox');
+        fireEvent.change(input, { target: { value: 'test message' } });
+
+        rerender(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={true} />);
+
+        // Fire keyDown directly — jsdom bypasses native disabled filtering,
+        // so the React onKeyDown handler is reached and the isLoading guard is exercised.
+        fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+
+        expect(onSendMessage).not.toHaveBeenCalled();
     });
 });
