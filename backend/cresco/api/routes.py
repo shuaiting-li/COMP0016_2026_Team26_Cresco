@@ -197,7 +197,6 @@ async def chat(
                 file_context += f"\n--- {file_name} ---\n{file_content}\n"
             message = message + file_context
         result = await agent.chat(message, thread_id=user_id, user_id=user_id)
-        print(f"Debug: Chart result: {result.get('charts', [])}")
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),

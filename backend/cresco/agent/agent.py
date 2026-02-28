@@ -212,7 +212,6 @@ class CrescoAgent:
 
         # Parse charts from the response if present (inline, multiple allowed)
         charts = []
-        print("Debug: Raw answer before chart parsing:", answer)
         try:
             import json
             while "---CHART---" in answer and "---END_CHART---" in answer:
@@ -223,7 +222,6 @@ class CrescoAgent:
                 chart = json.loads(chart_json)
                 chart["position"] = chart_marker_start -1
                 charts.append(chart)
-                print(f"Debug: Extracted chart: {chart}, position in answer: {chart_marker_start}")
                 # Remove the chart section from the answer, including the markers and any surrounding whitespace/newlines
                 before = answer[:chart_marker_start].rstrip()
                 after = answer[chart_end + len("---END_CHART---"):].lstrip()

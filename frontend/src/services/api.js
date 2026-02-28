@@ -141,7 +141,6 @@ export async function sendMessage(message, conversationId = null, files = []) {
         // Transform backend response to frontend format
         // Backend returns: { answer: string, sources: string[], tasks: array, charts: array, conversation_id?: string }
         // Frontend expects: { reply: string, tasks: Array, citations: Array, charts: Array }
-        console.log('Received chart response:', Array.isArray(data.charts) ? data.charts.length : 0);
         return {
             reply: data.answer,
             tasks: data.tasks || [], // Backend now provides tasks

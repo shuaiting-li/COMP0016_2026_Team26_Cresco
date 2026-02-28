@@ -3,6 +3,47 @@
     background-color: var(--bg-app);
 }
 
+/* --- Top Bar / Tabs --- */
+.topBar {
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-app);
+    flex-shrink: 0;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+
+.tab:hover {
+    color: var(--text-main);
+}
+
+.activeTab {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.tabLabel {
+    pointer-events: none;
+}
+
 /* --- Chat Content --- */
 .contentArea { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
