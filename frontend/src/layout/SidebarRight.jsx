@@ -3,7 +3,7 @@ import styles from './SidebarRight.module.css';
 import { STUDIO_ITEMS } from '../tools/toolMenu';
 import Weather from '../weather';
 
-export default function SidebarRight({ handleOpenSatellite, handleOpenWeather,handleOpenDroneImagery, handleOpenSatteliteImagery }) {
+export default function SidebarRight({ handleOpenSatellite, handleOpenWeather,handleOpenDroneImagery, handleOpenSatelliteImagery }) {
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
 
     const handleCloseWeather = () => {
@@ -25,7 +25,7 @@ export default function SidebarRight({ handleOpenSatellite, handleOpenWeather,ha
                                     : item.title === "Weather Data"
                                     ? handleOpenWeather
                                     : item.title === "Satellite Imagery"
-                                    ? handleOpenSatteliteImagery
+                                    ? handleOpenSatelliteImagery
                                     : item.title === "Drone Monitoring"
                                     ? handleOpenDroneImagery
                                     : undefined

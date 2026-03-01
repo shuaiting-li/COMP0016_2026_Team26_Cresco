@@ -14,7 +14,7 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-from scripts.drone_image import process_drone_images
+from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR, save_metadata
 import shutil
 from pathlib import Path
 from fastapi import UploadFile, File

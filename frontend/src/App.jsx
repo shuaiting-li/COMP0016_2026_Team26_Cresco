@@ -8,6 +8,8 @@ import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
+import SatelliteImagery from './satellite_imagery';
+
 
 const layoutStyle = {
     display: 'flex',
@@ -25,6 +27,7 @@ function App() {
     const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
+    const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
 
     const handleAuth = () => setAuthenticated(true);
@@ -129,6 +132,14 @@ function App() {
         setIsDroneImageryOpen(false);
     };
 
+    const handleOpenSatelliteImagery = () => {
+        setIsSatelliteImageryOpen(true);
+    };
+
+    const handleCloseSatelliteImagery = () => {
+        setIsSatelliteImageryOpen(false);
+    };
+
     return (
         <div className="app-container">
             <Header onLogout={handleLogout} username={getUsername()} />
@@ -149,6 +160,7 @@ function App() {
                     handleOpenSatellite={handleOpenSatellite}
                     handleOpenWeather={handleOpenWeather}
                     handleOpenDroneImagery={handleOpenDroneImagery}
+                    handleOpenSatelliteImagery={handleOpenSatelliteImagery}
                 />
             </div>
 
@@ -238,6 +250,50 @@ function App() {
                             X
                         </button>
                         <DroneImagery />
+                    </div>
+                </div>
+            )}
+
+
+            {isSatelliteImageryOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        position: 'relative',
+                        width: '80%',
+                        height: '80%',
+                        backgroundColor: '#0f1110',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                    }}>
+                        <button
+                            onClick={handleCloseSatelliteImagery}
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                backgroundColor: 'red',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            X
+                        </button>
+                        <SatelliteImagery />
                     </div>
                 </div>
             )}
