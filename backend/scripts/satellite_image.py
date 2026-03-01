@@ -10,7 +10,6 @@ from scripts.drone_image import sat_compute_ndvi_image
 
 
 async def process_satellite_images(nir_bytes: bytes, rgb_bytes: bytes):
-
     result_bytes = sat_compute_ndvi_image(rgb_bytes, nir_bytes, save_to_disk=False)["image_bytes"]
     return result_bytes
 
