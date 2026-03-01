@@ -20,7 +20,7 @@ const SatelliteImagery = () => {
             } else {
                 setUploadStatus("Upload failed.");
             }
-        } catch (err) {
+        } catch {
             setUploadStatus("Error uploading files.");
         }
     };

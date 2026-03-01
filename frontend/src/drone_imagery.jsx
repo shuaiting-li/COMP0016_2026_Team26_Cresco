@@ -24,8 +24,8 @@ const DroneImagery = () => {
                 const data = await response.json();
                 setSavedImages(data.images || []);
             }
-        } catch (err) {
-            console.error("Error fetching saved images:", err);
+        } catch {
+            console.error("Error fetching saved images");
         } finally {
             setIsLoadingGallery(false);
         }
@@ -70,7 +70,7 @@ const DroneImagery = () => {
             } else {
                 setUploadStatus("Upload failed.");
             }
-        } catch (err) {
+        } catch {
             setUploadStatus("Error uploading files.");
         }
     };
