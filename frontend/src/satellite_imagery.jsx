@@ -6,26 +6,22 @@ import "./drone_imagery.css"; // Reuse styling for now
 const SatelliteImagery = () => {
 
     const [uploadStatus, setUploadStatus] = useState("");
-    const [resultBlob, setResultBlob] = useState(null);
     const [resultImageUrl, setResultImageUrl] = useState(null);
 
-    // Create and revoke the object URL whenever the blob changes.
+    // Revoke the previous object URL when it changes or the component unmounts.
     useEffect(() => {
-        if (!resultBlob) {
-            setResultImageUrl(null);
-            return;
-        }
-        const url = URL.createObjectURL(resultBlob);
-        setResultImageUrl(url);
-        return () => URL.revokeObjectURL(url);
-    }, [resultBlob]);
+        return () => {
+            if (resultImageUrl) URL.revokeObjectURL(resultImageUrl);
+        };
+    }, [resultImageUrl]);
 
     const handleUpload = async () => {
         setUploadStatus("Uploading...");
         try {
             const blob = await handleSatelliteImage();
             if (blob) {
-                setResultBlob(blob);
+                const url = URL.createObjectURL(blob);
+                setResultImageUrl(url);
                 setUploadStatus("Upload successful!");
             } else {
                 setUploadStatus("Upload failed.");
