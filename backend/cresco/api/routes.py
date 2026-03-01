@@ -24,7 +24,6 @@ from .schemas import (
     HealthResponse,
     IndexRequest,
     IndexResponse,
-    SatelliteResponse,
 )
 
 router = APIRouter()
@@ -307,7 +306,7 @@ async def index_documents(
 async def satellite_image(
     current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
-) -> SatelliteResponse:
+):
     """Index or re-index the knowledge base documents."""
     try:
         user_id = current_user["user_id"]
@@ -318,7 +317,12 @@ async def satellite_image(
             raise HTTPException(status_code=404, detail="No farm data found for the user")
         print(f"Received request for satellite image with lat={lat}, lon={lon}")  # Debug log
         result = await satellite_images_main(lat, lon)
-        print("Satellite image endpoint processing complete, returning response...")  # Debug log
+        if result is None:
+            # Upstream satellite image generation failed; surface a clear error.
+            raise HTTPException(
+                status_code=502,
+                detail="Failed to generate satellite image from upstream service",
+            )
 
         return StreamingResponse(io.BytesIO(result), media_type="image/png")
 

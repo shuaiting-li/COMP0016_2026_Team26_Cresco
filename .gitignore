@@ -51,3 +51,4 @@ backend/data/chroma_db/
 
 # Sensitive files
 backend/data/users.json
+backend/data/ndvi_metadata.json

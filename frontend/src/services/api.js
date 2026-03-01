@@ -347,10 +347,9 @@ export async function handleSatelliteImage() {
 
 
         if (response.ok) {
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);  //bc its sending back a whole file, not just a url
-            return url;
-        }else{
+            // Return the raw Blob so the caller can manage createObjectURL/revokeObjectURL.
+            return await response.blob();
+        } else {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 

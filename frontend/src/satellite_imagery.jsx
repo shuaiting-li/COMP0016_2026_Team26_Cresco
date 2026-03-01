@@ -1,21 +1,31 @@
 
 import { handleSatelliteImage } from './services/api';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./drone_imagery.css"; // Reuse styling for now
 
 const SatelliteImagery = () => {
 
     const [uploadStatus, setUploadStatus] = useState("");
+    const [resultBlob, setResultBlob] = useState(null);
     const [resultImageUrl, setResultImageUrl] = useState(null);
 
+    // Create and revoke the object URL whenever the blob changes.
+    useEffect(() => {
+        if (!resultBlob) {
+            setResultImageUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(resultBlob);
+        setResultImageUrl(url);
+        return () => URL.revokeObjectURL(url);
+    }, [resultBlob]);
+
     const handleUpload = async () => {
-
-
         setUploadStatus("Uploading...");
         try {
-            const url = await handleSatelliteImage();
-            if (url) {
-                setResultImageUrl(url);
+            const blob = await handleSatelliteImage();
+            if (blob) {
+                setResultBlob(blob);
                 setUploadStatus("Upload successful!");
             } else {
                 setUploadStatus("Upload failed.");

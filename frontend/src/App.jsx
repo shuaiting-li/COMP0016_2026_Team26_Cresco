@@ -293,7 +293,20 @@ function App() {
                         >
                             X
                         </button>
-                        <SatelliteImagery />
+                        {farmLocation ? (
+                            <SatelliteImagery />
+                        ) : (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: '100%',
+                                fontSize: '18px',
+                                color: 'white'
+                            }}>
+                                Please select a farm location first.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
