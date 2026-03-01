@@ -11,10 +11,19 @@ import 'katex/dist/katex.min.css';
 export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading }) {
     const [input, setInput] = useState("");
     const messagesEndRef = useRef(null);
+    const textareaRef = useRef(null);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isLoading]);
+
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+    }, [input]);
 
     const handleSend = () => {
         if(!input.trim() || isLoading) return;
@@ -23,7 +32,10 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
     };
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter') handleSend();
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
     };
 
     return (
@@ -60,13 +72,17 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                                     {!isUser && <div className={styles.botAvatar}><Bot size={18} /></div>}
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm, remarkMath]}
-                                                rehypePlugins={[rehypeKatex]}
-                                                components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
-                                                >
-                                                {msg.content}
-                                            </ReactMarkdown>
+                                            {isUser ? (
+                                                <span className={styles.userText}>{msg.content}</span>
+                                            ) : (
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                                    rehypePlugins={[rehypeKatex]}
+                                                    components={{table: (props) => <table className={styles['markdown-table']} {...props} /> }}
+                                                    >
+                                                    {msg.content}
+                                                </ReactMarkdown>
+                                            )}
                                         </div>
 
                                         {/* Render Tasks if present */}
@@ -112,13 +128,15 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
 
             <div className={styles.inputWrapper}>
                 <div className={styles.inputContainer}>
-                    <input
-                        type="text"
+                    <textarea
+                        ref={textareaRef}
+                        rows={1}
                         placeholder={isLoading ? "Waiting for response..." : "Message Cresco..."}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         disabled={isLoading}
+                        className={styles.textarea}
                     />
 
                     <button

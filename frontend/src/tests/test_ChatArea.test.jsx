@@ -233,4 +233,27 @@ describe('ChatArea', () => {
 
         expect(onDeleteLastExchange).toHaveBeenCalledTimes(1);
     });
+
+    it('inserts newline on Shift+Enter without sending', async () => {
+        /** Verifies Shift+Enter adds a newline to the input rather than sending. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        const user = userEvent.setup();
+
+        const input = screen.getByRole('textbox');
+        await user.type(input, 'line one');
+        await user.keyboard('{Shift>}{Enter}{/Shift}');
+        await user.type(input, 'line two');
+
+        expect(onSendMessage).not.toHaveBeenCalled();
+        expect(input).toHaveValue('line one\nline two');
+    });
+
+    it('preserves newlines in user messages', () => {
+        /** Verifies user message text renders with newlines intact (not through markdown). */
+        const messages = [{ id: 1, role: 'user', content: 'line one\nline two' }];
+        render(<ChatArea messages={messages} onSendMessage={onSendMessage} isLoading={false} />);
+
+        const el = screen.getByText(/line one/);
+        expect(el.textContent).toBe('line one\nline two');
+    });
 });
