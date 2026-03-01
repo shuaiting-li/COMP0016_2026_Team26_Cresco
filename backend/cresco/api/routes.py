@@ -244,7 +244,7 @@ async def upload_file_drone(
 ):
     try:
         if len(files) != 2:
-            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
+            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required") #noqa: E501
 
         rgb = await files[0].read()
         nir = await files[1].read()
@@ -302,7 +302,7 @@ async def index_documents(
 
 
 @router.post("/satellite-image", tags=["System"])
-async def index_documents(
+async def satellite_image(
     current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> SatelliteResponse:
