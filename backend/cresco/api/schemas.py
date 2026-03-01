@@ -51,3 +51,8 @@ class FileUploadResponse(BaseModel):
     filename: str = Field(..., description="Name of the uploaded file")
     status: str = Field(..., description="Upload status")
 
+class SatelliteResponse(BaseModel):
+    """Response model for satellite image endpoint."""
+
+    status: str = Field(..., description="satellite image status")
+

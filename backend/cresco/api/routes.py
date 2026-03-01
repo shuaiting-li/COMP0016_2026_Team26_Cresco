@@ -15,6 +15,7 @@ from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
 from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR, save_metadata
+from scripts.satellite_image import satellite_images_main
 import shutil
 from pathlib import Path
 from fastapi import UploadFile, File
@@ -28,6 +29,7 @@ from .schemas import (
     HealthResponse,
     IndexRequest,
     IndexResponse,
+    SatelliteResponse,
 )
 
 router = APIRouter()
@@ -302,3 +304,27 @@ async def index_documents(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Indexing error: {str(e)}")
+
+
+@router.post("/satellite-image", tags=["System"])
+async def index_documents(
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> SatelliteResponse:
+    """Index or re-index the knowledge base documents."""
+    try:
+        user_id = current_user["user_id"]
+        if user_id in farm_data:
+            lat = farm_data[user_id]["lat"]
+            lon = farm_data[user_id]["lon"]
+        else:
+            raise HTTPException(status_code=404, detail="No farm data found for the user")
+        print(f"Received request for satellite image with lat={lat}, lon={lon}")  # Debug log
+        result = await satellite_images_main(lat, lon)
+        print("Satellite image endpoint processing complete, returning response...")  # Debug log
+
+        return StreamingResponse(io.BytesIO(result), media_type="image/png")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"satellite image error: {str(e)}")
+

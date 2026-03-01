@@ -110,6 +110,53 @@ def _calculate_and_save_index(index_array, filename_prefix, rgb_filename, nir_fi
     return result
 
 
+
+def sat_compute_ndvi_image(red_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = False) -> dict:
+    """
+    Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
+    
+    Returns:
+        dict with keys:
+        - 'image_bytes': PNG image as bytes
+        - 'filename': saved filename (if save_to_disk=True)
+        - 'id': unique ID for the image
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        red_path = os.path.join(tmpdir, "red.tif")
+        nir_path = os.path.join(tmpdir, "nir.tif")
+
+        with open(red_path, "wb") as f:
+            f.write(red_file)
+        with open(nir_path, "wb") as f:
+            f.write(nir_file)
+
+        with rasterio.open(nir_path) as nir_src:
+            nir = nir_src.read(1).astype("float32")
+        with rasterio.open(red_path) as red_src:
+            red = red_src.read(1).astype("float32")
+
+        # Normalize if needed (optional, depending on TIFF bit depth)
+        if nir.max() > 255 or red.max() > 255:
+            # Assume 16-bit data, scale to 0-1
+            nir = nir / 65535.0
+            red = red / 65535.0
+        else:
+            # Assume 8-bit data, scale to 0-1
+            nir = nir / 255.0
+            red = red / 255.0
+
+        # Compute NDVI
+        np.seterr(divide='ignore', invalid='ignore')
+        ndvi = np.where(
+            (nir + red) == 0.,
+            0,
+            (nir - red) / (nir + red)
+        )
+
+        return _calculate_and_save_index(ndvi, "ndvi", "red.tif", nir_filename, save_to_disk)
+
+
+
 def compute_ndvi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = True) -> dict:
     """
     Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.

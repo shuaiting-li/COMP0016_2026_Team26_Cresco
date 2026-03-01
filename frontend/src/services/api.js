@@ -333,9 +333,7 @@ export const uploadAndIndexFile = async (file) => {
 
 
 /**
- * Trigger indexing of the knowledge base
- * @param {boolean} forceReindex - Whether to force re-indexing
- * @returns {Promise<{status: string, documents_indexed: number, message: string}>}
+ * handle satellite image upload and processing
  */
 export async function handleSatelliteImage() {
     try {
@@ -347,11 +345,15 @@ export async function handleSatelliteImage() {
             // }),
         });
 
-        if (!response.ok) {
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);  //bc its sending back a whole file, not just a url
+            return url;
+        }else{
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
     } catch (error) {
         console.error('Error handling satellite image:', error);
         throw error;
