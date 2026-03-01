@@ -21,6 +21,7 @@ NDVI_METADATA_FILE = Path(__file__).parent.parent / "data" / "ndvi_metadata.json
 # Ensure directory exists
 NDVI_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
+
 # loading metdata from json file
 def load_metadata():
     if NDVI_METADATA_FILE.exists():
@@ -62,7 +63,9 @@ def _ensure_dimension_match(red, green, blue, nir):
     return red, green, blue, nir
 
 
-def _calculate_and_save_index(index_array, filename_prefix, rgb_filename, nir_filename, save_to_disk): #noqa: E501
+def _calculate_and_save_index(
+    index_array, filename_prefix, rgb_filename, nir_filename, save_to_disk
+):  # noqa: E501
     """Normalize index array, apply colormap, and save as PNG."""
     # Normalize from [-1,1] to [0,1]
     index_normalized = (index_array + 1) / 2
@@ -80,11 +83,7 @@ def _calculate_and_save_index(index_array, filename_prefix, rgb_filename, nir_fi
     buffer.seek(0)
     image_bytes = buffer.getvalue()
 
-    result = {
-        "image_bytes": image_bytes,
-        "id": None,
-        "filename": None
-    }
+    result = {"image_bytes": image_bytes, "id": None, "filename": None}
 
     # Save to disk if requested
     if save_to_disk:
@@ -96,13 +95,15 @@ def _calculate_and_save_index(index_array, filename_prefix, rgb_filename, nir_fi
             f.write(image_bytes)
 
         metadata = load_metadata()
-        metadata["images"].append({
-            "id": image_id,
-            "filename": filename,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "rgb_filename": rgb_filename,
-            "nir_filename": nir_filename
-        })
+        metadata["images"].append(
+            {
+                "id": image_id,
+                "filename": filename,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "rgb_filename": rgb_filename,
+                "nir_filename": nir_filename,
+            }
+        )
         save_metadata(metadata)
 
         result["id"] = image_id
@@ -111,8 +112,13 @@ def _calculate_and_save_index(index_array, filename_prefix, rgb_filename, nir_fi
     return result
 
 
-
-def sat_compute_ndvi_image(red_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = False) -> dict: # noqa: E501
+def sat_compute_ndvi_image(
+    red_file: bytes,
+    nir_file: bytes,
+    rgb_filename: str = "rgb.png",
+    nir_filename: str = "nir.png",
+    save_to_disk: bool = False,
+) -> dict:  # noqa: E501
     """
     Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
 
@@ -147,18 +153,19 @@ def sat_compute_ndvi_image(red_file: bytes, nir_file: bytes, rgb_filename: str =
             red = red / 255.0
 
         # Compute NDVI
-        np.seterr(divide='ignore', invalid='ignore')
-        ndvi = np.where(
-            (nir + red) == 0.,
-            0,
-            (nir - red) / (nir + red)
-        )
+        np.seterr(divide="ignore", invalid="ignore")
+        ndvi = np.where((nir + red) == 0.0, 0, (nir - red) / (nir + red))
 
         return _calculate_and_save_index(ndvi, "ndvi", "red.tif", nir_filename, save_to_disk)
 
 
-
-def compute_ndvi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = True) -> dict: # noqa: E501
+def compute_ndvi_image(
+    rgb_file: bytes,
+    nir_file: bytes,
+    rgb_filename: str = "rgb.png",
+    nir_filename: str = "nir.png",
+    save_to_disk: bool = True,
+) -> dict:  # noqa: E501
     """
     Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
     Returns:
@@ -180,17 +187,19 @@ def compute_ndvi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rg
         red, green, blue, nir = _ensure_dimension_match(red, green, blue, nir)
 
         # Compute NDVI
-        np.seterr(divide='ignore', invalid='ignore')
-        ndvi = np.where(
-            (nir + red) == 0.,
-            0,
-            (nir - red) / (nir + red)
-        )
+        np.seterr(divide="ignore", invalid="ignore")
+        ndvi = np.where((nir + red) == 0.0, 0, (nir - red) / (nir + red))
 
         return _calculate_and_save_index(ndvi, "ndvi", rgb_filename, nir_filename, save_to_disk)
 
 
-def compute_evi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = True) -> dict: #noqa: E501
+def compute_evi_image(
+    rgb_file: bytes,
+    nir_file: bytes,
+    rgb_filename: str = "rgb.png",
+    nir_filename: str = "nir.png",
+    save_to_disk: bool = True,
+) -> dict:  # noqa: E501
     """
     Compute EVI (Enhanced Vegetation Index) from RGB and NIR images.
     Returns:
@@ -217,11 +226,11 @@ def compute_evi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rgb
         C2 = 7.5  # noqa: N806
         L = 1.0  # noqa: N806
 
-        np.seterr(divide='ignore', invalid='ignore')
+        np.seterr(divide="ignore", invalid="ignore")
         evi = np.where(
-            (nir + C1 * red - C2 * blue + L) == 0.,
+            (nir + C1 * red - C2 * blue + L) == 0.0,
             0,
-            G * (nir - red) / (nir + C1 * red - C2 * blue + L)
+            G * (nir - red) / (nir + C1 * red - C2 * blue + L),
         )
 
         return _calculate_and_save_index(evi, "evi", rgb_filename, nir_filename, save_to_disk)

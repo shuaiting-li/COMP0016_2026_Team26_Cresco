@@ -237,14 +237,15 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
-
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
     files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
 ):
     try:
         if len(files) != 2:
-            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required") #noqa: E501
+            raise HTTPException(
+                status_code=400, detail="Exactly 2 files (NIR and RGB) are required"
+            )  # noqa: E501
 
         rgb = await files[0].read()
         nir = await files[1].read()
@@ -268,6 +269,7 @@ async def get_ndvi_images():
         return metadata
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
+
 
 # Gets a specific NDVI image. Uh. It it's ever needed
 @router.get("/ndvi-images/{filename}", tags=["Files"])
@@ -322,4 +324,3 @@ async def satellite_image(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"satellite image error: {str(e)}")
-

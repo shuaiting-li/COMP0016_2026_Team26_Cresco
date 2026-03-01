@@ -15,9 +15,6 @@ async def process_satellite_images(nir_bytes: bytes, rgb_bytes: bytes):
     return result_bytes
 
 
-
-
-
 def convert_tiff_to_png(tiff_bytes):
     """Convert GeoTIFF bytes to PNG bytes."""
     try:
@@ -29,6 +26,7 @@ def convert_tiff_to_png(tiff_bytes):
     except Exception as e:
         print(f"Error converting TIFF to PNG: {e}")
         return None
+
 
 async def satellite_images_main(lat, lon):
     """
@@ -51,11 +49,13 @@ async def satellite_images_main(lat, lon):
 
 
 def get_access_token(client_id, client_secret):
-    token_url = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+    token_url = (
+        "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+    )
     payload = {
         "grant_type": "client_credentials",
         "client_id": client_id,
-        "client_secret": client_secret
+        "client_secret": client_secret,
     }
     try:
         response = requests.post(token_url, data=payload)
@@ -64,6 +64,7 @@ def get_access_token(client_id, client_secret):
     except requests.exceptions.RequestException as e:
         print(f"Error fetching token: {e}")
         return None
+
 
 # Import farm_data from backend
 def get_farm_bbox(lat, lon, margin=0.01):
@@ -75,6 +76,7 @@ def get_farm_bbox(lat, lon, margin=0.01):
     except Exception as e:
         print(f"Error getting farm bbox: {e}")
         return None
+
 
 async def get_satellite_images(lat, lon):
     """
@@ -128,50 +130,38 @@ async def get_satellite_images(lat, lon):
 
     payload = {
         "input": {
-            "bounds": {
-                "bbox": bbox
-            },
+            "bounds": {"bbox": bbox},
             "data": [
                 {
                     "type": "sentinel-2-l2a",
                     "dataFilter": {
                         "timeRange": {
                             "from": from_str,
-                            "to": to_str
+                            "to": to_str,
                             # "from": "2024-07-01T00:00:00Z",
                             # "to": "2024-07-31T23:59:59Z"
                         },
                         "maxCloudCoverage": 10,
-                        "mosaickingOrder": "leastCC"
-                    }
+                        "mosaickingOrder": "leastCC",
+                    },
                 }
-            ]
+            ],
         },
         "output": {
             "width": 1024,
             "height": 1024,
             "responses": [
-                {
-                    "identifier": "red",
-                    "format": {
-                        "type": "image/tiff"
-                    }
-                },
-                {
-                    "identifier": "nir",
-                    "format": {
-                        "type": "image/tiff"
-                    }
-                }
-            ]
+                {"identifier": "red", "format": {"type": "image/tiff"}},
+                {"identifier": "nir", "format": {"type": "image/tiff"}},
+            ],
         },
-        "evalscript": evalscript_two_bands
+        "evalscript": evalscript_two_bands,
     }
 
     headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'multipart/mixed',
-        'Authorization':  f'Bearer {access_token}'
+        "Content-Type": "application/json",
+        "Accept": "multipart/mixed",
+        "Authorization": f"Bearer {access_token}",
     }
 
     try:
@@ -179,15 +169,15 @@ async def get_satellite_images(lat, lon):
         response = requests.post(process_api_url, headers=headers, json=payload)
         response.raise_for_status()
 
-        content_type = response.headers.get('Content-Type')
-        if not content_type or 'multipart/mixed' not in content_type:
+        content_type = response.headers.get("Content-Type")
+        if not content_type or "multipart/mixed" not in content_type:
             raise ValueError("Response is not a multipart/mixed message.")
 
         decoder = MultipartDecoder.from_response(response)
         red_bytes = None
         nir_bytes = None
         for part in decoder.parts:
-            content_disp = part.headers.get(b'Content-Disposition', b'').decode(errors='replace')
+            content_disp = part.headers.get(b"Content-Disposition", b"").decode(errors="replace")
             if 'name="red"' in content_disp:
                 red_bytes = part.content
             elif 'name="nir"' in content_disp:
@@ -217,4 +207,3 @@ async def get_satellite_images(lat, lon):
     except ValueError as errv:
         print(f"Data Processing Error: {errv}")
         return None, None
-
