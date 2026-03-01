@@ -1,7 +1,6 @@
 """Pydantic schemas for API request/response models."""
 
 from pydantic import BaseModel, Field
-from fastapi.responses import StreamingResponse
 
 
 class ChatRequest(BaseModel):

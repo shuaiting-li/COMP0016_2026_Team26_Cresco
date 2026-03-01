@@ -1,12 +1,12 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
+import io
 import shutil
 
 import httpx
-import io
-
-from fastapi import APIRouter, Depends, HTTPException, FastAPI,File, UploadFile, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from cresco import __version__
@@ -14,13 +14,8 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR, save_metadata
+from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
 from scripts.satellite_image import satellite_images_main
-import shutil
-from pathlib import Path
-from fastapi import UploadFile, File
-from fastapi.responses import StreamingResponse, FileResponse
-from cresco.rag.indexer import index_knowledge_base
 
 from .schemas import (
     ChatRequest,
@@ -240,8 +235,8 @@ async def upload_file(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
-    
-    
+
+
 
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
@@ -255,7 +250,7 @@ async def upload_file_drone(
         nir = await files[1].read()
         rgb_filename = files[0].filename or "rgb.png"
         nir_filename = files[1].filename or "nir.png"
-        
+
         # Compute NDVI and save to disk
         result = compute_ndvi_image(rgb, nir, rgb_filename, nir_filename, save_to_disk=True)
 
