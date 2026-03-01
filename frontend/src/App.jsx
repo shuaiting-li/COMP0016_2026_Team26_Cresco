@@ -39,19 +39,20 @@ function App() {
         return <AuthPage onAuth={handleAuth} />;
     }
 
-    const handleFileUpload = async (e) => {
+    const handleFileUpload = async (filesToUpload) => {
         setIsLoading(true);
-        const uploadedFiles = Array.from(e.target.files);
+        // filesToUpload could be an event (from input change) or an array of files (from drop)
+        const uploadedFiles = filesToUpload.target ? Array.from(filesToUpload.target.files) : filesToUpload;
         console.log("Uploading files:");
         for (const file of uploadedFiles) {
             try {
                 await uploadAndIndexFile(file);
                 setFiles(prev => [...prev, file]);
-                setIsLoading(false);
             } catch {
                 console.error("Failed to upload and index:", file.name);
             }
-        };
+        }
+        setIsLoading(false);
     };
 
     const handleRemoveFile = (index) => {

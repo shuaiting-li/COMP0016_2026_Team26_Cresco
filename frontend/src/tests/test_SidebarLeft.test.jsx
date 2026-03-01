@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SidebarLeft from '../layout/SidebarLeft';
 
@@ -71,5 +71,65 @@ describe('SidebarLeft', () => {
         expect(fileInput).toBeInTheDocument();
         expect(fileInput).toHaveAttribute('accept', '.md,.pdf');
         expect(fileInput).toHaveAttribute('multiple');
+    });
+
+    it('handles drag over state', () => {
+        /** Verifies the component adds a dragging class when a file is dragged over. */
+        const { getByTestId } = render(<SidebarLeft files={[]} onUpload={onUpload} onRemove={onRemove} />);
+        const sidebar = getByTestId('sidebar-left');
+
+        // Initial state should not have dragging class
+        expect(sidebar.className).not.toMatch(/sidebarDragging/);
+
+        // Trigger dragover
+        act(() => {
+            fireEvent.dragOver(sidebar, {
+                dataTransfer: { types: ['Files'] }
+            });
+        });
+
+        // State update means we check classes after render (testing css modules class substring)
+        expect(sidebar.className).toMatch(/sidebarDragging/);
+
+        // Trigger dragleave
+        act(() => {
+            fireEvent.dragLeave(sidebar);
+        });
+
+        expect(sidebar.className).not.toMatch(/sidebarDragging/);
+    });
+
+    it('filters invalid file types on drop', () => {
+        /** Verifies dropping files ignores unsupported types. */
+        const { getByTestId } = render(<SidebarLeft files={[]} onUpload={onUpload} onRemove={onRemove} />);
+        const sidebar = getByTestId('sidebar-left');
+
+        // Trigger dragover first to test the full lifecycle
+        act(() => {
+            fireEvent.dragOver(sidebar, {
+                dataTransfer: { types: ['Files'] }
+            });
+        });
+
+        // Then drop
+        act(() => {
+            fireEvent.drop(sidebar, {
+                dataTransfer: {
+                    files: [
+                        new File(['content'], 'valid.md', { type: 'text/markdown' }),
+                        new File(['content'], 'valid.pdf', { type: 'application/pdf' }),
+                        new File(['content'], 'invalid.png', { type: 'image/png' })
+                    ]
+                }
+            });
+        });
+
+        expect(sidebar.className).not.toMatch(/sidebarDragging/);
+        expect(onUpload).toHaveBeenCalledTimes(1);
+        
+        const uploadedFiles = onUpload.mock.calls[0][0];
+        expect(uploadedFiles).toHaveLength(2);
+        expect(uploadedFiles[0].name).toBe('valid.md');
+        expect(uploadedFiles[1].name).toBe('valid.pdf');
     });
 });

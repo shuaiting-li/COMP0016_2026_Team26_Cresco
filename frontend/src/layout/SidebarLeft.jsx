@@ -1,9 +1,10 @@
-import { useRef } from 'react';
-import { Plus, Trash2, FileText, Image, File } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Plus, Trash2, FileText, Image, File, UploadCloud } from 'lucide-react';
 import styles from './SidebarLeft.module.css';
 
 export default function SidebarLeft({ files, onUpload, onRemove }) {
     const fileInputRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const getFileIcon = (fileName) => {
         const ext = fileName.split('.').pop().toLowerCase();
@@ -13,8 +14,53 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
         return <File size={16} />;
     };
 
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.types.includes('Files')) {
+            setIsDragging(true);
+        }
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const fileArray = Array.from(e.dataTransfer.files);
+            const validFiles = fileArray.filter(f => 
+                f.name.toLowerCase().endsWith('.md') || f.name.toLowerCase().endsWith('.pdf')
+            );
+            
+            if (validFiles.length > 0) {
+                onUpload(validFiles);
+            }
+        }
+    };
+
     return (
-        <aside className={styles.sidebar}>
+        <aside 
+            className={`${styles.sidebar} ${isDragging ? styles.sidebarDragging : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            data-testid="sidebar-left"
+        >
+            {isDragging && (
+                <div className={styles.dragOverlay}>
+                    <UploadCloud size={48} className={styles.dragOverlayIcon} />
+                    <span className={styles.dragOverlayText}>Drop files here</span>
+                    <span className={styles.dragOverlaySubtext}>Supports .md and .pdf</span>
+                </div>
+            )}
+            
             <div className={styles.header}>
                 <h3>Data Sources</h3>
             </div>
