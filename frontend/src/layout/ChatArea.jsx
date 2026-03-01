@@ -143,6 +143,7 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                         className={`${styles.sendBtn} ${input.trim() && !isLoading ? styles.sendActive : ''}`}
                         onClick={handleSend}
                         disabled={!input.trim() || isLoading}
+                        aria-label="Send message"
                     >
                         <ArrowUp size={20} strokeWidth={2.5}/>
                     </button>

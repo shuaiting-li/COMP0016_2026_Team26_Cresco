@@ -37,8 +37,7 @@ describe('ChatArea', () => {
 
         const input = screen.getByPlaceholderText(/message cresco/i);
         await user.type(input, 'What diseases affect wheat?');
-        // The send button only contains an ArrowUp SVG icon (no accessible name)
-        await user.click(screen.getByRole('button', { name: '' }));
+        await user.click(screen.getByRole('button', { name: /send message/i }));
 
         expect(onSendMessage).toHaveBeenCalledWith('What diseases affect wheat?');
     });
@@ -154,7 +153,7 @@ describe('ChatArea', () => {
         render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={true} />);
 
         expect(screen.getByPlaceholderText(/waiting for response/i)).toBeDisabled();
-        expect(screen.getByRole('button', { name: '' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
     });
 
     it('does not send on Enter while loading', () => {
