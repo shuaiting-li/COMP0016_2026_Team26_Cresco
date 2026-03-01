@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Third-party API keys
     openweather_api_key: str = ""  # Set OPENWEATHER_API_KEY in .env
 
+    COPERNICUS_CLIENT_ID: str = ""  # Set copernicus keys in .env
+    COPERNICUS_CLIENT_SECRET: str = ""
+
     @property
     def chroma_path(self) -> Path:
         """Get ChromaDB persist directory as Path."""

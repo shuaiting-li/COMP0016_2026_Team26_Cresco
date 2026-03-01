@@ -1,10 +1,12 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
+import io
 import shutil
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from cresco import __version__
@@ -12,6 +14,8 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
+from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
+from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
     ChatRequest,
@@ -217,17 +221,67 @@ async def upload_file(
         upload_dir = settings.knowledge_base
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        file_path = upload_dir / file.filename
+        filename = file.filename if file.filename else "unknown"
+        file_path = upload_dir / filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         # Trigger reindexing
-
-        await index_knowledge_base(settings, force=False, upload_file=file.filename)
-
-        return {"filename": file.filename, "status": "indexed"}
+        await index_knowledge_base(settings, force=False, upload_file=filename)
+        return FileUploadResponse(
+            filename=filename,
+            status="indexed",
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+@router.post("/droneimage", tags=["Files"])
+async def upload_file_drone(
+    files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
+):
+    try:
+        if len(files) != 2:
+            raise HTTPException(
+                status_code=400, detail="Exactly 2 files (NIR and RGB) are required"
+            )  # noqa: E501
+
+        rgb = await files[0].read()
+        nir = await files[1].read()
+        rgb_filename = files[0].filename or "rgb.png"
+        nir_filename = files[1].filename or "nir.png"
+
+        # Compute NDVI and save to disk
+        result = compute_ndvi_image(rgb, nir, rgb_filename, nir_filename, save_to_disk=True)
+
+        return StreamingResponse(io.BytesIO(result["image_bytes"]), media_type="image/png")
+    except Exception as e:
+        print(f"Error processing drone images: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+# Get list of all saved NDVI images with metadata.
+@router.get("/ndvi-images", tags=["Files"])
+async def get_ndvi_images():
+    try:
+        metadata = load_metadata()
+        return metadata
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
+
+
+# Gets a specific NDVI image. Uh. It it's ever needed
+@router.get("/ndvi-images/{filename}", tags=["Files"])
+async def get_ndvi_image(filename: str):
+    try:
+        file_path = NDVI_IMAGES_DIR / filename
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return FileResponse(file_path, media_type="image/png")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])
@@ -246,3 +300,31 @@ async def index_documents(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Indexing error: {str(e)}")
+
+
+@router.post("/satellite-image", tags=["System"])
+async def satellite_image(
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Index or re-index the knowledge base documents."""
+    try:
+        user_id = current_user["user_id"]
+        if user_id in farm_data:
+            lat = farm_data[user_id]["lat"]
+            lon = farm_data[user_id]["lon"]
+        else:
+            raise HTTPException(status_code=404, detail="No farm data found for the user")
+        print(f"Received request for satellite image with lat={lat}, lon={lon}")  # Debug log
+        result = await satellite_images_main(lat, lon)
+        if result is None:
+            # Upstream satellite image generation failed; surface a clear error.
+            raise HTTPException(
+                status_code=502,
+                detail="Failed to generate satellite image from upstream service",
+            )
+
+        return StreamingResponse(io.BytesIO(result), media_type="image/png")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"satellite image error: {str(e)}")

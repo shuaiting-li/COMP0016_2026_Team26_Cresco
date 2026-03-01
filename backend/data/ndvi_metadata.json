@@ -1,0 +1,18 @@
+{
+  "images": [
+    {
+      "id": "aeca3f31-6b0e-49d2-854a-cc06e61609bf",
+      "filename": "ndvi_aeca3f31-6b0e-49d2-854a-cc06e61609bf.png",
+      "timestamp": "2026-02-28T18:07:34.241353Z",
+      "rgb_filename": "agri-RGB.png",
+      "nir_filename": "agri-NIR.png"
+    },
+    {
+      "id": "7c602ef9-6008-4f6d-b32e-30130ba416b2",
+      "filename": "ndvi_7c602ef9-6008-4f6d-b32e-30130ba416b2.png",
+      "timestamp": "2026-02-28T18:07:34.607462Z",
+      "rgb_filename": "agri-RGB.png",
+      "nir_filename": "agri-NIR.png"
+    }
+  ]
+}

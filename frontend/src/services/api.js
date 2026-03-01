@@ -204,6 +204,8 @@ export async function indexKnowledgeBase(forceReindex = false) {
     }
 }
 
+
+
 /**
  * Trigger indexing of the knowledge base
  * @param {file} file - The file to upload and index
@@ -329,3 +331,30 @@ export const uploadAndIndexFile = async (file) => {
     return await response.json();
 };
 
+
+/**
+ * handle satellite image upload and processing
+ */
+export async function handleSatelliteImage() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/satellite-image`, {
+            method: 'POST',
+            headers: authHeaders(),
+            // body: JSON.stringify({
+            //     force_reindex: forceReindex,
+            // }),
+        });
+
+
+        if (response.ok) {
+            // Return the raw Blob so the caller can manage createObjectURL/revokeObjectURL.
+            return await response.blob();
+        } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+    } catch (error) {
+        console.error('Error handling satellite image:', error);
+        throw error;
+    }
+}
