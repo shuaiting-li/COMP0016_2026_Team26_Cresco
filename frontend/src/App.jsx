@@ -4,7 +4,7 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from './services/api';
+import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 
@@ -58,7 +58,7 @@ function App() {
         setFiles(files.filter((_, i) => i !== index));
     };
 
-    const handleDeleteLastExchange = () => {
+    const handleDeleteLastExchange = async () => {
         setMessages(prev => {
             if (prev.length < 2) return prev;
             const last = prev[prev.length - 1];
@@ -68,6 +68,12 @@ function App() {
             }
             return prev;
         });
+
+        try {
+            await deleteLastExchange();
+        } catch (error) {
+            console.error('Failed to delete exchange from agent memory:', error);
+        }
     };
 
     const handleSendMessage = async (text) => {

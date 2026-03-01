@@ -306,6 +306,34 @@ export async function fetchWeather(lat, lon) {
     return await response.json();
 }
 
+/**
+ * Delete the last user-assistant exchange from the agent's conversation memory.
+ * @returns {Promise<{status: string}>}
+ */
+export async function deleteLastExchange() {
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/chat/last-exchange`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Delete exchange failed (${response.status})`);
+    }
+
+    return await response.json();
+}
+
 export const uploadAndIndexFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);

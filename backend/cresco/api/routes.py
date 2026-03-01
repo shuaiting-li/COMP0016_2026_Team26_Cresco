@@ -207,6 +207,19 @@ async def chat(
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 
+@router.delete("/chat/last-exchange", tags=["Chat"])
+async def delete_last_exchange(
+    current_user: dict = Depends(get_current_user),
+    agent: CrescoAgent = Depends(get_agent),
+):
+    """Delete the last user-assistant exchange from the agent's memory."""
+    user_id = current_user["user_id"]
+    deleted = await agent.delete_last_exchange(thread_id=user_id, user_id=user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No exchange to delete")
+    return {"status": "deleted"}
+
+
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
 async def upload_file(
     file: UploadFile = File(...),

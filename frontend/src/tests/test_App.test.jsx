@@ -15,6 +15,7 @@ vi.mock('../services/api', () => ({
     logout: vi.fn(),
     getUsername: vi.fn(() => 'testuser'),
     login: vi.fn(),
+    deleteLastExchange: vi.fn(),
 }));
 
 // Avoid rendering heavy sub-components that require Leaflet / canvas
@@ -167,14 +168,15 @@ describe('App', () => {
         expect(screen.queryByText(/please select a farm location first/i)).not.toBeInTheDocument();
     });
 
-    it('deletes last user–assistant exchange', async () => {
-        /** Verifies the delete button removes the last user+assistant message pair. */
+    it('deletes last user–assistant exchange and calls backend', async () => {
+        /** Verifies UI removal and backend API call when deleting the last exchange. */
         api.isLoggedIn.mockReturnValue(true);
         api.sendMessage.mockResolvedValueOnce({
             reply: 'Response text',
             tasks: [],
             citations: [],
         });
+        api.deleteLastExchange.mockResolvedValueOnce({ status: 'deleted' });
 
         render(<App />);
         const user = userEvent.setup();
@@ -197,5 +199,10 @@ describe('App', () => {
 
         // Empty state should return
         expect(screen.getByText('Cresco Intelligence')).toBeInTheDocument();
+
+        // Backend API should have been called
+        await waitFor(() => {
+            expect(api.deleteLastExchange).toHaveBeenCalledTimes(1);
+        });
     });
 });
