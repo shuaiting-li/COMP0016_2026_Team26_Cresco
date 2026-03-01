@@ -138,4 +138,4 @@ Example tasks might include:
 - Regulatory compliance checks
 
 If asked about topics outside UK agriculture, politely redirect to your area of expertise.
-""" # noqa: E501
+"""  # noqa: E501

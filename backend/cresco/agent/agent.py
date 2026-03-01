@@ -214,16 +214,17 @@ class CrescoAgent:
         charts = []
         try:
             import json
+
             while "---CHART---" in answer and "---END_CHART---" in answer:
                 chart_marker_start = answer.index("---CHART---")
                 chart_start = chart_marker_start + len("---CHART---")
                 chart_end = answer.index("---END_CHART---")
                 chart_json = answer[chart_start:chart_end].strip()
                 chart = json.loads(chart_json)
-                chart["position"] = chart_marker_start -1
+                chart["position"] = chart_marker_start - 1
                 charts.append(chart)
                 before = answer[:chart_marker_start].rstrip()
-                after = answer[chart_end + len("---END_CHART---"):].lstrip()
+                after = answer[chart_end + len("---END_CHART---") :].lstrip()
                 answer = before + ("\n" if before and after else "") + after
         except (ValueError, json.JSONDecodeError):
             # If parsing fails, just leave charts empty
@@ -250,12 +251,7 @@ class CrescoAgent:
                             sources.append(source)
                 break  # Only consider the first message with artifacts for sources
 
-        return {
-            "answer": answer,
-            "sources": sources,
-            "tasks": tasks,
-            "charts": charts
-        }
+        return {"answer": answer, "sources": sources, "tasks": tasks, "charts": charts}
 
     def clear_memory(self, thread_id: str = "default") -> None:
         """Clear conversation memory for a specific thread."""
