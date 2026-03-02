@@ -11,11 +11,17 @@ from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import index_knowledge_base, index_user_upload, is_indexed
+from cresco.rag.indexer import (
+    delete_user_upload,
+    index_knowledge_base,
+    index_user_upload,
+    is_indexed,
+)
 
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    FileDeleteResponse,
     FileUploadResponse,
     HealthResponse,
     IndexRequest,
@@ -256,6 +262,33 @@ async def upload_file(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+@router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
+async def delete_file(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Delete a user-uploaded file and its indexed chunks."""
+    user_id = current_user["user_id"]
+    upload_dir = settings.uploads_dir / user_id
+    file_path = upload_dir / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
+
+    # Remove chunks from ChromaDB
+    chunks_deleted = delete_user_upload(settings, user_id=user_id, filename=filename)
+
+    # Remove file from disk
+    file_path.unlink()
+
+    return FileDeleteResponse(
+        filename=filename,
+        status="deleted",
+        chunks_removed=chunks_deleted,
+    )
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])

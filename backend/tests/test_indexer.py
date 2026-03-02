@@ -227,3 +227,64 @@ class TestIndexUserUpload:
 
             expected_dir = Path(mock_settings.uploads_path) / "user42"
             mock_load.assert_called_once_with(expected_dir)
+
+
+class TestDeleteUserUpload:
+    """Tests for delete_user_upload function."""
+
+    def test_deletes_matching_chunks(self, mock_settings):
+        """Test chunks with matching user_id and filename are deleted."""
+        from cresco.rag.indexer import delete_user_upload
+
+        mock_collection = MagicMock()
+        mock_collection.get.return_value = {"ids": ["id1", "id2", "id3"]}
+
+        with (
+            patch("cresco.rag.indexer.Chroma") as mock_chroma,
+            patch("cresco.rag.indexer.get_embeddings"),
+        ):
+            mock_vectorstore = MagicMock()
+            mock_vectorstore._collection = mock_collection
+            mock_chroma.return_value = mock_vectorstore
+
+            # Ensure chroma_path exists
+            mock_settings.chroma_path.mkdir(parents=True, exist_ok=True)
+
+            count = delete_user_upload(mock_settings, user_id="user42", filename="report.md")
+
+            assert count == 3
+            mock_collection.delete.assert_called_once_with(ids=["id1", "id2", "id3"])
+            mock_collection.get.assert_called_once_with(
+                where={"$and": [{"user_id": "user42"}, {"filename": "report.md"}]},
+            )
+
+    def test_returns_zero_when_no_chunks_found(self, mock_settings):
+        """Test returns 0 when no matching chunks exist in ChromaDB."""
+        from cresco.rag.indexer import delete_user_upload
+
+        mock_collection = MagicMock()
+        mock_collection.get.return_value = {"ids": []}
+
+        with (
+            patch("cresco.rag.indexer.Chroma") as mock_chroma,
+            patch("cresco.rag.indexer.get_embeddings"),
+        ):
+            mock_vectorstore = MagicMock()
+            mock_vectorstore._collection = mock_collection
+            mock_chroma.return_value = mock_vectorstore
+
+            mock_settings.chroma_path.mkdir(parents=True, exist_ok=True)
+
+            count = delete_user_upload(mock_settings, user_id="user42", filename="missing.md")
+
+            assert count == 0
+            mock_collection.delete.assert_not_called()
+
+    def test_returns_zero_when_chroma_path_missing(self, mock_settings):
+        """Test returns 0 when the ChromaDB directory does not exist."""
+        from cresco.rag.indexer import delete_user_upload
+
+        # Don't create chroma_path — it should not exist
+        count = delete_user_upload(mock_settings, user_id="user42", filename="report.md")
+
+        assert count == 0

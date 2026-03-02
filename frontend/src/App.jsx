@@ -4,7 +4,7 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
+import { sendMessage, uploadAndIndexFile, deleteUploadedFile, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 
@@ -55,8 +55,14 @@ function App() {
         setIsLoading(false);
     };
 
-    const handleRemoveFile = (index) => {
-        setFiles(files.filter((_, i) => i !== index));
+    const handleRemoveFile = async (index) => {
+        const file = files[index];
+        setFiles(prev => prev.filter((_, i) => i !== index));
+        try {
+            await deleteUploadedFile(file.name);
+        } catch (error) {
+            console.error('Failed to delete file from server:', error);
+        }
     };
 
     const handleDeleteLastExchange = async () => {
@@ -103,7 +109,7 @@ function App() {
                     role: 'assistant',
                     content: response.reply,
                     tasks: response.tasks,
-                    charts: response.charts, 
+                    charts: response.charts,
                     citations: response.citations
                 }
             ]);

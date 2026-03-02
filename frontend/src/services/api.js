@@ -335,6 +335,24 @@ export async function deleteLastExchange() {
     return await response.json();
 }
 
+export const deleteUploadedFile = async (filename) => {
+    const response = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Delete failed (${response.status})`);
+    }
+
+    return await response.json();
+};
+
 export const uploadAndIndexFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);

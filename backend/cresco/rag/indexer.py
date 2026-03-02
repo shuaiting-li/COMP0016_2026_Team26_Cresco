@@ -190,3 +190,38 @@ async def index_user_upload(settings: Settings, user_id: str, filename: str) -> 
                 raise
 
     return total_indexed
+
+
+def delete_user_upload(settings: Settings, user_id: str, filename: str) -> int:
+    """Delete all chunks for a user-uploaded file from ChromaDB.
+
+    Args:
+        settings: Application settings.
+        user_id: The ID of the owning user.
+        filename: Name of the uploaded file whose chunks should be removed.
+
+    Returns:
+        Number of chunks deleted.
+    """
+    chroma_path = settings.chroma_path
+    if not chroma_path.exists():
+        return 0
+
+    embeddings = get_embeddings()
+    vectorstore = Chroma(
+        persist_directory=str(chroma_path),
+        embedding_function=embeddings,
+        collection_name="cresco_knowledge_base",
+    )
+
+    # Find chunk IDs that match both user_id and filename
+    results = vectorstore._collection.get(
+        where={"$and": [{"user_id": user_id}, {"filename": filename}]},
+    )
+    ids_to_delete = results["ids"]
+
+    if not ids_to_delete:
+        return 0
+
+    vectorstore._collection.delete(ids=ids_to_delete)
+    return len(ids_to_delete)

@@ -435,6 +435,62 @@ describe('uploadAndIndexFile', () => {
 });
 
 
+describe('deleteUploadedFile', () => {
+    /** Tests for the deleteUploadedFile() call. */
+
+    beforeEach(() => {
+        localStorage.setItem('cresco_token', 'tok');
+    });
+
+    it('sends DELETE request with correct URL and auth header', async () => {
+        /** Verifies method, URL encoding, and Bearer token. */
+        fetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ filename: 'report.md', status: 'deleted', chunks_removed: 3 }),
+        });
+
+        const result = await api.deleteUploadedFile('report.md');
+
+        const [url, opts] = fetch.mock.calls[0];
+        expect(url).toBe(`${API_BASE}/upload/report.md`);
+        expect(opts.method).toBe('DELETE');
+        expect(opts.headers.Authorization).toBe('Bearer tok');
+        expect(result.filename).toBe('report.md');
+        expect(result.chunks_removed).toBe(3);
+    });
+
+    it('encodes special characters in filename', async () => {
+        /** Verifies filenames with spaces/special chars are URL-encoded. */
+        fetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ filename: 'my report.md', status: 'deleted', chunks_removed: 1 }),
+        });
+
+        await api.deleteUploadedFile('my report.md');
+
+        const [url] = fetch.mock.calls[0];
+        expect(url).toBe(`${API_BASE}/upload/my%20report.md`);
+    });
+
+    it('logs out on 401 response', async () => {
+        /** Verifies auto-logout on expired session. */
+        fetch.mockResolvedValueOnce({ ok: false, status: 401 });
+
+        await expect(api.deleteUploadedFile('f.md')).rejects.toThrow('Session expired');
+        expect(localStorage.getItem('cresco_token')).toBeNull();
+    });
+
+    it('throws on generic failure', async () => {
+        /** Verifies non-auth HTTP errors are propagated. */
+        fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+        await expect(api.deleteUploadedFile('missing.md')).rejects.toThrow('Delete failed (404)');
+    });
+});
+
+
 describe('deleteLastExchange', () => {
     /** Tests for the deleteLastExchange() call. */
 

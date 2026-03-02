@@ -50,3 +50,11 @@ class FileUploadResponse(BaseModel):
 
     filename: str = Field(..., description="Name of the uploaded file")
     status: str = Field(..., description="Upload status")
+
+
+class FileDeleteResponse(BaseModel):
+    """Response model for file delete endpoint."""
+
+    filename: str = Field(..., description="Name of the deleted file")
+    status: str = Field(..., description="Deletion status")
+    chunks_removed: int = Field(..., description="Number of vector store chunks removed")
