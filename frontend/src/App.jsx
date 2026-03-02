@@ -108,9 +108,8 @@ function App() {
                 }
             ]);
 
-            // Clear attached files after successful send — the agent now
-            // has the content in its conversation memory so re-sending
-            // would duplicate tokens and can cause a context-window explosion.
+            // Clear attached files after successful send — files are
+            // already indexed and retrievable via RAG.
             if (files.length > 0) {
                 setFiles([]);
             }

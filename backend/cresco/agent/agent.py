@@ -163,8 +163,6 @@ class CrescoAgent:
 
         return agent
 
-    _FILE_CONTEXT_MARKER = "[Uploaded Files Context]:"
-
     async def chat(self, message: str, thread_id: str = "default", user_id: str = "") -> dict:
         """Process a chat message and return response with sources.
 
@@ -178,20 +176,10 @@ class CrescoAgent:
         """
         config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
-        has_file_context = self._FILE_CONTEXT_MARKER in message
-
         result = await self._agent.ainvoke(
             {"messages": [{"role": "user", "content": message}]},
             config,
         )
-
-        # After the agent has processed a message that contained full file
-        # content, replace the stored HumanMessage with a condensed version
-        # that only lists the file names.  This prevents the (potentially
-        # huge) file text from being replayed on every subsequent turn and
-        # avoids a token-count explosion that would break all LLM calls.
-        if has_file_context:
-            await self._condense_file_message(config, message)
 
         # Extract the final AI message
         ai_message = result["messages"][-1]
@@ -265,47 +253,6 @@ class CrescoAgent:
                 break  # Only consider the first message with artifacts for sources
 
         return {"answer": answer, "sources": sources, "tasks": tasks, "charts": charts}
-
-    async def _condense_file_message(self, config: RunnableConfig, original_content: str) -> None:
-        """Replace the file-heavy HumanMessage in conversation history.
-
-        Finds the HumanMessage whose content matches *original_content* and
-        swaps it for a short summary that lists only the uploaded file names.
-        """
-        state = await self._agent.aget_state(config)
-        messages = state.values.get("messages", [])
-
-        for msg in messages:
-            if not isinstance(msg, HumanMessage):
-                continue
-            if self._FILE_CONTEXT_MARKER not in getattr(msg, "content", ""):
-                continue
-
-            # Extract the user's own question (everything before the marker)
-            marker_pos = msg.content.index(self._FILE_CONTEXT_MARKER)
-            user_question = msg.content[:marker_pos].strip()
-
-            # Pull out file names from "--- filename ---" delimiters
-            file_names = [
-                line.strip().strip("-").strip()
-                for line in msg.content[marker_pos:].split("\n")
-                if line.strip().startswith("---")
-                and line.strip().endswith("---")
-                and line.strip() not in ("---", "------")
-            ]
-
-            condensed = user_question
-            if file_names:
-                names = ", ".join(file_names)
-                condensed += (
-                    f"\n\n[The user uploaded the following files whose content "
-                    f"has already been processed: {names}]"
-                )
-
-            # Updating with the same message id replaces in-place
-            replacement = HumanMessage(content=condensed, id=msg.id)
-            await self._agent.aupdate_state(config, {"messages": [replacement]})
-            break
 
     async def delete_last_exchange(self, thread_id: str = "default", user_id: str = "") -> bool:
         """Remove the last user-assistant exchange from conversation memory.
