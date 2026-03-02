@@ -6,12 +6,13 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import ChartRenderer from '../ChartRenderer';
+import Dashboard from './Dashboard';
 
 
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading }) {
+export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading, farmLocation }) {
     const [input, setInput] = useState("");
     const [activeTab, setActiveTab] = useState('chat');
     const messagesEndRef = useRef(null);
@@ -59,16 +60,18 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                         <span className={styles.tabLabel} title="Visuals">Visuals</span>
                     </button>
                     <button
-                        className={`${styles.tab} ${activeTab === 'data' ? styles.activeTab : ''}`}
-                        onClick={() => setActiveTab('data')}
+                        className={`${styles.tab} ${activeTab === 'dashboard' ? styles.activeTab : ''}`}
+                        onClick={() => setActiveTab('dashboard')}
                     >
-                        <span className={styles.tabLabel} title="Raw Data">Raw Data</span>
+                        <span className={styles.tabLabel} title="Dashboard">Dashboard</span>
                     </button>
                 </div>
             </div>
 
             <div className={styles.contentArea}>
-                {messages.length === 0 ? (
+                {activeTab === 'dashboard' ? (
+                    <Dashboard farmLocation={farmLocation} messages={messages} />
+                ) : messages.length === 0 ? (
                     <div className={styles.emptyContainer}>
                         <Sprout size={48} className={styles.heroIcon} strokeWidth={1} />
                         <div style={{textAlign: 'center'}}>
@@ -238,7 +241,9 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>
                                             {/* Render charts */}
-                                            {(() => {
+                                            {isUser ? (
+                                                <span className={styles.userText}>{msg.content}</span>
+                                            ) : (() => {                                                
                                                 if ((!msg.charts || msg.charts.length === 0) && msg.role === 'user') {
                                                     return (
                                                         <ReactMarkdown
@@ -331,6 +336,11 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                         {isLoading && <div className={styles.messageRow}><span style={{color: '#666', fontSize: '0.8rem', marginLeft: '45px'}}>Processing...</span></div>}
                         <div ref={messagesEndRef} />
                     </div>}
+                    
+                    {activeTab === 'dashboard' &&
+                        <div>
+                            <Dashboard farmLocation={farmLocation} messages={messages} />
+                        </div>}
                     </>
                 )}
             </div>
