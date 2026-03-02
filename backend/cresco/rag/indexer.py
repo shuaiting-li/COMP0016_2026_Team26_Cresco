@@ -1,13 +1,14 @@
 """Document indexing for the vector store."""
 
 import asyncio
-
-from langchain_chroma import Chroma
+import logging
 
 from cresco.config import Settings
 
 from .document_loader import load_knowledge_base, load_user_documents, split_documents
-from .embeddings import get_embeddings
+from .retriever import get_vector_store, reset_vector_store
+
+logger = logging.getLogger(__name__)
 
 # Batch settings for rate limit handling
 BATCH_SIZE = 100  # Number of documents per batch
@@ -28,13 +29,9 @@ def is_indexed(settings: Settings) -> bool:
     if not chroma_path.exists():
         return False
 
-    # Check if ChromaDB has any documents
+    # Check if ChromaDB has any documents (uses singleton vector store)
     try:
-        vectorstore = Chroma(
-            persist_directory=str(chroma_path),
-            embedding_function=get_embeddings(),
-            collection_name="cresco_knowledge_base",
-        )
+        vectorstore = get_vector_store()
         count = vectorstore._collection.count()
         return count > 0
     except Exception:
@@ -58,17 +55,15 @@ async def index_knowledge_base(
 
     # Check if already indexed
     if not force and is_indexed(settings) and not upload_file:
-        vectorstore = Chroma(
-            persist_directory=str(chroma_path),
-            embedding_function=get_embeddings(),
-            collection_name="cresco_knowledge_base",
-        )
+        vectorstore = get_vector_store()
         return vectorstore._collection.count()
 
     # Clear existing index if force re-index
     if force and chroma_path.exists():
         import shutil
 
+        # Reset the singleton so it doesn't hold a stale connection
+        reset_vector_store()
         shutil.rmtree(chroma_path)
 
     # Create directory if needed
@@ -82,16 +77,11 @@ async def index_knowledge_base(
 
     chunks = split_documents(documents)
 
-    print(f"[*] Loaded {len(documents)} documents, split into {len(chunks)} chunks")
-    print(f"[*] Indexing in batches of {BATCH_SIZE} with {BATCH_DELAY}s delay...")
+    logger.info("Loaded %d documents, split into %d chunks", len(documents), len(chunks))
+    logger.info("Indexing in batches of %d with %.1fs delay...", BATCH_SIZE, BATCH_DELAY)
 
-    # Initialize empty vector store
-    embeddings = get_embeddings()
-    vectorstore = Chroma(
-        persist_directory=str(chroma_path),
-        embedding_function=embeddings,
-        collection_name="cresco_knowledge_base",
-    )
+    # Use the singleton vector store (avoids multiple PersistentClient conflicts)
+    vectorstore = get_vector_store()
 
     # Process in batches to avoid rate limits
     total_indexed = 0
@@ -100,37 +90,33 @@ async def index_knowledge_base(
         batch_num = (i // BATCH_SIZE) + 1
         total_batches = (len(chunks) + BATCH_SIZE - 1) // BATCH_SIZE
 
-        print(
-            f"  [>] Batch {batch_num}/{total_batches}: {len(batch)} chunks...",
-            end=" ",
-            flush=True,
-        )
+        logger.info("Batch %d/%d: %d chunks...", batch_num, total_batches, len(batch))
 
         try:
             # Add batch to vector store
             vectorstore.add_documents(batch)
             total_indexed += len(batch)
-            print("[OK]")
+            logger.info("Batch %d OK", batch_num)
 
             # Delay between batches (except for the last one)
             if i + BATCH_SIZE < len(chunks):
                 await asyncio.sleep(BATCH_DELAY)
 
         except Exception as e:
-            print(f"[ERROR] {e}")
+            logger.error("Batch %d error: %s", batch_num, e)
             # On rate limit, wait longer and retry
             if "rate" in str(e).lower() or "429" in str(e):
-                print("  [!] Rate limited, waiting 30s...")
+                logger.warning("Rate limited, waiting 30s...")
                 await asyncio.sleep(30)
                 try:
                     vectorstore.add_documents(batch)
                     total_indexed += len(batch)
-                    print("  [OK] Retry successful")
+                    logger.info("Retry successful")
                 except Exception as retry_error:
-                    print(f"  [ERROR] Retry failed: {retry_error}")
+                    logger.error("Retry failed: %s", retry_error)
                     raise
 
-    print(f"[*] Indexed {total_indexed} chunks successfully")
+    logger.info("Indexed %d chunks successfully", total_indexed)
     return total_indexed
 
 
@@ -164,14 +150,15 @@ async def index_user_upload(settings: Settings, user_id: str, filename: str) -> 
     if not chunks:
         return 0
 
-    chroma_path = settings.chroma_path
-    chroma_path.mkdir(parents=True, exist_ok=True)
-    embeddings = get_embeddings()
-    vectorstore = Chroma(
-        persist_directory=str(chroma_path),
-        embedding_function=embeddings,
-        collection_name="cresco_knowledge_base",
+    logger.info(
+        "Indexing user upload '%s' for user '%s': %d chunks",
+        filename,
+        user_id,
+        len(chunks),
     )
+
+    # Use the singleton vector store (avoids multiple PersistentClient conflicts)
+    vectorstore = get_vector_store()
 
     total_indexed = 0
     for i in range(0, len(chunks), BATCH_SIZE):
@@ -207,12 +194,8 @@ def delete_user_upload(settings: Settings, user_id: str, filename: str) -> int:
     if not chroma_path.exists():
         return 0
 
-    embeddings = get_embeddings()
-    vectorstore = Chroma(
-        persist_directory=str(chroma_path),
-        embedding_function=embeddings,
-        collection_name="cresco_knowledge_base",
-    )
+    # Use the singleton vector store (avoids multiple PersistentClient conflicts)
+    vectorstore = get_vector_store()
 
     # Find chunk IDs that match both user_id and filename
     results = vectorstore._collection.get(
@@ -224,4 +207,10 @@ def delete_user_upload(settings: Settings, user_id: str, filename: str) -> int:
         return 0
 
     vectorstore._collection.delete(ids=ids_to_delete)
+    logger.info(
+        "Deleted %d chunks for file '%s' (user '%s')",
+        len(ids_to_delete),
+        filename,
+        user_id,
+    )
     return len(ids_to_delete)

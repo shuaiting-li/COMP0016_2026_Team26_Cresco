@@ -27,10 +27,10 @@ class TestIsIndexed:
         """Test returns False when collection has no documents."""
         Path(mock_settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-        with patch("cresco.rag.indexer.Chroma") as mock_chroma:
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
             mock_collection = MagicMock()
             mock_collection.count.return_value = 0
-            mock_chroma.return_value._collection = mock_collection
+            mock_get_vs.return_value._collection = mock_collection
 
             assert is_indexed(mock_settings) is False
 
@@ -38,10 +38,10 @@ class TestIsIndexed:
         """Test returns True when collection has documents."""
         Path(mock_settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-        with patch("cresco.rag.indexer.Chroma") as mock_chroma:
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
             mock_collection = MagicMock()
             mock_collection.count.return_value = 100
-            mock_chroma.return_value._collection = mock_collection
+            mock_get_vs.return_value._collection = mock_collection
 
             assert is_indexed(mock_settings) is True
 
@@ -49,8 +49,8 @@ class TestIsIndexed:
         """Test returns False when Chroma raises exception."""
         Path(mock_settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-        with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-            mock_chroma.side_effect = Exception("Database error")
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+            mock_get_vs.side_effect = Exception("Database error")
 
             assert is_indexed(mock_settings) is False
 
@@ -62,10 +62,10 @@ class TestIndexKnowledgeBase:
     async def test_returns_existing_count_when_indexed(self, mock_settings):
         """Test returns existing document count when already indexed."""
         with patch("cresco.rag.indexer.is_indexed", return_value=True):
-            with patch("cresco.rag.indexer.Chroma") as mock_chroma:
+            with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
                 mock_collection = MagicMock()
                 mock_collection.count.return_value = 50
-                mock_chroma.return_value._collection = mock_collection
+                mock_get_vs.return_value._collection = mock_collection
 
                 count = await index_knowledge_base(mock_settings, force=False)
 
@@ -82,11 +82,11 @@ class TestIndexKnowledgeBase:
         with patch("cresco.rag.indexer.is_indexed", return_value=True):
             with patch("cresco.rag.indexer.load_knowledge_base") as mock_load:
                 with patch("cresco.rag.indexer.split_documents") as mock_split:
-                    with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-                        with patch("cresco.rag.indexer.get_embeddings"):
+                    with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+                        with patch("cresco.rag.indexer.reset_vector_store"):
                             mock_load.return_value = []
                             mock_split.return_value = []
-                            mock_chroma.return_value._collection.count.return_value = 0
+                            mock_get_vs.return_value._collection.count.return_value = 0
 
                             await index_knowledge_base(mock_settings, force=True)
 
@@ -104,16 +104,17 @@ class TestIndexKnowledgeBase:
         with patch("cresco.rag.indexer.is_indexed", return_value=False):
             with patch("cresco.rag.indexer.load_knowledge_base") as mock_load:
                 with patch("cresco.rag.indexer.split_documents") as mock_split:
-                    with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-                        with patch("cresco.rag.indexer.get_embeddings"):
-                            mock_load.return_value = []
-                            mock_split.return_value = []
-                            mock_chroma.return_value.add_documents = MagicMock()
-                            mock_chroma.return_value._collection.count.return_value = 0
+                    with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+                        mock_load.return_value = []
+                        mock_split.return_value = []
+                        mock_vectorstore = MagicMock()
+                        mock_vectorstore.add_documents = MagicMock()
+                        mock_vectorstore._collection.count.return_value = 0
+                        mock_get_vs.return_value = mock_vectorstore
 
-                            await index_knowledge_base(mock_settings, force=False)
+                        await index_knowledge_base(mock_settings, force=False)
 
-                            assert chroma_path.exists()
+                        assert chroma_path.exists()
 
     @pytest.mark.asyncio
     async def test_indexes_documents_in_batches(self, mock_settings):
@@ -129,14 +130,14 @@ class TestIndexKnowledgeBase:
         with patch("cresco.rag.indexer.is_indexed", return_value=False):
             with patch("cresco.rag.indexer.load_knowledge_base") as mock_load:
                 with patch("cresco.rag.indexer.split_documents") as mock_split:
-                    with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-                        with patch("cresco.rag.indexer.get_embeddings"):
+                    with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+                        with patch("cresco.rag.indexer.reset_vector_store"):
                             mock_load.return_value = docs
                             mock_split.return_value = docs
                             mock_vectorstore = MagicMock()
                             mock_vectorstore.add_documents = MagicMock()
                             mock_vectorstore._collection.count.return_value = len(docs)
-                            mock_chroma.return_value = mock_vectorstore
+                            mock_get_vs.return_value = mock_vectorstore
 
                             await index_knowledge_base(mock_settings, force=True)
 
@@ -176,14 +177,13 @@ class TestIndexUserUpload:
         with (
             patch("cresco.rag.indexer.load_user_documents") as mock_load,
             patch("cresco.rag.indexer.split_documents") as mock_split,
-            patch("cresco.rag.indexer.Chroma") as mock_chroma,
-            patch("cresco.rag.indexer.get_embeddings"),
+            patch("cresco.rag.indexer.get_vector_store") as mock_get_vs,
         ):
             mock_load.return_value = docs
             mock_split.return_value = docs
             mock_vectorstore = MagicMock()
             mock_vectorstore.add_documents = MagicMock()
-            mock_chroma.return_value = mock_vectorstore
+            mock_get_vs.return_value = mock_vectorstore
 
             count = await index_user_upload(mock_settings, user_id="user42", filename="report.md")
 
@@ -200,7 +200,6 @@ class TestIndexUserUpload:
         with (
             patch("cresco.rag.indexer.load_user_documents") as mock_load,
             patch("cresco.rag.indexer.split_documents") as mock_split,
-            patch("cresco.rag.indexer.get_embeddings"),
         ):
             mock_load.return_value = []
             mock_split.return_value = []
@@ -217,8 +216,7 @@ class TestIndexUserUpload:
         with (
             patch("cresco.rag.indexer.load_user_documents") as mock_load,
             patch("cresco.rag.indexer.split_documents") as mock_split,
-            patch("cresco.rag.indexer.Chroma"),
-            patch("cresco.rag.indexer.get_embeddings"),
+            patch("cresco.rag.indexer.get_vector_store"),
         ):
             mock_load.return_value = []
             mock_split.return_value = []
@@ -239,13 +237,10 @@ class TestDeleteUserUpload:
         mock_collection = MagicMock()
         mock_collection.get.return_value = {"ids": ["id1", "id2", "id3"]}
 
-        with (
-            patch("cresco.rag.indexer.Chroma") as mock_chroma,
-            patch("cresco.rag.indexer.get_embeddings"),
-        ):
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
             mock_vectorstore = MagicMock()
             mock_vectorstore._collection = mock_collection
-            mock_chroma.return_value = mock_vectorstore
+            mock_get_vs.return_value = mock_vectorstore
 
             # Ensure chroma_path exists
             mock_settings.chroma_path.mkdir(parents=True, exist_ok=True)
@@ -265,13 +260,10 @@ class TestDeleteUserUpload:
         mock_collection = MagicMock()
         mock_collection.get.return_value = {"ids": []}
 
-        with (
-            patch("cresco.rag.indexer.Chroma") as mock_chroma,
-            patch("cresco.rag.indexer.get_embeddings"),
-        ):
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
             mock_vectorstore = MagicMock()
             mock_vectorstore._collection = mock_collection
-            mock_chroma.return_value = mock_vectorstore
+            mock_get_vs.return_value = mock_vectorstore
 
             mock_settings.chroma_path.mkdir(parents=True, exist_ok=True)
 
