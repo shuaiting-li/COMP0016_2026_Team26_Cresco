@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen } from 'lucide-react';
+import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen, Trash2 } from 'lucide-react';
 import styles from './ChatArea.module.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -11,23 +11,35 @@ import ChartRenderer from '../ChartRenderer';
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ messages, onSendMessage, isLoading }) {
+export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading }) {
     const [input, setInput] = useState("");
     const [activeTab, setActiveTab] = useState('chat');
     const messagesEndRef = useRef(null);
+    const textareaRef = useRef(null);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isLoading]);
 
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+    }, [input]);
+
     const handleSend = () => {
-        if(!input.trim()) return;
+        if(!input.trim() || isLoading) return;
         onSendMessage(input);
         setInput("");
     };
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter') handleSend();
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
     };
 
     return (
@@ -68,11 +80,24 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
                     <>
                     {activeTab === 'chat' && 
                     <div className={styles.messageList}>
-                        {messages.map((msg) => {
+                        {messages.map((msg, index) => {
                             if(msg.role === 'event') return null;
                             const isUser = msg.role === 'user';
+                            const isLastUserMsg = isUser
+                                && !isLoading
+                                && index === messages.length - 2
+                                && messages[messages.length - 1]?.role === 'assistant';
                             return (
                                 <div key={msg.id} className={`${styles.messageRow} ${isUser ? styles.userRow : styles.botRow}`}>
+                                    {isLastUserMsg && (
+                                        <button
+                                            className={styles.deleteExchangeBtn}
+                                            onClick={onDeleteLastExchange}
+                                            aria-label="Delete last exchange"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                     {!isUser && <div className={styles.botAvatar}><Bot size={18} /></div>}
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>
@@ -311,18 +336,22 @@ export default function ChatArea({ messages, onSendMessage, isLoading }) {
 
             <div className={styles.inputWrapper}>
                 <div className={styles.inputContainer}>
-                    <input
-                        type="text"
-                        placeholder="Message Cresco..."
+                    <textarea
+                        ref={textareaRef}
+                        rows={1}
+                        placeholder={isLoading ? "Waiting for response..." : "Message Cresco..."}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
+                        disabled={isLoading}
+                        className={styles.textarea}
                     />
 
                     <button
-                        className={`${styles.sendBtn} ${input.trim() ? styles.sendActive : ''}`}
+                        className={`${styles.sendBtn} ${input.trim() && !isLoading ? styles.sendActive : ''}`}
                         onClick={handleSend}
-                        disabled={!input.trim()}
+                        disabled={!input.trim() || isLoading}
+                        aria-label="Send message"
                     >
                         <ArrowUp size={20} strokeWidth={2.5}/>
                     </button>

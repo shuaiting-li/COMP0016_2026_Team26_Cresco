@@ -4,7 +4,7 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from './services/api';
+import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 
@@ -39,23 +39,42 @@ function App() {
         return <AuthPage onAuth={handleAuth} />;
     }
 
-    const handleFileUpload = async (e) => {
+    const handleFileUpload = async (filesToUpload) => {
         setIsLoading(true);
-        const uploadedFiles = Array.from(e.target.files);
+        // filesToUpload could be an event (from input change) or an array of files (from drop)
+        const uploadedFiles = filesToUpload.target ? Array.from(filesToUpload.target.files) : filesToUpload;
         console.log("Uploading files:");
         for (const file of uploadedFiles) {
             try {
                 await uploadAndIndexFile(file);
                 setFiles(prev => [...prev, file]);
-                setIsLoading(false);
             } catch {
                 console.error("Failed to upload and index:", file.name);
             }
-        };
+        }
+        setIsLoading(false);
     };
 
     const handleRemoveFile = (index) => {
         setFiles(files.filter((_, i) => i !== index));
+    };
+
+    const handleDeleteLastExchange = async () => {
+        setMessages(prev => {
+            if (prev.length < 2) return prev;
+            const last = prev[prev.length - 1];
+            const secondLast = prev[prev.length - 2];
+            if (last.role === 'assistant' && secondLast.role === 'user') {
+                return prev.slice(0, -2);
+            }
+            return prev;
+        });
+
+        try {
+            await deleteLastExchange();
+        } catch (error) {
+            console.error('Failed to delete exchange from agent memory:', error);
+        }
     };
 
     const handleSendMessage = async (text) => {
@@ -133,6 +152,7 @@ function App() {
                     <ChatArea
                         messages={messages}
                         onSendMessage={handleSendMessage}
+                        onDeleteLastExchange={handleDeleteLastExchange}
                         isLoading={isLoading}
                     />
                 </div>
