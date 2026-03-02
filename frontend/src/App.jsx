@@ -103,6 +103,7 @@ function App() {
                     role: 'assistant',
                     content: response.reply,
                     tasks: response.tasks,
+                    charts: response.charts, 
                     citations: response.citations
                 }
             ]);

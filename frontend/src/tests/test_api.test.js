@@ -169,6 +169,7 @@ describe('sendMessage', () => {
             reply: 'Plant wheat in October.',
             citations: ['wheat_guide.md'],
             tasks: [{ title: 'Plant', detail: 'Sow seeds', priority: 'high' }],
+            charts: [],
             conversationId: 'conv-1',
         });
     });

@@ -201,6 +201,7 @@ async def chat(
             answer=result["answer"],
             sources=result.get("sources", []),
             tasks=result.get("tasks", []),
+            charts=result.get("charts", []),
             conversation_id=request.conversation_id,
         )
     except Exception as e:
