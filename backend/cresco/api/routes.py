@@ -1,6 +1,7 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
+import logging
 import shutil
 
 import httpx
@@ -27,6 +28,8 @@ from .schemas import (
     IndexRequest,
     IndexResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -202,7 +205,21 @@ async def chat(
                 f"indexed in the knowledge base — use the retrieval tool to "
                 f"search their contents: {names}]"
             )
+        logger.info(
+            "Chat request from user '%s': message length=%d, files=%s",
+            user_id,
+            len(message),
+            request.files,
+        )
+        logger.debug("Full message to agent: %s", message)
         result = await agent.chat(message, thread_id=user_id, user_id=user_id)
+        logger.info(
+            "Chat response: answer length=%d, sources=%d, tasks=%d, charts=%d",
+            len(result["answer"]),
+            len(result.get("sources", [])),
+            len(result.get("tasks", [])),
+            len(result.get("charts", [])),
+        )
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
@@ -211,6 +228,7 @@ async def chat(
             conversation_id=request.conversation_id,
         )
     except Exception as e:
+        logger.exception("Chat error for user '%s'", current_user.get("user_id", "?"))
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 
