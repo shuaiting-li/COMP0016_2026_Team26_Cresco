@@ -8,9 +8,12 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from cresco.config import Settings
 
+# Supported text-based file extensions for knowledge base ingestion
+SUPPORTED_EXTENSIONS = [".md", ".pdf", ".txt", ".csv", ".json"]
+
 
 def load_knowledge_base(settings: Settings) -> list[Document]:
-    """Load all markdown documents from the knowledge base directory.
+    """Load all supported text documents from the knowledge base directory.
 
     Args:
         settings: Application settings containing knowledge base path.
@@ -23,16 +26,18 @@ def load_knowledge_base(settings: Settings) -> list[Document]:
     if not kb_path.exists():
         raise FileNotFoundError(f"Knowledge base directory not found: {kb_path}")
 
-    # Load all markdown files
-    loader = DirectoryLoader(
-        str(kb_path),
-        glob="**/*.md",
-        loader_cls=TextLoader,
-        loader_kwargs={"encoding": "utf-8"},
-        show_progress=True,
-    )
-
-    documents = loader.load()
+    # Load all supported file types
+    documents: list[Document] = []
+    for ext in SUPPORTED_EXTENSIONS:
+        pattern = f"**/*{ext}"
+        loader = DirectoryLoader(
+            str(kb_path),
+            glob=pattern,
+            loader_cls=TextLoader,
+            loader_kwargs={"encoding": "utf-8"},
+            show_progress=True,
+        )
+        documents.extend(loader.load())
 
     # Add metadata to each document
     for doc in documents:

@@ -1,5 +1,7 @@
 # Cresco – Copilot Instructions
 
+Always run linting and testing after a feature is completed.
+
 ## Architecture
 
 Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI backend** (`backend/`) and **React/Vite frontend** (`frontend/`).

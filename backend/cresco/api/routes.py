@@ -207,13 +207,37 @@ async def chat(
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 
+@router.delete("/chat/last-exchange", tags=["Chat"])
+async def delete_last_exchange(
+    current_user: dict = Depends(get_current_user),
+    agent: CrescoAgent = Depends(get_agent),
+):
+    """Delete the last user-assistant exchange from the agent's memory."""
+    user_id = current_user["user_id"]
+    deleted = await agent.delete_last_exchange(thread_id=user_id, user_id=user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No exchange to delete")
+    return {"status": "deleted"}
+
+
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
 async def upload_file(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ):
+    from cresco.rag.document_loader import SUPPORTED_EXTENSIONS
+
     try:
+        # Validate file extension
+        file_ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        if file_ext not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{file_ext}'. "
+                f"Accepted: {', '.join(SUPPORTED_EXTENSIONS)}",
+            )
+
         upload_dir = settings.knowledge_base
         upload_dir.mkdir(parents=True, exist_ok=True)
 

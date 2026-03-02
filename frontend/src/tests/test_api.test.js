@@ -432,3 +432,45 @@ describe('uploadAndIndexFile', () => {
         await expect(api.uploadAndIndexFile(file)).rejects.toThrow('HTTP error! status: 413');
     });
 });
+
+
+describe('deleteLastExchange', () => {
+    /** Tests for the deleteLastExchange() call. */
+
+    beforeEach(() => {
+        localStorage.setItem('cresco_token', 'tok');
+    });
+
+    it('sends DELETE request with auth header', async () => {
+        /** Verifies the correct method, URL, and Bearer token. */
+        fetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ status: 'deleted' }),
+        });
+
+        const result = await api.deleteLastExchange();
+
+        const [url, opts] = fetch.mock.calls[0];
+        expect(url).toBe(`${API_BASE}/chat/last-exchange`);
+        expect(opts.method).toBe('DELETE');
+        expect(opts.headers.Authorization).toBe('Bearer tok');
+        expect(opts.headers['Content-Type']).toBeUndefined();
+        expect(result.status).toBe('deleted');
+    });
+
+    it('logs out on 401 response', async () => {
+        /** Verifies auto-logout on expired session. */
+        fetch.mockResolvedValueOnce({ ok: false, status: 401 });
+
+        await expect(api.deleteLastExchange()).rejects.toThrow('Session expired');
+        expect(localStorage.getItem('cresco_token')).toBeNull();
+    });
+
+    it('throws on generic failure', async () => {
+        /** Verifies non-auth HTTP errors are propagated. */
+        fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+        await expect(api.deleteLastExchange()).rejects.toThrow('Delete exchange failed (404)');
+    });
+});

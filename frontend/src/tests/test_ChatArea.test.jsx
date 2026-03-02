@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ChatArea from '../layout/ChatArea';
 
@@ -11,9 +11,11 @@ describe('ChatArea', () => {
     /** Tests for the main chat interface. */
 
     let onSendMessage;
+    let onDeleteLastExchange;
 
     beforeEach(() => {
         onSendMessage = vi.fn();
+        onDeleteLastExchange = vi.fn();
     });
 
     it('renders empty state with Cresco Intelligence heading', () => {
@@ -35,8 +37,7 @@ describe('ChatArea', () => {
 
         const input = screen.getByPlaceholderText(/message cresco/i);
         await user.type(input, 'What diseases affect wheat?');
-        // The send button only contains an ArrowUp SVG icon (no accessible name)
-        await user.click(screen.getByRole('button', { name: '' }));
+        await user.click(screen.getByRole('button', { name: /send message/i }));
 
         expect(onSendMessage).toHaveBeenCalledWith('What diseases affect wheat?');
     });
@@ -145,5 +146,113 @@ describe('ChatArea', () => {
 
         expect(screen.queryByText('System event')).not.toBeInTheDocument();
         expect(screen.getByText('Hello')).toBeInTheDocument();
+    });
+
+    it('disables input and send button while loading', () => {
+        /** Verifies the input is disabled and shows a loading placeholder during processing. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={true} />);
+
+        expect(screen.getByPlaceholderText(/waiting for response/i)).toBeDisabled();
+        expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
+    });
+
+    it('does not send on Enter while loading', () => {
+        /** Verifies the isLoading guard in handleSend blocks dispatch even with text typed. */
+        const { rerender } = render(
+            <ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />,
+        );
+
+        // Type text so input state is non-empty, then switch to loading
+        const input = screen.getByRole('textbox');
+        fireEvent.change(input, { target: { value: 'test message' } });
+
+        rerender(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={true} />);
+
+        // Fire keyDown directly — jsdom bypasses native disabled filtering,
+        // so the React onKeyDown handler is reached and the isLoading guard is exercised.
+        fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+
+        expect(onSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('shows delete button on last user message after response', async () => {
+        /** Verifies the delete button appears beside the last user message once the assistant responds. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+            { id: 2, role: 'assistant', content: 'hi there' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false} />,
+        );
+
+        expect(screen.getByRole('button', { name: /delete last exchange/i })).toBeInTheDocument();
+    });
+
+    it('does not show delete button while loading', () => {
+        /** Verifies the delete button is hidden while the bot is still processing. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+            { id: 2, role: 'assistant', content: 'hi there' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={true} />,
+        );
+
+        expect(screen.queryByRole('button', { name: /delete last exchange/i })).not.toBeInTheDocument();
+    });
+
+    it('does not show delete button when last message is user only', () => {
+        /** Verifies the delete button does not appear before the assistant responds. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false} />,
+        );
+
+        expect(screen.queryByRole('button', { name: /delete last exchange/i })).not.toBeInTheDocument();
+    });
+
+    it('calls onDeleteLastExchange when delete button is clicked', async () => {
+        /** Verifies the delete callback fires when the delete button is clicked. */
+        const messages = [
+            { id: 1, role: 'user', content: 'hello' },
+            { id: 2, role: 'assistant', content: 'hi there' },
+        ];
+        render(
+            <ChatArea messages={messages} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false} />,
+        );
+        const user = userEvent.setup();
+
+        await user.click(screen.getByRole('button', { name: /delete last exchange/i }));
+
+        expect(onDeleteLastExchange).toHaveBeenCalledTimes(1);
+    });
+
+    it('inserts newline on Shift+Enter without sending', async () => {
+        /** Verifies Shift+Enter adds a newline to the input rather than sending. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        const user = userEvent.setup();
+
+        const input = screen.getByRole('textbox');
+        await user.type(input, 'line one');
+        await user.keyboard('{Shift>}{Enter}{/Shift}');
+        await user.type(input, 'line two');
+
+        expect(onSendMessage).not.toHaveBeenCalled();
+        expect(input).toHaveValue('line one\nline two');
+    });
+
+    it('preserves newlines in user messages', () => {
+        /** Verifies user message text renders with newlines intact (not through markdown). */
+        const messages = [{ id: 1, role: 'user', content: 'line one\nline two' }];
+        render(<ChatArea messages={messages} onSendMessage={onSendMessage} isLoading={false} />);
+
+        const el = screen.getByText(/line one/);
+        expect(el.textContent).toBe('line one\nline two');
     });
 });
