@@ -292,6 +292,131 @@ class TestDeleteLastExchange:
         assert "a2" in removed_ids
 
 
+class TestCondenseFileMessage:
+    """Tests for CrescoAgent._condense_file_message method."""
+
+    @pytest.mark.asyncio
+    async def test_condenses_file_content_in_history(self, mock_settings, mock_agent_deps):
+        """Test that file-heavy HumanMessage is replaced with a condensed summary."""
+        from langchain_core.messages import HumanMessage
+
+        file_message = (
+            "Analyze this report\n\n"
+            "[Uploaded Files Context]:\n"
+            "\n--- report.pdf ---\n"
+            "A" * 50_000 + "\n"
+        )
+        human_msg = HumanMessage(content=file_message, id="h1")
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": [human_msg]}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        config = {"configurable": {"thread_id": "t1", "user_id": "u1"}}
+        await agent._condense_file_message(config, file_message)
+
+        mock_graph.aupdate_state.assert_called_once()
+        replacement = mock_graph.aupdate_state.call_args.args[1]["messages"][0]
+        assert isinstance(replacement, HumanMessage)
+        assert replacement.id == "h1"
+        assert "report.pdf" in replacement.content
+        assert "Analyze this report" in replacement.content
+        # The bulk file content must be gone
+        assert "A" * 1000 not in replacement.content
+
+    @pytest.mark.asyncio
+    async def test_condense_preserves_non_file_messages(self, mock_settings, mock_agent_deps):
+        """Test that messages without file context are not altered."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        msgs = [
+            HumanMessage(content="plain question", id="h1"),
+            AIMessage(content="answer", id="a1"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        config = {"configurable": {"thread_id": "t1", "user_id": "u1"}}
+        await agent._condense_file_message(config, "anything")
+
+        mock_graph.aupdate_state.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_chat_triggers_condense_when_files_present(self, mock_settings, mock_agent_deps):
+        """Test that chat() calls _condense_file_message when message has file context."""
+        mock_message = MagicMock()
+        mock_message.content = "Response about the file"
+        mock_message.artifact = None
+
+        mock_graph = AsyncMock()
+        mock_graph.ainvoke.return_value = {"messages": [mock_message]}
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+
+        with patch.object(agent, "_condense_file_message", new_callable=AsyncMock) as mock_cond:
+            file_msg = "Question\n\n[Uploaded Files Context]:\n\n--- f.txt ---\ncontent\n"
+            await agent.chat(file_msg, thread_id="t1", user_id="u1")
+
+            mock_cond.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_chat_does_not_condense_without_files(self, mock_settings, mock_agent_deps):
+        """Test that chat() skips condensing when message has no file context."""
+        mock_message = MagicMock()
+        mock_message.content = "Normal response"
+        mock_message.artifact = None
+
+        mock_graph = AsyncMock()
+        mock_graph.ainvoke.return_value = {"messages": [mock_message]}
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+
+        with patch.object(agent, "_condense_file_message", new_callable=AsyncMock) as mock_cond:
+            await agent.chat("Just a normal question", thread_id="t1", user_id="u1")
+
+            mock_cond.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_condense_handles_multiple_files(self, mock_settings, mock_agent_deps):
+        """Test that condensing works correctly with multiple uploaded files."""
+        from langchain_core.messages import HumanMessage
+
+        file_message = (
+            "Compare these\n\n"
+            "[Uploaded Files Context]:\n"
+            "\n--- alpha.md ---\nAlpha content\n"
+            "\n--- beta.pdf ---\nBeta content\n"
+        )
+        human_msg = HumanMessage(content=file_message, id="h1")
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": [human_msg]}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        config = {"configurable": {"thread_id": "t1", "user_id": "u1"}}
+        await agent._condense_file_message(config, file_message)
+
+        replacement = mock_graph.aupdate_state.call_args.args[1]["messages"][0]
+        assert "alpha.md" in replacement.content
+        assert "beta.pdf" in replacement.content
+        assert "Compare these" in replacement.content
+        assert "Alpha content" not in replacement.content
+        assert "Beta content" not in replacement.content
+
+
 class TestGetAgent:
     """Tests for get_agent dependency."""
 

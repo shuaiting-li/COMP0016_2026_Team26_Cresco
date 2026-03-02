@@ -103,10 +103,17 @@ function App() {
                     role: 'assistant',
                     content: response.reply,
                     tasks: response.tasks,
-                    charts: response.charts, 
+                    charts: response.charts,
                     citations: response.citations
                 }
             ]);
+
+            // Clear attached files after successful send — the agent now
+            // has the content in its conversation memory so re-sending
+            // would duplicate tokens and can cause a context-window explosion.
+            if (files.length > 0) {
+                setFiles([]);
+            }
 
         } catch (error) {
             console.error('Chat error:', error);
