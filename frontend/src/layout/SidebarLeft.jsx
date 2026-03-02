@@ -98,6 +98,7 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
 
             <div className={styles.footer}>
                 <p>{files.length} sources active</p>
+                <p>Supports .md, .pdf, .txt, .csv, .json</p>
             </div>
         </aside>
     );
