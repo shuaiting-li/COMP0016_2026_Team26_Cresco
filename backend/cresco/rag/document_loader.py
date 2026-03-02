@@ -11,6 +11,9 @@ from cresco.config import Settings
 # Supported text-based file extensions for knowledge base ingestion
 SUPPORTED_EXTENSIONS = [".md", ".pdf", ".txt", ".csv", ".json"]
 
+# Sentinel value used to tag shared knowledge-base docs in the vector store
+SHARED_USER_ID = "__shared__"
+
 
 def load_knowledge_base(settings: Settings) -> list[Document]:
     """Load all supported text documents from the knowledge base directory.
@@ -44,6 +47,40 @@ def load_knowledge_base(settings: Settings) -> list[Document]:
         source_path = Path(doc.metadata.get("source", ""))
         doc.metadata["filename"] = source_path.name
         doc.metadata["category"] = _categorize_document(source_path.name)
+        doc.metadata["user_id"] = SHARED_USER_ID
+
+    return documents
+
+
+def load_user_documents(upload_dir: Path) -> list[Document]:
+    """Load documents from a user-specific upload directory.
+
+    Args:
+        upload_dir: Path to the user's upload directory.
+
+    Returns:
+        List of Document objects ready for embedding.
+    """
+    if not upload_dir.exists():
+        return []
+
+    documents: list[Document] = []
+    for ext in SUPPORTED_EXTENSIONS:
+        pattern = f"**/*{ext}"
+        loader = DirectoryLoader(
+            str(upload_dir),
+            glob=pattern,
+            loader_cls=TextLoader,
+            loader_kwargs={"encoding": "utf-8"},
+            show_progress=True,
+        )
+        documents.extend(loader.load())
+
+    for doc in documents:
+        source_path = Path(doc.metadata.get("source", ""))
+        doc.metadata["filename"] = source_path.name
+        doc.metadata["category"] = _categorize_document(source_path.name)
+        # user_id is set by the caller (indexer) after loading
 
     return documents
 

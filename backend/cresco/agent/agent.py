@@ -9,6 +9,7 @@ from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
 
 from cresco.config import Settings, get_settings
+from cresco.rag.document_loader import SHARED_USER_ID
 from cresco.rag.retriever import get_vector_store
 
 from .prompts import SYSTEM_PROMPT
@@ -49,7 +50,7 @@ class CrescoAgent:
         vector_store = self.vector_store
 
         @tool(response_format="content_and_artifact")
-        def retrieve_agricultural_info(query: str):
+        def retrieve_agricultural_info(query: str, config: RunnableConfig):
             """Search the agricultural knowledge base for relevant information.
 
             Use this tool to find information about:
@@ -59,7 +60,16 @@ class CrescoAgent:
             - Seed selection and certification standards
             - UK agricultural regulations and best practices
             """
-            retrieved_docs = vector_store.similarity_search(query, k=5)
+            user_id = config["configurable"].get("user_id", "")
+
+            # Scope retrieval: return shared KB docs + this user's uploads only
+            user_filter = {
+                "$or": [
+                    {"user_id": SHARED_USER_ID},
+                    {"user_id": user_id},
+                ]
+            }
+            retrieved_docs = vector_store.similarity_search(query, k=5, filter=user_filter)
             serialized = "\n\n".join(
                 f"Source: {doc.metadata.get('filename', 'Unknown')}\n"
                 f"Category: {doc.metadata.get('category', 'general')}\n"

@@ -6,7 +6,7 @@ from langchain_chroma import Chroma
 
 from cresco.config import Settings
 
-from .document_loader import load_knowledge_base, split_documents
+from .document_loader import load_knowledge_base, load_user_documents, split_documents
 from .embeddings import get_embeddings
 
 # Batch settings for rate limit handling
@@ -131,4 +131,62 @@ async def index_knowledge_base(
                     raise
 
     print(f"[*] Indexed {total_indexed} chunks successfully")
+    return total_indexed
+
+
+async def index_user_upload(settings: Settings, user_id: str, filename: str) -> int:
+    """Index a single user-uploaded file into ChroamDB with user_id metadata.
+
+    The file is loaded from the user's upload directory
+    (``uploads_dir / user_id``), tagged with the user's ID so that
+    retrieval can be scoped, and added to the shared ChromaDB collection.
+
+    Args:
+        settings: Application settings.
+        user_id: The ID of the uploading user.
+        filename: Name of the uploaded file to index.
+
+    Returns:
+        Number of document chunks indexed.
+    """
+    upload_dir = settings.uploads_dir / user_id
+    documents = load_user_documents(upload_dir)
+
+    # Keep only the requested file
+    documents = [doc for doc in documents if doc.metadata.get("filename") == filename]
+
+    # Stamp every chunk with the owning user
+    for doc in documents:
+        doc.metadata["user_id"] = user_id
+
+    chunks = split_documents(documents)
+
+    if not chunks:
+        return 0
+
+    chroma_path = settings.chroma_path
+    chroma_path.mkdir(parents=True, exist_ok=True)
+    embeddings = get_embeddings()
+    vectorstore = Chroma(
+        persist_directory=str(chroma_path),
+        embedding_function=embeddings,
+        collection_name="cresco_knowledge_base",
+    )
+
+    total_indexed = 0
+    for i in range(0, len(chunks), BATCH_SIZE):
+        batch = chunks[i : i + BATCH_SIZE]
+        try:
+            vectorstore.add_documents(batch)
+            total_indexed += len(batch)
+            if i + BATCH_SIZE < len(chunks):
+                await asyncio.sleep(BATCH_DELAY)
+        except Exception as e:
+            if "rate" in str(e).lower() or "429" in str(e):
+                await asyncio.sleep(30)
+                vectorstore.add_documents(batch)
+                total_indexed += len(batch)
+            else:
+                raise
+
     return total_indexed

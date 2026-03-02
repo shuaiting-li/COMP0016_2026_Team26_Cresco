@@ -11,7 +11,7 @@ from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import index_knowledge_base, is_indexed
+from cresco.rag.indexer import index_knowledge_base, index_user_upload, is_indexed
 
 from .schemas import (
     ChatRequest,
@@ -239,18 +239,21 @@ async def upload_file(
                 f"Accepted: {', '.join(SUPPORTED_EXTENSIONS)}",
             )
 
-        upload_dir = settings.knowledge_base
+        # Save to per-user upload directory (not the shared knowledge base)
+        user_id = current_user["user_id"]
+        upload_dir = settings.uploads_dir / user_id
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         file_path = upload_dir / file.filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Trigger reindexing
-
-        await index_knowledge_base(settings, force=False, upload_file=file.filename)
+        # Index with user_id metadata so retrieval is scoped
+        await index_user_upload(settings, user_id=user_id, filename=file.filename)
 
         return {"filename": file.filename, "status": "indexed"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 

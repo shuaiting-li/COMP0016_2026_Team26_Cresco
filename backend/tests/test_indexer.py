@@ -6,7 +6,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cresco.rag.indexer import BATCH_DELAY, BATCH_SIZE, index_knowledge_base, is_indexed
+from cresco.rag.indexer import (
+    BATCH_DELAY,
+    BATCH_SIZE,
+    index_knowledge_base,
+    index_user_upload,
+    is_indexed,
+)
 
 
 class TestIsIndexed:
@@ -150,3 +156,74 @@ class TestBatchSettings:
         """Test batch delay is positive for rate limiting."""
         assert BATCH_DELAY > 0
         assert BATCH_DELAY <= 10  # Not too slow
+
+
+class TestIndexUserUpload:
+    """Tests for index_user_upload function."""
+
+    @pytest.mark.asyncio
+    async def test_indexes_single_user_file(self, mock_settings):
+        """Test indexing a single user-uploaded file with user_id metadata."""
+        from langchain_core.documents import Document
+
+        docs = [
+            Document(
+                page_content="User report content",
+                metadata={"filename": "report.md", "category": "general"},
+            )
+        ]
+
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.Chroma") as mock_chroma,
+            patch("cresco.rag.indexer.get_embeddings"),
+        ):
+            mock_load.return_value = docs
+            mock_split.return_value = docs
+            mock_vectorstore = MagicMock()
+            mock_vectorstore.add_documents = MagicMock()
+            mock_chroma.return_value = mock_vectorstore
+
+            count = await index_user_upload(mock_settings, user_id="user42", filename="report.md")
+
+            assert count == 1
+            mock_vectorstore.add_documents.assert_called_once()
+
+            # Verify user_id metadata was stamped
+            indexed_docs = mock_vectorstore.add_documents.call_args.args[0]
+            assert indexed_docs[0].metadata["user_id"] == "user42"
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_matching_file(self, mock_settings):
+        """Test returns 0 when the uploaded file is not found."""
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.get_embeddings"),
+        ):
+            mock_load.return_value = []
+            mock_split.return_value = []
+
+            count = await index_user_upload(mock_settings, user_id="user42", filename="missing.md")
+
+            assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_loads_from_user_upload_directory(self, mock_settings):
+        """Test that documents are loaded from the correct per-user directory."""
+        from pathlib import Path
+
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.Chroma"),
+            patch("cresco.rag.indexer.get_embeddings"),
+        ):
+            mock_load.return_value = []
+            mock_split.return_value = []
+
+            await index_user_upload(mock_settings, user_id="user42", filename="f.md")
+
+            expected_dir = Path(mock_settings.uploads_path) / "user42"
+            mock_load.assert_called_once_with(expected_dir)

@@ -7,8 +7,10 @@ import pytest
 from langchain_core.documents import Document
 
 from cresco.rag.document_loader import (
+    SHARED_USER_ID,
     _categorize_document,
     load_knowledge_base,
+    load_user_documents,
     split_documents,
 )
 
@@ -122,6 +124,62 @@ class TestLoadKnowledgeBase:
             documents = load_knowledge_base(mock_settings)
 
             assert documents[0].metadata.get("category") == "disease_management"
+
+    def test_stamps_shared_user_id(self, temp_knowledge_base, mock_settings):
+        """Test shared knowledge base docs are stamped with SHARED_USER_ID."""
+        mock_settings.knowledge_base_path = str(temp_knowledge_base)
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
+            mock_doc = MagicMock()
+            mock_doc.page_content = "Test content"
+            mock_doc.metadata = {"source": str(temp_knowledge_base / "test.md")}
+            mock_loader.return_value.load.return_value = [mock_doc]
+
+            documents = load_knowledge_base(mock_settings)
+
+            assert documents[0].metadata["user_id"] == SHARED_USER_ID
+
+
+class TestLoadUserDocuments:
+    """Tests for user document loading."""
+
+    def test_returns_empty_for_missing_directory(self, tmp_path):
+        """Test returns empty list when directory doesn't exist."""
+        result = load_user_documents(tmp_path / "nonexistent")
+        assert result == []
+
+    def test_loads_documents_from_user_directory(self, tmp_path):
+        """Test documents are loaded from user upload directory."""
+        user_dir = tmp_path / "user1"
+        user_dir.mkdir()
+        (user_dir / "report.md").write_text("# My Report\nSome content")
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
+            mock_doc = MagicMock()
+            mock_doc.page_content = "# My Report\nSome content"
+            mock_doc.metadata = {"source": str(user_dir / "report.md")}
+            mock_loader.return_value.load.return_value = [mock_doc]
+
+            documents = load_user_documents(user_dir)
+
+            assert len(documents) > 0
+            assert documents[0].metadata["filename"] == "report.md"
+
+    def test_does_not_stamp_user_id(self, tmp_path):
+        """Test load_user_documents does NOT set user_id — caller is responsible."""
+        user_dir = tmp_path / "user1"
+        user_dir.mkdir()
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
+            mock_doc = MagicMock()
+            mock_doc.page_content = "content"
+            mock_doc.metadata = {"source": str(user_dir / "file.txt")}
+            mock_loader.return_value.load.return_value = [mock_doc]
+
+            documents = load_user_documents(user_dir)
+
+            # user_id should NOT be set by load_user_documents
+            assert "user_id" not in documents[0].metadata
 
 
 class TestSplitDocuments:
