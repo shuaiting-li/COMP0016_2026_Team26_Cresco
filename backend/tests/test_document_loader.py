@@ -9,6 +9,7 @@ from langchain_core.documents import Document
 from cresco.rag.document_loader import (
     SHARED_USER_ID,
     _categorize_document,
+    _load_documents_from_dir,
     load_knowledge_base,
     load_user_documents,
     split_documents,
@@ -180,6 +181,61 @@ class TestLoadUserDocuments:
 
             # user_id should NOT be set by load_user_documents
             assert "user_id" not in documents[0].metadata
+
+
+class TestLoadDocumentsFromDir:
+    """Tests for the _load_documents_from_dir helper."""
+
+    def test_uses_text_loader_for_text_files(self, tmp_path):
+        """Test that text-based extensions use TextLoader."""
+        (tmp_path / "notes.md").write_text("# Notes")
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            # At least one call should use TextLoader for .md
+            text_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("loader_cls").__name__ == "TextLoader"
+                or (len(c.args) > 2 and getattr(c.args[2], "__name__", "") == "TextLoader")
+            ]
+            assert len(text_calls) > 0
+
+    def test_uses_pypdf_loader_for_pdf_files(self, tmp_path):
+        """Test that .pdf extension uses PyPDFLoader instead of TextLoader."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            # Find the call that uses glob "**/*.pdf"
+            pdf_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("glob") == "**/*.pdf"
+                or (len(c.args) > 1 and c.args[1] == "**/*.pdf")
+            ]
+            assert len(pdf_calls) == 1
+            pdf_call = pdf_calls[0]
+            loader_cls = pdf_call.kwargs.get("loader_cls")
+            assert loader_cls.__name__ == "PyPDFLoader"
+
+    def test_pdf_loader_has_no_encoding_kwarg(self, tmp_path):
+        """Test that PyPDFLoader calls don't pass encoding (binary loader)."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            pdf_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("glob") == "**/*.pdf"
+                or (len(c.args) > 1 and c.args[1] == "**/*.pdf")
+            ]
+            assert len(pdf_calls) == 1
+            # loader_kwargs with encoding should NOT be present
+            assert "loader_kwargs" not in pdf_calls[0].kwargs
 
 
 class TestSplitDocuments:
