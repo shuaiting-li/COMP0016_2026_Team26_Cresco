@@ -226,7 +226,18 @@ async def upload_file(
     current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ):
+    from cresco.rag.document_loader import SUPPORTED_EXTENSIONS
+
     try:
+        # Validate file extension
+        file_ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        if file_ext not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{file_ext}'. "
+                f"Accepted: {', '.join(SUPPORTED_EXTENSIONS)}",
+            )
+
         upload_dir = settings.knowledge_base
         upload_dir.mkdir(parents=True, exist_ok=True)
 

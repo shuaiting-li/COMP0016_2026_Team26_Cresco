@@ -63,13 +63,13 @@ describe('SidebarLeft', () => {
         expect(onRemove).toHaveBeenCalledWith(0);
     });
 
-    it('hidden file input accepts .md and .pdf files', () => {
+    it('hidden file input accepts supported text formats', () => {
         /** Verifies the file input has the correct accept attribute. */
         render(<SidebarLeft files={[]} onUpload={onUpload} onRemove={onRemove} />);
 
         const fileInput = document.querySelector('input[type="file"]');
         expect(fileInput).toBeInTheDocument();
-        expect(fileInput).toHaveAttribute('accept', '.md,.pdf');
+        expect(fileInput).toHaveAttribute('accept', '.md,.pdf,.txt,.csv,.json');
         expect(fileInput).toHaveAttribute('multiple');
     });
 
@@ -118,6 +118,9 @@ describe('SidebarLeft', () => {
                     files: [
                         new File(['content'], 'valid.md', { type: 'text/markdown' }),
                         new File(['content'], 'valid.pdf', { type: 'application/pdf' }),
+                        new File(['{"a":1}'], 'data.json', { type: 'application/json' }),
+                        new File(['col1,col2'], 'report.csv', { type: 'text/csv' }),
+                        new File(['hello'], 'notes.txt', { type: 'text/plain' }),
                         new File(['content'], 'invalid.png', { type: 'image/png' })
                     ]
                 }
@@ -128,8 +131,11 @@ describe('SidebarLeft', () => {
         expect(onUpload).toHaveBeenCalledTimes(1);
         
         const uploadedFiles = onUpload.mock.calls[0][0];
-        expect(uploadedFiles).toHaveLength(2);
+        expect(uploadedFiles).toHaveLength(5);
         expect(uploadedFiles[0].name).toBe('valid.md');
         expect(uploadedFiles[1].name).toBe('valid.pdf');
+        expect(uploadedFiles[2].name).toBe('data.json');
+        expect(uploadedFiles[3].name).toBe('report.csv');
+        expect(uploadedFiles[4].name).toBe('notes.txt');
     });
 });

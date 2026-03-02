@@ -28,6 +28,8 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
         setIsDragging(false);
     };
 
+    const acceptedExtensions = ['.md', '.pdf', '.txt', '.csv', '.json'];
+
     const handleDrop = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -35,9 +37,10 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
         
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             const fileArray = Array.from(e.dataTransfer.files);
-            const validFiles = fileArray.filter(f => 
-                f.name.toLowerCase().endsWith('.md') || f.name.toLowerCase().endsWith('.pdf')
-            );
+            const validFiles = fileArray.filter(f => {
+                const ext = '.' + f.name.split('.').pop().toLowerCase();
+                return acceptedExtensions.includes(ext);
+            });
             
             if (validFiles.length > 0) {
                 onUpload(validFiles);
@@ -57,7 +60,7 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
                 <div className={styles.dragOverlay}>
                     <UploadCloud size={48} className={styles.dragOverlayIcon} />
                     <span className={styles.dragOverlayText}>Drop files here</span>
-                    <span className={styles.dragOverlaySubtext}>Supports .md and .pdf</span>
+                    <span className={styles.dragOverlaySubtext}>.md, .pdf, .txt, .csv, .json</span>
                 </div>
             )}
             
@@ -68,7 +71,7 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
             <input 
                 type="file" 
                 multiple 
-                accept=".md,.pdf"
+                accept=".md,.pdf,.txt,.csv,.json"
                 ref={fileInputRef} 
                 style={{ display: 'none' }} 
                 onChange={onUpload} 

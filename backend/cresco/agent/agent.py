@@ -247,9 +247,7 @@ class CrescoAgent:
 
         Returns True if messages were removed, False if nothing to remove.
         """
-        config: RunnableConfig = {
-            "configurable": {"thread_id": thread_id, "user_id": user_id}
-        }
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
         state = await self._agent.aget_state(config)
         messages = state.values.get("messages", [])
