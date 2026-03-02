@@ -105,16 +105,10 @@ export async function sendMessage(message, conversationId = null, files = []) {
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
 
     try {
-        // Read file contents if files are provided
-        const fileData = await Promise.all(
-            files.map(async (file) => {
-                const content = await file.text();
-                return {
-                    name: file.name,
-                    content: content,
-                };
-            })
-        );
+        // Send only file names — content is already indexed in the
+        // knowledge base via the upload endpoint, so the agent
+        // retrieves it through the RAG tool.
+        const fileData = files.map((file) => ({ name: file.name }));
 
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',

@@ -114,6 +114,12 @@ function App() {
                 }
             ]);
 
+            // Clear attached files after successful send — files are
+            // already indexed and retrievable via RAG.
+            if (files.length > 0) {
+                setFiles([]);
+            }
+
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [

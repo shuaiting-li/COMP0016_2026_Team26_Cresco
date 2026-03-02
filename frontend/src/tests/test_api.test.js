@@ -190,7 +190,7 @@ describe('sendMessage', () => {
         expect(body.conversation_id).toBe('conv-1');
         expect(body.files).toHaveLength(1);
         expect(body.files[0].name).toBe('soil.txt');
-        expect(body.files[0].content).toBe('field data');
+        expect(body.files[0]).not.toHaveProperty('content');
     });
 
     it('logs out on 401 response', async () => {

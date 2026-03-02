@@ -12,7 +12,7 @@ Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI ba
 |---|---|---|
 | **API** | `api/routes.py`, `api/schemas.py` | FastAPI router mounted at `/api/v1`. Pydantic v2 request/response models. Proxy endpoints for third-party APIs (geocoding, weather). |
 | **Auth** | `auth/routes.py`, `auth/dependencies.py`, `auth/jwt.py`, `auth/users.py`, `auth/schemas.py` | JWT Bearer auth (HS256 via `pyjwt`). Passwords hashed with `bcrypt`. Users stored in JSON file (`data/users.json`). Registration is admin-only; login is public. |
-| **Agent** | `agent/agent.py`, `agent/prompts.py` | LangGraph agent (`CrescoAgent`) with two tools: `retrieve_agricultural_info` (RAG) and `TavilySearch` (internet). Uses `InMemorySaver` checkpointer keyed by `user_id` for conversation memory. Azure OpenAI (primary) or generic providers via `init_chat_model`. |
+| **Agent** | `agent/agent.py`, `agent/prompts.py` | LangGraph agent (`CrescoAgent`) with three tools: `retrieve_agricultural_info` (RAG), `get_weather_data` (user farm context), and `TavilySearch` (internet). Uses `InMemorySaver` checkpointer keyed by `thread_id` for conversation memory. Agent passes `user_id` via `RunnableConfig` to tools. Parses `---CHART---` JSON blocks for data visualization and `---TASKS---` JSON blocks for actionable farming tasks. Azure OpenAI (primary) or generic providers via `init_chat_model`. |
 | **RAG** | `rag/retriever.py`, `rag/indexer.py`, `rag/embeddings.py`, `rag/document_loader.py` | ChromaDB vector store (`"cresco_knowledge_base"` collection), Azure OpenAI embeddings, markdown document loading with filename-based category metadata. Chunks: 1500 chars, 200 overlap. |
 | **Config** | `config.py` | `pydantic-settings` based; reads `.env` from **project root** (`env_file="../.env"` relative to `backend/`). Holds all third-party API keys (e.g., `openweather_api_key`). |
 
@@ -22,7 +22,12 @@ Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI ba
 - `get_settings()`: `@lru_cache` — clear via `get_settings.cache_clear()` in tests.
 - RAG/agent modules (`get_embeddings()`, `get_vector_store()`, `get_retriever()`, `get_agent()`): module-level `_variable = None` with `global`. Reset by setting `module._variable = None` before patching.
 
-**Data flow**: User message → `POST /api/v1/chat` (requires Bearer token) → farm/weather context appended from in-memory `farm_data` dict (keyed by JWT `user_id`) → `CrescoAgent.chat()` → LangGraph agent invokes RAG tool → ChromaDB similarity search (k=5) → LLM generates answer. Agent parses `---TASKS---` JSON blocks for actionable farming tasks.
+**Data flow**: User message → `POST /api/v1/chat` (requires Bearer token) → farm/weather context appended from in-memory `farm_data` dict (keyed by JWT `user_id`) → `CrescoAgent.chat()` → LangGraph agent invokes RAG + weather + search tools → ChromaDB similarity search (k=5) → LLM generates answer. Agent parses `---TASKS---` JSON blocks for actionable farming tasks and `---CHART---` JSON blocks for data visualization (see `prompts.py` for format).
+
+**Agent response parsing**: The agent returns structured data with optional embedded blocks:
+  - **Charts**: `---CHART--- {...JSON...} ---END_CHART---` blocks are parsed by `agent.py` and sent as separate `charts` field in response (see `ChartRenderer.jsx` for rendering).
+  - **Tasks**: `---TASKS--- [{...task_json...}] ---END_TASKS---` blocks are parsed and included as `tasks` field. Each task: `{title, detail, priority}`.
+  - **Answers**: Main text response sent to frontend as `answer` (mapped to `reply` in `api.js`).
 
 **Auth flow**: `POST /auth/login` returns JWT → all other endpoints (except `/health`) require `Authorization: Bearer <token>` via `get_current_user` dependency. Admin bootstrap: `uv run python scripts/create_admin.py <username> <password>`.
 
@@ -52,8 +57,8 @@ uv run python scripts/index_documents.py         # Index knowledge base
 uv run python scripts/create_admin.py <user> <pass>  # Bootstrap first admin
 
 # Frontend (run from frontend/)
-npm install && npm run dev    # Dev server (port 3000)
-\npm test                      # Run tests (Vitest)
+npm install && npm run dev    # Dev server (port 3000, per vite.config.js)
+npm test                      # Run tests (Vitest)
 npm run test:watch            # Watch mode
 npm run test:coverage         # Coverage report
 npm run build                 # Production build
@@ -97,7 +102,7 @@ npm run lint                  # ESLint
 
 - **Single `.env`** at **project root** (not in `backend/` or `frontend/`). Backend reads it via `pydantic-settings` (`env_file="../.env"`). Frontend reads it via Vite (`envDir: '..'` in `vite.config.js`). Third-party API keys (e.g. `OPENWEATHER_API_KEY`) belong in backend `config.py` — not exposed to the frontend.
 - **Never call external APIs from the frontend** to the backend's own endpoints without going through `services/api.js`. For third-party APIs (geocoding, weather), add a proxy endpoint in `routes.py` using `httpx` and a corresponding function in `api.js`.
-- Knowledge base: markdown files in `backend/data/knowledge_base/`. `_categorize_document()` in `document_loader.py` maps filename keywords → categories (`"disease"` → `disease_management`, `"nutri"` → `nutrient_management`, etc.).
+- **Knowledge base**: Files in `backend/data/knowledge_base/` (supports `.md`, `.pdf`, `.txt`, `.csv`, `.json`). `_categorize_document()` in `document_loader.py` maps filename keywords → categories (`"disease"` → `disease_management`, `"nutri"` → `nutrient_management`, etc.). Chunking: 1500 chars, 200 overlap, splits on markdown headers, sections, and paragraphs.
 - Indexing batches: 100 docs, 1s delay between batches (rate-limit protection in `rag/indexer.py`).
 - Retrieval tool uses `response_format="content_and_artifact"` — text to LLM, raw `Document` objects for source extraction.
 - `uv` is the package manager (not pip). Always run backend commands via `uv run`.

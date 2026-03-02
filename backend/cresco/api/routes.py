@@ -196,12 +196,12 @@ async def chat(
 
         user_id = current_user["user_id"]
         if request.files and len(request.files) > 0:
-            file_context = "\n\n[Uploaded Files Context]:\n"
-            for file in request.files:
-                file_name = file.get("name", "unknown")
-                file_content = file.get("content", "")
-                file_context += f"\n--- {file_name} ---\n{file_content}\n"
-            message = message + file_context
+            names = ", ".join(f.get("name", "unknown") for f in request.files)
+            message += (
+                f"\n\n[The user has uploaded the following files which are "
+                f"indexed in the knowledge base — use the retrieval tool to "
+                f"search their contents: {names}]"
+            )
         result = await agent.chat(message, thread_id=user_id, user_id=user_id)
         return ChatResponse(
             answer=result["answer"],
