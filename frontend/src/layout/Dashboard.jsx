@@ -40,7 +40,10 @@ function ForecastPanel({ farmLocation }) {
     const [status, setStatus] = useState('idle'); // idle | loading | error
 
     useEffect(() => {
-        if (!farmLocation?.lat || !farmLocation?.lng) { setStatus('idle'); return; }
+        if (!farmLocation?.lat || !farmLocation?.lng) {
+            // Don't call setState synchronously in effect; just return early
+            return;
+        }
         let cancelled = false;
         setStatus('loading');
         fetchWeather(farmLocation.lat, farmLocation.lng)
