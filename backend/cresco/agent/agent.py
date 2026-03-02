@@ -1,5 +1,7 @@
 """LangChain agent for Cresco chatbot - Modern 2026 style."""
 
+import logging
+
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.tools import tool
@@ -13,6 +15,8 @@ from cresco.rag.document_loader import SHARED_USER_ID
 from cresco.rag.retriever import get_vector_store
 
 from .prompts import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 class CrescoAgent:
@@ -69,7 +73,13 @@ class CrescoAgent:
                     {"user_id": user_id},
                 ]
             }
+            logger.info(
+                "Retrieval tool called: query='%s', user_id='%s'",
+                query[:120],
+                user_id,
+            )
             retrieved_docs = vector_store.similarity_search(query, k=5, filter=user_filter)
+            logger.info("Retrieved %d documents", len(retrieved_docs))
             serialized = "\n\n".join(
                 f"Source: {doc.metadata.get('filename', 'Unknown')}\n"
                 f"Category: {doc.metadata.get('category', 'general')}\n"
