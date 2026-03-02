@@ -102,7 +102,9 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                                     <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.botBubble}`}>
                                         <div className={styles.messageContent}>
                                             {/* Render message content with inline charts */}
-                                            {(() => {
+                                            {isUser ? (
+                                                <span className={styles.userText}>{msg.content}</span>
+                                            ) : (() => {
                                                 if (!msg.charts || msg.charts.length === 0) {
                                                     return (
                                                         <ReactMarkdown
