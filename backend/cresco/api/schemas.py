@@ -19,6 +19,7 @@ class ChatResponse(BaseModel):
     answer: str = Field(..., description="AI-generated response")
     sources: list[str] = Field(default_factory=list, description="Source documents used")
     tasks: list[dict] = Field(default_factory=list, description="Suggested action plan tasks")
+    charts: list[dict] = Field(default_factory=list, description="Charts included in the response")
     conversation_id: str | None = Field(None, description="Conversation ID for follow-up")
 
 

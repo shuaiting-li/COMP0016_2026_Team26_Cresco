@@ -15,6 +15,7 @@ vi.mock('../services/api', () => ({
     logout: vi.fn(),
     getUsername: vi.fn(() => 'testuser'),
     login: vi.fn(),
+    deleteLastExchange: vi.fn(),
 }));
 
 // Avoid rendering heavy sub-components that require Leaflet / canvas
@@ -165,5 +166,43 @@ describe('App', () => {
         await user.click(closeButtons[0]);
 
         expect(screen.queryByText(/please select a farm location first/i)).not.toBeInTheDocument();
+    });
+
+    it('deletes last user–assistant exchange and calls backend', async () => {
+        /** Verifies UI removal and backend API call when deleting the last exchange. */
+        api.isLoggedIn.mockReturnValue(true);
+        api.sendMessage.mockResolvedValueOnce({
+            reply: 'Response text',
+            tasks: [],
+            citations: [],
+        });
+        api.deleteLastExchange.mockResolvedValueOnce({ status: 'deleted' });
+
+        render(<App />);
+        const user = userEvent.setup();
+
+        const input = screen.getByPlaceholderText(/message cresco/i);
+        await user.type(input, 'hello{Enter}');
+
+        // Wait for assistant response
+        await waitFor(() => {
+            expect(screen.getByText('Response text')).toBeInTheDocument();
+        });
+
+        // Delete button should now be visible
+        const deleteBtn = screen.getByRole('button', { name: /delete last exchange/i });
+        await user.click(deleteBtn);
+
+        // Both messages should be removed
+        expect(screen.queryByText('hello')).not.toBeInTheDocument();
+        expect(screen.queryByText('Response text')).not.toBeInTheDocument();
+
+        // Empty state should return
+        expect(screen.getByText('Cresco Intelligence')).toBeInTheDocument();
+
+        // Backend API should have been called
+        await waitFor(() => {
+            expect(api.deleteLastExchange).toHaveBeenCalledTimes(1);
+        });
     });
 });

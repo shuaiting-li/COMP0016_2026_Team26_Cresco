@@ -218,6 +218,80 @@ class TestCrescoAgentClearMemory:
         assert agent.checkpointer is not original_checkpointer
 
 
+class TestDeleteLastExchange:
+    """Tests for CrescoAgent.delete_last_exchange method."""
+
+    @pytest.mark.asyncio
+    async def test_delete_last_exchange_removes_messages(self, mock_settings, mock_agent_deps):
+        """Test that delete_last_exchange calls aget_state and aupdate_state correctly."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        human_msg = HumanMessage(content="hello", id="h1")
+        ai_msg = AIMessage(content="hi", id="a1")
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": [human_msg, ai_msg]}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.delete_last_exchange(thread_id="user1", user_id="user1")
+
+        assert result is True
+        mock_graph.aupdate_state.assert_called_once()
+        removals = mock_graph.aupdate_state.call_args.args[1]["messages"]
+        assert len(removals) == 2
+
+    @pytest.mark.asyncio
+    async def test_delete_last_exchange_returns_false_when_empty(
+        self, mock_settings, mock_agent_deps
+    ):
+        """Test that delete_last_exchange returns False when there are no messages."""
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": []}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.delete_last_exchange(thread_id="user1", user_id="user1")
+
+        assert result is False
+        mock_graph.aupdate_state.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_last_exchange_only_removes_last_exchange(
+        self, mock_settings, mock_agent_deps
+    ):
+        """Test that only the last user-assistant pair is removed, preserving earlier messages."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        msgs = [
+            HumanMessage(content="first", id="h1"),
+            AIMessage(content="reply1", id="a1"),
+            HumanMessage(content="second", id="h2"),
+            AIMessage(content="reply2", id="a2"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.delete_last_exchange(thread_id="user1", user_id="user1")
+
+        assert result is True
+        removals = mock_graph.aupdate_state.call_args.args[1]["messages"]
+        # Should only remove the last 2 messages (h2, a2)
+        assert len(removals) == 2
+        removed_ids = {r.id for r in removals}
+        assert "h2" in removed_ids
+        assert "a2" in removed_ids
+
+
 class TestGetAgent:
     """Tests for get_agent dependency."""
 

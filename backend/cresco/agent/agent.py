@@ -3,6 +3,7 @@
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.tools import tool
+from langchain_core.messages import HumanMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
@@ -171,7 +172,7 @@ class CrescoAgent:
             user_id: Authenticated user's ID, injected into tools via config
 
         Returns:
-            Dict with 'answer', 'sources', and 'tasks' keys
+            Dict with 'answer', 'sources', 'charts', and 'tasks' keys
         """
         config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
@@ -210,6 +211,26 @@ class CrescoAgent:
                 # If parsing fails, just leave tasks empty
                 pass
 
+        # Parse charts from the response if present (inline, multiple allowed)
+        charts = []
+        try:
+            import json
+
+            while "---CHART---" in answer and "---END_CHART---" in answer:
+                chart_marker_start = answer.index("---CHART---")
+                chart_start = chart_marker_start + len("---CHART---")
+                chart_end = answer.index("---END_CHART---")
+                chart_json = answer[chart_start:chart_end].strip()
+                chart = json.loads(chart_json)
+                chart["position"] = chart_marker_start - 1
+                charts.append(chart)
+                before = answer[:chart_marker_start].rstrip()
+                after = answer[chart_end + len("---END_CHART---") :].lstrip()
+                answer = before + ("\n" if before and after else "") + after
+        except (ValueError, json.JSONDecodeError):
+            # If parsing fails, just leave charts empty
+            pass
+
         # Extract sources from tool artifacts if available
         sources = []
         for i in range(
@@ -231,11 +252,40 @@ class CrescoAgent:
                             sources.append(source)
                 break  # Only consider the first message with artifacts for sources
 
-        return {
-            "answer": answer,
-            "sources": sources,
-            "tasks": tasks,
-        }
+        return {"answer": answer, "sources": sources, "tasks": tasks, "charts": charts}
+
+    async def delete_last_exchange(self, thread_id: str = "default", user_id: str = "") -> bool:
+        """Remove the last user-assistant exchange from conversation memory.
+
+        Finds the last HumanMessage and removes it along with every subsequent
+        message (tool calls, tool responses, AI reply) so the agent no longer
+        has that exchange in its context.
+
+        Returns True if messages were removed, False if nothing to remove.
+        """
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
+
+        state = await self._agent.aget_state(config)
+        messages = state.values.get("messages", [])
+
+        if not messages:
+            return False
+
+        # Find the index of the last HumanMessage
+        last_human_idx = None
+        for i in range(len(messages) - 1, -1, -1):
+            if isinstance(messages[i], HumanMessage):
+                last_human_idx = i
+                break
+
+        if last_human_idx is None:
+            return False
+
+        # Remove every message from the last HumanMessage onwards
+        to_remove = messages[last_human_idx:]
+        removals = [RemoveMessage(id=m.id) for m in to_remove]
+        await self._agent.aupdate_state(config, {"messages": removals})
+        return True
 
     def clear_memory(self, thread_id: str = "default") -> None:
         """Clear conversation memory for a specific thread."""

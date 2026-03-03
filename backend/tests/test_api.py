@@ -335,3 +335,42 @@ class TestWeatherEndpoint:
         response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 500
+
+
+class TestDeleteLastExchangeEndpoint:
+    """Tests for the DELETE /chat/last-exchange endpoint."""
+
+    def test_delete_last_exchange_success(self, client):
+        """Test successful deletion returns 200 with status 'deleted'."""
+        response = client.delete("/api/v1/chat/last-exchange")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "deleted"
+
+    def test_delete_last_exchange_calls_agent(self, client):
+        """Test the endpoint delegates to agent.delete_last_exchange with the user's ID."""
+        from cresco.agent.agent import get_agent
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.delete_last_exchange.return_value = True
+        app.dependency_overrides[get_agent] = lambda: mock_agent
+
+        client.delete("/api/v1/chat/last-exchange")
+
+        mock_agent.delete_last_exchange.assert_called_once_with(
+            thread_id="test-user-id", user_id="test-user-id"
+        )
+
+    def test_delete_last_exchange_returns_404_when_empty(self, client):
+        """Test 404 response when there is no exchange to delete."""
+        from cresco.agent.agent import get_agent
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.delete_last_exchange.return_value = False
+        app.dependency_overrides[get_agent] = lambda: mock_agent
+
+        response = client.delete("/api/v1/chat/last-exchange")
+        assert response.status_code == 404
+        assert "no exchange" in response.json()["detail"].lower()

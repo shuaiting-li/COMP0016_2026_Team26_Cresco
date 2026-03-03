@@ -98,7 +98,7 @@ export async function login(username, password) {
  * @param {string} message - The user's message
  * @param {string} conversationId - Optional conversation ID for context
  * @param {Array<File>} files - Optional array of uploaded files
- * @returns {Promise<{reply: string, tasks: Array, citations: Array}>}
+ * @returns {Promise<{reply: string, tasks: Array, citations: Array, charts: Array, conversationId: string}>}
  */
 export async function sendMessage(message, conversationId = null, files = []) {
     const controller = new AbortController();
@@ -139,11 +139,12 @@ export async function sendMessage(message, conversationId = null, files = []) {
         const data = await response.json();
 
         // Transform backend response to frontend format
-        // Backend returns: { answer: string, sources: string[], tasks: array, conversation_id?: string }
-        // Frontend expects: { reply: string, tasks: Array, citations: Array }
+        // Backend returns: { answer: string, sources: string[], tasks: array, charts: array, conversation_id?: string }
+        // Frontend expects: { reply: string, tasks: Array, citations: Array, charts: Array }
         return {
             reply: data.answer,
             tasks: data.tasks || [], // Backend now provides tasks
+            charts: data.charts || [], // Backend now provides charts
             citations: data.sources || [],
             conversationId: data.conversation_id,
         };
@@ -303,6 +304,34 @@ export async function fetchWeather(lat, lon) {
 
     if (!response.ok) {
         throw new Error(`Failed to fetch weather data (${response.status})`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Delete the last user-assistant exchange from the agent's conversation memory.
+ * @returns {Promise<{status: string}>}
+ */
+export async function deleteLastExchange() {
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/chat/last-exchange`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Delete exchange failed (${response.status})`);
     }
 
     return await response.json();
