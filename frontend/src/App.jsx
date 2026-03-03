@@ -160,6 +160,7 @@ function App() {
                         onSendMessage={handleSendMessage}
                         onDeleteLastExchange={handleDeleteLastExchange}
                         isLoading={isLoading}
+                        farmLocation={farmLocation}
                     />
                 </div>
                 <SidebarRight
