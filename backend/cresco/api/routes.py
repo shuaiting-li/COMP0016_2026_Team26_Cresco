@@ -15,6 +15,9 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
+# Drone and satellite imagery imports
+from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
+from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
     ChatRequest,
