@@ -1,22 +1,24 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
-import logging
 import io
+import logging
 import shutil
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
+from rag.indexer import delete_user_upload
 
 from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
+
 # Drone and satellite imagery imports
-from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
+from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
 from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
@@ -211,7 +213,7 @@ async def chat(
             len(message),
             request.files,
         )
-        logger.debug("Full message to agent: %s", message)
+        print("Full message to agent: %s", message)
         result = await agent.chat(message, thread_id=user_id, user_id=user_id)
         logger.info(
             "Chat response: answer length=%d, sources=%d, tasks=%d, charts=%d",
@@ -273,7 +275,8 @@ async def upload_file(
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Index with user_id metadata so retrieval is scoped        await index_user_upload(settings, user_id=user_id, filename=filename)
+        # Index with user_id metadata so retrieval is scoped
+        # await index_user_upload(settings, user_id=user_id, filename=filename)
         return FileUploadResponse(
             filename=filename,
             status="indexed",
