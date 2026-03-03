@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # Knowledge base
     knowledge_base_path: str = "./data/knowledge_base"
 
+    # User uploads (per-user directories under this root)
+    uploads_path: str = "./data/uploads"
+
     # API settings
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -58,6 +61,11 @@ class Settings(BaseSettings):
     def knowledge_base(self) -> Path:
         """Get knowledge base directory as Path."""
         return Path(self.knowledge_base_path)
+
+    @property
+    def uploads_dir(self) -> Path:
+        """Get user uploads root directory as Path."""
+        return Path(self.uploads_path)
 
 
 @lru_cache

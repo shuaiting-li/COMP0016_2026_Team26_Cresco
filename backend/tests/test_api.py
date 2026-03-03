@@ -1,5 +1,7 @@
 """Tests for API endpoints."""
 
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -335,6 +337,80 @@ class TestWeatherEndpoint:
         response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 500
+
+
+class TestDeleteFileEndpoint:
+    """Tests for the DELETE /upload/{filename} endpoint."""
+
+    def test_delete_file_success(self, client):
+        """Test successful file deletion returns filename and chunks_removed."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            (user_dir / "report.md").write_text("test content")
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch("cresco.api.routes.delete_user_upload", return_value=5):
+                response = client.delete("/api/v1/upload/report.md")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["filename"] == "report.md"
+            assert data["status"] == "deleted"
+            assert data["chunks_removed"] == 5
+            # File should be removed from disk
+            assert not (user_dir / "report.md").exists()
+
+    def test_delete_file_not_found(self, client):
+        """Test 404 when file does not exist on disk."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.delete("/api/v1/upload/nonexistent.md")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_delete_file_scoped_to_user(self, client):
+        """Test that delete only targets the current user's upload directory."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            # Create file under a different user
+            other_dir = uploads_dir / "other-user"
+            other_dir.mkdir(parents=True)
+            (other_dir / "secret.md").write_text("private")
+            # Current user's directory does not have the file
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.delete("/api/v1/upload/secret.md")
+
+            assert response.status_code == 404
+            # Other user's file must remain untouched
+            assert (other_dir / "secret.md").exists()
 
 
 class TestDeleteLastExchangeEndpoint:

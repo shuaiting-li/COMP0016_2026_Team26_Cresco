@@ -31,6 +31,12 @@ class TestSettings:
         assert isinstance(settings.knowledge_base, Path)
         assert str(settings.knowledge_base) == "/tmp/kb"
 
+    def test_uploads_dir_property(self):
+        """Test uploads_dir returns Path object."""
+        settings = Settings(uploads_path="/tmp/uploads")
+        assert isinstance(settings.uploads_dir, Path)
+        assert str(settings.uploads_dir) == "/tmp/uploads"
+
     def test_override_with_env_vars(self):
         """Test settings can be overridden with environment variables."""
         with patch.dict(

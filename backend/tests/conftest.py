@@ -25,6 +25,7 @@ def mock_settings():
             azure_openai_embedding_deployment="test-embedding",
             chroma_persist_dir=str(Path(tmpdir) / "chroma_db"),
             knowledge_base_path=str(Path(tmpdir) / "knowledge_base"),
+            uploads_path=str(Path(tmpdir) / "uploads"),
             api_host="0.0.0.0",
             api_port=8000,
             debug=True,
