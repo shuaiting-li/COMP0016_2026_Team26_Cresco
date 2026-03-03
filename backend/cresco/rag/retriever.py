@@ -29,6 +29,18 @@ def get_vector_store() -> Chroma:
     return _vector_store
 
 
+def reset_vector_store() -> None:
+    """Reset the vector store singleton.
+
+    Call this after deleting or recreating the ChromaDB directory
+    (e.g. during a force re-index) so the next ``get_vector_store()``
+    call creates a fresh client.
+    """
+    global _vector_store, _retriever
+    _vector_store = None
+    _retriever = None
+
+
 def get_retriever() -> BaseRetriever:
     """Get the document retriever for RAG (singleton).
 

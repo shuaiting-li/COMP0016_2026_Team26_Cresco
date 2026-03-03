@@ -1,6 +1,7 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
+import logging
 import shutil
 
 import httpx
@@ -11,16 +12,24 @@ from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import index_knowledge_base, is_indexed
+from cresco.rag.indexer import (
+    delete_user_upload,
+    index_knowledge_base,
+    index_user_upload,
+    is_indexed,
+)
 
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    FileDeleteResponse,
     FileUploadResponse,
     HealthResponse,
     IndexRequest,
     IndexResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -190,13 +199,27 @@ async def chat(
 
         user_id = current_user["user_id"]
         if request.files and len(request.files) > 0:
-            file_context = "\n\n[Uploaded Files Context]:\n"
-            for file in request.files:
-                file_name = file.get("name", "unknown")
-                file_content = file.get("content", "")
-                file_context += f"\n--- {file_name} ---\n{file_content}\n"
-            message = message + file_context
+            names = ", ".join(f.get("name", "unknown") for f in request.files)
+            message += (
+                f"\n\n[The user has uploaded the following files which are "
+                f"indexed in the knowledge base — use the retrieval tool to "
+                f"search their contents: {names}]"
+            )
+        logger.info(
+            "Chat request from user '%s': message length=%d, files=%s",
+            user_id,
+            len(message),
+            request.files,
+        )
+        logger.debug("Full message to agent: %s", message)
         result = await agent.chat(message, thread_id=user_id, user_id=user_id)
+        logger.info(
+            "Chat response: answer length=%d, sources=%d, tasks=%d, charts=%d",
+            len(result["answer"]),
+            len(result.get("sources", [])),
+            len(result.get("tasks", [])),
+            len(result.get("charts", [])),
+        )
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
@@ -205,6 +228,7 @@ async def chat(
             conversation_id=request.conversation_id,
         )
     except Exception as e:
+        logger.exception("Chat error for user '%s'", current_user.get("user_id", "?"))
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 
@@ -239,20 +263,50 @@ async def upload_file(
                 f"Accepted: {', '.join(SUPPORTED_EXTENSIONS)}",
             )
 
-        upload_dir = settings.knowledge_base
+        # Save to per-user upload directory (not the shared knowledge base)
+        user_id = current_user["user_id"]
+        upload_dir = settings.uploads_dir / user_id
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         file_path = upload_dir / file.filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Trigger reindexing
-
-        await index_knowledge_base(settings, force=False, upload_file=file.filename)
+        # Index with user_id metadata so retrieval is scoped
+        await index_user_upload(settings, user_id=user_id, filename=file.filename)
 
         return {"filename": file.filename, "status": "indexed"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+@router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
+async def delete_file(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Delete a user-uploaded file and its indexed chunks."""
+    user_id = current_user["user_id"]
+    upload_dir = settings.uploads_dir / user_id
+    file_path = upload_dir / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
+
+    # Remove chunks from ChromaDB
+    chunks_deleted = delete_user_upload(settings, user_id=user_id, filename=filename)
+
+    # Remove file from disk
+    file_path.unlink()
+
+    return FileDeleteResponse(
+        filename=filename,
+        status="deleted",
+        chunks_removed=chunks_deleted,
+    )
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])

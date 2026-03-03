@@ -105,16 +105,10 @@ export async function sendMessage(message, conversationId = null, files = []) {
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
 
     try {
-        // Read file contents if files are provided
-        const fileData = await Promise.all(
-            files.map(async (file) => {
-                const content = await file.text();
-                return {
-                    name: file.name,
-                    content: content,
-                };
-            })
-        );
+        // Send only file names — content is already indexed in the
+        // knowledge base via the upload endpoint, so the agent
+        // retrieves it through the RAG tool.
+        const fileData = files.map((file) => ({ name: file.name }));
 
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
@@ -334,6 +328,24 @@ export async function deleteLastExchange() {
 
     return await response.json();
 }
+
+export const deleteUploadedFile = async (filename) => {
+    const response = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Delete failed (${response.status})`);
+    }
+
+    return await response.json();
+};
 
 export const uploadAndIndexFile = async (file) => {
     const formData = new FormData();
