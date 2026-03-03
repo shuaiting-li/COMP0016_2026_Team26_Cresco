@@ -9,13 +9,13 @@ import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
-from rag.indexer import delete_user_upload
 
 from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import index_knowledge_base, is_indexed
+from cresco.rag.indexer import index_knowledge_base, is_indexed, delete_user_upload
+
 
 # Drone and satellite imagery imports
 from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
