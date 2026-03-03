@@ -7,7 +7,7 @@ const COLORS = [
 ];
 
 
-const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value' }) => {
+const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', height = 300 }) => {
 
 
   switch (chartType) {
@@ -36,7 +36,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value' }) 
     case 'bar-stacked': {
       const yKeys = Array.isArray(yKey) ? yKey : [yKey];
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={height}>
           <BarChart data={chartData}>
             <CartesianGrid stroke="#eee" strokeDasharray="5 5" />
             <XAxis dataKey={xKey} />
@@ -57,7 +57,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value' }) 
     case 'line': {
       const yKeys = Array.isArray(yKey) ? yKey : [yKey];
       return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={height}>
           <LineChart data={chartData}>
             <CartesianGrid stroke="#ccc" />
             <XAxis dataKey={xKey} />
@@ -76,9 +76,9 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value' }) 
     }
     case 'pie':
       return (
-        <ResponsiveContainer width="100%" height={300} >
-          <PieChart >
-            <Pie 
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie
               data={chartData}
               cx="50%"
               cy="50%"
