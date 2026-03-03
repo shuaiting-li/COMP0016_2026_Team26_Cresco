@@ -41,13 +41,13 @@ function ForecastPanel({ farmLocation }) {
 
     useEffect(() => {
         if (!farmLocation?.lat || !farmLocation?.lng) {
-            // Don't call setState synchronously in effect; just return early
             return;
         }
         let cancelled = false;
-        setStatus('loading');
-        fetchWeather(farmLocation.lat, farmLocation.lng)
-            .then(data => {
+        async function loadForecast() {
+            setStatus('loading');
+            try {
+                const data = await fetchWeather(farmLocation.lat, farmLocation.lng);
                 if (cancelled) return;
                 const grouped = data.forecast.list.reduce((acc, entry) => {
                     const date = entry.dt_txt.split(' ')[0];
@@ -57,8 +57,11 @@ function ForecastPanel({ farmLocation }) {
                 }, {});
                 setDays(Object.values(grouped).slice(0, 5));
                 setStatus('ok');
-            })
-            .catch(() => { if (!cancelled) setStatus('error'); });
+            } catch {
+                if (!cancelled) setStatus('error');
+            }
+        }
+        loadForecast();
         return () => { cancelled = true; };
     }, [farmLocation]);
 
