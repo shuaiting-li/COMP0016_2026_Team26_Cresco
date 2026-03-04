@@ -1,9 +1,9 @@
-import {Sprout, CloudRain, LineChart, TrophyIcon} from 'lucide-react';
+import { Sprout, CloudRain, Satellite, Drone } from 'lucide-react';
 
 export const STUDIO_ITEMS = [
+    { title: "Add Farm", icon: Sprout },
     { title: "Weather Data", icon: CloudRain },
-    { title: "...", icon: TrophyIcon },
-    { title: "Yield Forecast", icon: LineChart },
-    { title: "Add Farm", icon: Sprout }
-    
+    { title: "Drone Monitoring", icon: Drone },
+    { title: "Satellite Imagery", icon: Satellite },
+
 ];

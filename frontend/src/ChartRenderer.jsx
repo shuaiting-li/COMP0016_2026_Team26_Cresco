@@ -15,7 +15,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', he
       const yKeys = Array.isArray(yKey) ? yKey : [yKey];
       const isStacked = Array.isArray(yKey);
       return (
-        <ResponsiveContainer width="100%" height={height}>
+        <ResponsiveContainer width="100%" height={300} >
           <BarChart data={chartData}>
             <CartesianGrid stroke="#eee" strokeDasharray="5 5" />
             <XAxis dataKey={xKey} />
@@ -82,8 +82,8 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', he
               data={chartData}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={100}
+              innerRadius={40}
+              outerRadius={80}
               fill="#8884d8"
               dataKey={yKey}
               nameKey={xKey}

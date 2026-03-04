@@ -5,7 +5,7 @@
 }
 .sidebar h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 20px; }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 10px; max-height: calc(100vh - 200px); overflow-y: auto; }
 
 .card {
     background: var(--bg-panel);
