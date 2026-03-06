@@ -23,19 +23,19 @@ class TestSettings:
         """Test chroma_path returns Path object."""
         settings = Settings(chroma_persist_dir="/tmp/chroma")
         assert isinstance(settings.chroma_path, Path)
-        assert str(settings.chroma_path) == "/tmp/chroma"
+        assert settings.chroma_path == Path("/tmp/chroma")
 
     def test_knowledge_base_property(self):
         """Test knowledge_base returns Path object."""
         settings = Settings(knowledge_base_path="/tmp/kb")
         assert isinstance(settings.knowledge_base, Path)
-        assert str(settings.knowledge_base) == "/tmp/kb"
+        assert settings.knowledge_base == Path("/tmp/kb")
 
     def test_uploads_dir_property(self):
         """Test uploads_dir returns Path object."""
         settings = Settings(uploads_path="/tmp/uploads")
         assert isinstance(settings.uploads_dir, Path)
-        assert str(settings.uploads_dir) == "/tmp/uploads"
+        assert settings.uploads_dir == Path("/tmp/uploads")
 
     def test_override_with_env_vars(self):
         """Test settings can be overridden with environment variables."""
