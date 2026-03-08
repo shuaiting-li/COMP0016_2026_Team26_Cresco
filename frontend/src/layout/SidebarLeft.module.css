@@ -1,3 +1,17 @@
+.collapseBtn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    margin-bottom: 8px;
+    align-self: flex-end;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
 .sidebar {
     width: 260px; min-width: 260px;
     display: flex; flex-direction: column;

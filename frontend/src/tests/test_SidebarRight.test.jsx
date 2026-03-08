@@ -44,7 +44,7 @@ describe('SidebarRight', () => {
             />,
         );
 
-        const buttons = screen.getAllByRole('button');
+        const buttons = screen.getAllByTestId('studio-item');
         expect(buttons.length).toBe(STUDIO_ITEMS.length);
     });
 

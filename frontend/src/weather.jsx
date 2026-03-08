@@ -1,6 +1,77 @@
 import React, { useEffect, useState } from "react";
-import "./Weather.css"; // Importing Weather.css for styling
+import styles from './weather.module.css';
+import { CloudSun } from 'lucide-react';
+import ChartRenderer from './ChartRenderer';
 import { fetchWeather } from './services/api';
+
+const WEATHER_ICONS = {
+    'clear sky': '☀️', 'few clouds': '🌤️', 'scattered clouds': '⛅',
+    'broken clouds': '☁️', 'overcast clouds': '☁️', 'shower rain': '🌧️',
+    'rain': '🌦️', 'light rain': '🌦️', 'moderate rain': '🌧️', 'heavy intensity rain': '🌧️',
+    'thunderstorm': '⛈️', 'snow': '❄️', 'mist': '🌫️', 'fog': '🌫️',
+};
+
+function weatherIcon(description) {
+    const key = description?.toLowerCase();
+    return WEATHER_ICONS[key] ?? '🌡️';
+}
+
+// Receives pre-fetched forecast data from the parent Weather component.
+function ForecastPanel({ forecast }) {
+    if (!forecast?.list) {
+        return (
+            <div className={styles.chartPlaceholder}>
+                <CloudSun size={36} className={styles.placeholderIcon} />
+                <span className={styles.placeholderText}>No forecast data available</span>
+            </div>
+        );
+    }
+
+    const grouped = forecast.list.reduce((acc, entry) => {
+        const date = entry.dt_txt.split(' ')[0];
+        const hour = entry.dt_txt.split(' ')[1];
+        if (!acc[date] || hour === '12:00:00') acc[date] = entry;
+        return acc;
+    }, {});
+    const days = Object.values(grouped).slice(0, 5);
+
+    return (
+        <div className={styles.forecastPanel}>
+            <h2>5-Day Forecast</h2>
+            <div className={styles.forecastGrid}>
+                {days.map((entry, i) => {
+                    const date = new Date(entry.dt * 1000);
+                    const label = i === 0 ? 'Today'
+                        : date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+                    const desc = entry.weather[0].description;
+                    return (
+                        <div key={i} className={styles.forecastDay}>
+                            <span className={styles.forecastDayLabel}>{label}</span>
+                            <span className={styles.forecastEmoji}>{weatherIcon(desc)}</span>
+                            <span className={styles.forecastTemp}>{Math.round(entry.main.temp)}°C</span>
+                            <span className={styles.forecastDesc}>{desc.replace(/\b\w/g, c => c.toUpperCase())}</span>
+                            <span className={styles.forecastWind}>{entry.wind.speed} m/s</span>
+                        </div>
+                    );
+                })}
+            </div>
+            <div className={styles.forecastChart}>
+                <ChartRenderer
+                    chartType="line"
+                    height={180}
+                    chartData={days.map((entry, i) => ({
+                        day: i === 0 ? 'Today'
+                            : new Date(entry.dt * 1000).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }),
+                        'Temp (°C)': Math.round(entry.main.temp),
+                        'Wind (m/s)': entry.wind.speed,
+                    }))}
+                    xKey="day"
+                    yKey={['Temp (°C)', 'Wind (m/s)']}
+                />
+            </div>
+        </div>
+    );
+}
 
 const Weather = ({ lat, lon }) => {
     const [weather, setWeather] = useState(null);
@@ -32,45 +103,24 @@ const Weather = ({ lat, lon }) => {
     }, [lat, lon]);
 
     if (error) {
-        return <div className="weather-container">Error: {error}</div>;
+        return <div className={styles.weatherContainer}>Error: {error}</div>;
     }
 
     if (!weather || !forecast) {
-        return <div className="weather-container">Loading...</div>;
+        return <div className={styles.weatherContainer}>Loading...</div>;
     }
 
     return (
-        <div className="weather-container scrollable">
-            <h1 className="weather-title">Weather in {locationName || "Selected Location"}</h1>
-            <div className="weather-card">
-                <p>Temperature: {weather.main.temp}°C</p>
-                <p>Condition: {weather.weather[0].description.replace(/\b\w/g, c => c.toUpperCase())}</p>
-                <p>Humidity: {weather.main.humidity}%</p>
-                <p>Wind Speed: {weather.wind.speed} m/s</p>
-            </div>
-
-            <h2 className="weather-title">5-Day Forecast</h2>
-            <div className="forecast-grid">
-                {Object.values(
-                    forecast.list.reduce((days, entry) => {
-                        const date = entry.dt_txt.split(' ')[0];
-                        const hour = entry.dt_txt.split(' ')[1];
-                        // Prefer the midday entry; fall back to first entry seen for the day
-                        if (!days[date] || hour === '12:00:00') days[date] = entry;
-                        return days;
-                    }, {})
-                ).slice(0, 5).map((entry, index) => (
-                    <div key={index} className="forecast-card">
-                        <p><strong>{new Date(entry.dt * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</strong></p>
-                        <p>Temp: {entry.main.temp}°C</p>
-                        <p>{entry.weather[0].description.replace(/\b\w/g, c => c.toUpperCase())}</p>
-                        <p>Wind: {entry.wind.speed} m/s</p>
-                        {entry.rain?.['3h'] && <p>Rain: {entry.rain['3h']} mm</p>}
-                    </div>
-                ))}
-            </div>
+        <div className={styles.weatherContainer}>
+            <h1 className={styles.weatherTitle}>Weather in {locationName || "Selected Location"}</h1>
+            <ForecastPanel forecast={forecast} />
         </div>
     );
 };
 
 export default Weather;
+
+
+
+
+

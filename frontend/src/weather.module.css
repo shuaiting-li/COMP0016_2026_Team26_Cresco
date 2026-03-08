@@ -1,0 +1,107 @@
+/* ── Container ───────────────────────────────────────── */
+.weatherContainer {
+    background-color: black;
+    color: white;
+    padding: 2rem;
+    font-family: sans-serif;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.weatherTitle {
+    font-size: 24px;
+    margin-bottom: 1rem;
+}
+
+/* ── Chart placeholders ──────────────────────────────── */
+.chartPlaceholder {
+    flex: 1;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.placeholderIcon {
+    color: var(--border-light);
+}
+
+.placeholderText {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* ── Forecast ────────────────────────────────────────── */
+.forecastPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+}
+
+.forecastChart {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    height: 180px;
+}
+
+.forecastGrid {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+}
+
+.forecastDay {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 6px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    text-align: center;
+    transition: border-color 0.2s;
+}
+
+.forecastDay:hover {
+    border-color: var(--border-light);
+}
+
+.forecastDayLabel {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.forecastEmoji {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.forecastTemp {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.forecastDesc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+.forecastWind {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}

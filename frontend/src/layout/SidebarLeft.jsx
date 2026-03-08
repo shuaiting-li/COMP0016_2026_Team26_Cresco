@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Plus, Trash2, FileText, Image, File, UploadCloud } from 'lucide-react';
+import { Plus, Trash2, FileText, Image, File, UploadCloud, ChevronLeft } from 'lucide-react';
 import styles from './SidebarLeft.module.css';
 
-export default function SidebarLeft({ files, onUpload, onRemove }) {
+export default function SidebarLeft({ files, onUpload, onRemove, onCollapse }) {
     const fileInputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -49,13 +49,20 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
     };
 
     return (
-        <aside 
+        <aside
             className={`${styles.sidebar} ${isDragging ? styles.sidebarDragging : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             data-testid="sidebar-left"
         >
+            <button
+                className={styles.collapseBtn}
+                onClick={onCollapse}
+                aria-label="Collapse left sidebar"
+            >
+                <ChevronLeft size={20} />
+            </button>
             {isDragging && (
                 <div className={styles.dragOverlay}>
                     <UploadCloud size={48} className={styles.dragOverlayIcon} />
@@ -63,25 +70,21 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
                     <span className={styles.dragOverlaySubtext}>.md, .pdf, .txt, .csv, .json</span>
                 </div>
             )}
-            
             <div className={styles.header}>
                 <h3>Data Sources</h3>
             </div>
-
-            <input 
-                type="file" 
-                multiple 
+            <input
+                type="file"
+                multiple
                 accept=".md,.pdf,.txt,.csv,.json"
-                ref={fileInputRef} 
-                style={{ display: 'none' }} 
-                onChange={onUpload} 
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={onUpload}
             />
-
             <button className={styles.addBtn} onClick={() => fileInputRef.current.click()}>
                 <Plus size={18} />
                 <span>Add Field Data</span>
             </button>
-
             <div className={styles.fileList}>
                 {files.map((file, idx) => (
                     <div key={idx} className={styles.fileItem}>
@@ -95,7 +98,6 @@ export default function SidebarLeft({ files, onUpload, onRemove }) {
                     </div>
                 ))}
             </div>
-
             <div className={styles.footer}>
                 <p>{files.length} sources active</p>
                 <p>Supports .md, .pdf, .txt, .csv, .json</p>

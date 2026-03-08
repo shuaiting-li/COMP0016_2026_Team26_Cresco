@@ -29,6 +29,9 @@ function App() {
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
+    const [leftCollapsed, setLeftCollapsed] = useState(false);
+    const [rightCollapsed, setRightCollapsed] = useState(false);
+
 
     const handleAuth = () => setAuthenticated(true);
 
@@ -168,14 +171,23 @@ function App() {
 
     return (
         <div className="app-container">
-            <Header onLogout={handleLogout} username={getUsername()} />
+            <Header
+                onLogout={handleLogout}
+                username={getUsername()}
+                leftCollapsed={leftCollapsed}
+                rightCollapsed={rightCollapsed}
+            />
             <div style={layoutStyle}>
-                <SidebarLeft
-                    files={files}
-                    onUpload={handleFileUpload}
-                    onRemove={handleRemoveFile}
-                />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {!leftCollapsed && (
+                    <SidebarLeft
+                        files={files}
+                        onUpload={handleFileUpload}
+                        onRemove={handleRemoveFile}
+                        collapsed={leftCollapsed}
+                        onCollapse={() => setLeftCollapsed(true)}
+                    />
+                )}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                     <ChatArea
                         messages={messages}
                         onSendMessage={handleSendMessage}
@@ -183,13 +195,65 @@ function App() {
                         isLoading={isLoading}
                         farmLocation={farmLocation}
                     />
+                    {leftCollapsed && (
+                        <button
+                            style={{
+                                position: 'absolute',
+                                top: '10%',
+                                left: 0,
+                                zIndex: 100,
+                                background: 'var(--bg-app)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '50%',
+                                width: 32,
+                                height: 32,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--accent)'
+                            }}
+                            onClick={() => setLeftCollapsed(false)}
+                            aria-label="Show left sidebar"
+                        >
+                            <span style={{ fontSize: 18 }}>&#x25B6;</span>
+                        </button>
+                    )}
+                    {rightCollapsed && (
+                        <button
+                            style={{
+                                position: 'absolute',
+                                top: '10%',
+                                right: 0,
+                                zIndex: 100,
+                                background: 'var(--bg-app)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '50%',
+                                width: 32,
+                                height: 32,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--accent)'
+                            }}
+                            onClick={() => setRightCollapsed(false)}
+                            aria-label="Show right sidebar"
+                        >
+                            <span style={{ fontSize: 18 }}>&#x25C0;</span>
+                        </button>
+                    )}
                 </div>
-                <SidebarRight
-                    handleOpenSatellite={handleOpenSatellite}
-                    handleOpenWeather={handleOpenWeather}
-                    handleOpenDroneImagery={handleOpenDroneImagery}
-                    handleOpenSatelliteImagery={handleOpenSatelliteImagery}
-                />
+                {!rightCollapsed && (
+                    <SidebarRight
+                        handleOpenSatellite={handleOpenSatellite}
+                        handleOpenWeather={handleOpenWeather}
+                        handleOpenDroneImagery={handleOpenDroneImagery}
+                        handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                        collapsed={rightCollapsed}
+                        onCollapse={() => setRightCollapsed(true)}
+                    />
+                )}
             </div>
 
             {isSatelliteOpen && (

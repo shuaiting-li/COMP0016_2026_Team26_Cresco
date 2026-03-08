@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import styles from './SidebarRight.module.css';
 import { STUDIO_ITEMS } from '../tools/toolMenu';
 import Weather from '../weather';
 
-export default function SidebarRight({ handleOpenSatellite, handleOpenWeather,handleOpenDroneImagery, handleOpenSatelliteImagery }) {
+export default function SidebarRight({ handleOpenSatellite, handleOpenWeather, handleOpenDroneImagery, handleOpenSatelliteImagery, onCollapse }) {
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
 
     const handleCloseWeather = () => {
@@ -13,12 +14,20 @@ export default function SidebarRight({ handleOpenSatellite, handleOpenWeather,ha
     return (
         <>
             <aside className={styles.sidebar}>
+                <button
+                    className={styles.collapseBtn}
+                    onClick={onCollapse}
+                    aria-label="Collapse right sidebar"
+                >
+                    <ChevronRight size={20} />
+                </button>
                 <h3>Toolbox</h3>
                 <div className={styles.grid}>
                     {STUDIO_ITEMS.map((item, index) => (
                         <button
                             key={index}
                             className={styles.card}
+                            data-testid="studio-item"
                             onClick={
                                 item.title === "Add Farm"
                                     ? handleOpenSatellite
@@ -39,7 +48,6 @@ export default function SidebarRight({ handleOpenSatellite, handleOpenWeather,ha
                     ))}
                 </div>
             </aside>
-
             {isWeatherOpen && (
                 <div
                     style={{

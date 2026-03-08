@@ -65,17 +65,45 @@ const centerDotIcon = createCenterIcon();  // Solid Blue
 
 //main function
 const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
+
   //list of markers
-  const [positions, setPositions] = useState([
+  const defaultPositions = [
     [51.5236, -0.1360],
     [51.5256, -0.1360],
     [51.5256, -0.1320],
     [51.5236, -0.1320],
-  ]);
+  ];
 
-  const [mapCenter, setMapCenter] = useState(null);  //map center variable
+  let initialPositions;
+  if (farmLocation && farmLocation.nodes && farmLocation.nodes.length > 0) {
+    initialPositions = farmLocation.nodes.map(({ lat, lng }) => [lat, lng]);
+  } else if (farmLocation && typeof farmLocation.lat === 'number' && typeof farmLocation.lng === 'number') {
+    // If lat/lon present but no nodes, create a small square around center
+    const offset = 0.001;
+    initialPositions = [
+      [farmLocation.lat + offset, farmLocation.lng - offset],
+      [farmLocation.lat + offset, farmLocation.lng + offset],
+      [farmLocation.lat - offset, farmLocation.lng + offset],
+      [farmLocation.lat - offset, farmLocation.lng - offset],
+    ];
+  } else {
+    initialPositions = defaultPositions;
+  }
+
+  
+  // Calculate initial center for FlyToLocation
+  const initialCenter = (() => {
+    if (initialPositions.length === 0) return [51.5246, -0.1340];
+    const sumLat = initialPositions.reduce((sum, p) => sum + p[0], 0);
+    const sumLng = initialPositions.reduce((sum, p) => sum + p[1], 0);
+    return [sumLat / initialPositions.length, sumLng / initialPositions.length];
+  })();
+
+  const [positions, setPositions] = useState(initialPositions);
+
+  const [mapCenter, setMapCenter] = useState(initialCenter);  //map center variable
   const [searchQuery, setSearchQuery] = useState(""); // for search queries
-
+  
   //function that calculates the area
   const calculateGeoArea = () => {
     try {
@@ -191,8 +219,12 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
     setPositions(newPositions);
     setMapCenter([lat, lng]);
 
-    // Save the farm location
-    setFarmLocation({ lat, lng });
+    // Save the farm location with nodes
+    setFarmLocation({
+      lat,
+      lng,
+      nodes: newPositions.map(([lat, lng]) => ({ lat, lng }))
+    });
   };
 
 
@@ -260,12 +292,13 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
           location: locationName,
           area: areaData.sqKm,
           lat: centerLat,
-          lon: centerLng
+          lon: centerLng,
+          nodes: positions.map(([lat, lng]) => ({ lat, lng }))
         };
 
         console.log("Farm data to send:", farmData);
 
-        setFarmLocation({ lat: centerLat, lng: centerLng });
+        setFarmLocation({ lat: centerLat, lng: centerLng, nodes: farmData.nodes });
         setMapCenter([centerLat, centerLng]);
 
         const result = await saveFarmData(farmData);
@@ -282,6 +315,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
   return (
 
+    
     //the actual returned webstire
     <div style={{
       padding: '20px',
@@ -338,10 +372,11 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
       <div style={{ height: '500px', width: '100%', border: '2px solid #333' }}>
         <MapContainer
-          center={[51.5246, -0.1340]}
+          center={mapCenter}
           zoom={15}
           style={{ height: '100%', width: '100%' }}
         >
+
           <FlyToLocation center={mapCenter} />
 
           <TileLayer

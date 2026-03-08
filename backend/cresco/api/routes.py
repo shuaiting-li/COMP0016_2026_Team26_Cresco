@@ -8,7 +8,6 @@ import shutil
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
 
 from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
@@ -23,6 +22,7 @@ from scripts.satellite_image import satellite_images_main
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    FarmData,
     FileDeleteResponse,
     FileUploadResponse,
     HealthResponse,
@@ -38,13 +38,6 @@ router = APIRouter()
 farm_data = {}
 
 
-class FarmData(BaseModel):
-    location: str
-    area: float
-    lat: float | None = None
-    lon: float | None = None
-
-
 @router.post("/farm-data")
 async def save_farm_data(
     farm: FarmData,
@@ -58,6 +51,7 @@ async def save_farm_data(
             "area": farm.area,
             "lat": farm.lat,
             "lon": farm.lon,
+            "nodes": farm.nodes if farm.nodes is not None else [],
         }
 
         # Auto-fetch weather if coordinates are provided

@@ -161,9 +161,8 @@ class CrescoAgent:
             # Include farm location & area
             if "location" in user_data and "area" in user_data:
                 parts.append("")
-                parts.append(
-                    f"Farm location: {user_data['location']}, area: {user_data['area']} km²"
-                )
+                summary = f"Farm location: {user_data['location']}, area: {user_data['area']} km²"
+                parts.append(summary)
 
             return "\n".join(parts)
 
