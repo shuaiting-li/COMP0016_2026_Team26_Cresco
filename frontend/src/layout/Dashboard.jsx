@@ -297,17 +297,6 @@ export default function Dashboard({ farmLocation, messages = [] }) {
                     <ForecastPanel farmLocation={farmLocation} />
                 </div>
 
-                {/* Yield chart placeholder */}
-                <div className={styles.panel}>
-                    <div className={styles.panelHeader}>
-                        <BarChart2 size={16} className={styles.panelIcon} />
-                        <span className={styles.panelTitle}>Yield Forecast</span>
-                    </div>
-                    <div className={styles.chartPlaceholder}>
-                        <BarChart2 size={40} className={styles.placeholderIcon} />
-                        <span className={styles.placeholderText}>Chart coming soon</span>
-                    </div>
-                </div>
 
                 {/* Field health — right */}
                 <div className={styles.panel}>
@@ -329,7 +318,7 @@ export default function Dashboard({ farmLocation, messages = [] }) {
                         ) : (
                             <>
                                 <Leaf size={40} className={styles.placeholderIcon} />
-                                <span className={styles.placeholderText}>NDVI map coming soon</span>
+                                <span className={styles.placeholderText}>Please upload drone images to recieve analysis</span>
                             </>
                         )}
                     </div>
@@ -341,3 +330,4 @@ export default function Dashboard({ farmLocation, messages = [] }) {
         </div>
     );
 }
+
