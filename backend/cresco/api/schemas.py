@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 class FarmData(BaseModel):
     location: str
@@ -6,9 +7,6 @@ class FarmData(BaseModel):
     lat: float | None = None
     lon: float | None = None
     nodes: list[dict] | None = None
-"""Pydantic schemas for API request/response models."""
-
-from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
