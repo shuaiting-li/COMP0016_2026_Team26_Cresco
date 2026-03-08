@@ -43,6 +43,7 @@ class FarmData(BaseModel):
     area: float
     lat: float | None = None
     lon: float | None = None
+    nodes: list[dict] | None = None
 
 
 @router.post("/farm-data")
@@ -58,6 +59,7 @@ async def save_farm_data(
             "area": farm.area,
             "lat": farm.lat,
             "lon": farm.lon,
+            "nodes": farm.nodes if farm.nodes is not None else [],
         }
 
         # Auto-fetch weather if coordinates are provided

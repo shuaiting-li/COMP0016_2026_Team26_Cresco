@@ -30,6 +30,7 @@ function App() {
     const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
 
+
     const handleAuth = () => setAuthenticated(true);
 
     const handleLogout = () => {
