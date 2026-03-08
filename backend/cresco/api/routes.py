@@ -38,8 +38,6 @@ router = APIRouter()
 farm_data = {}
 
 
-
-
 @router.post("/farm-data")
 async def save_farm_data(
     farm: FarmData,
