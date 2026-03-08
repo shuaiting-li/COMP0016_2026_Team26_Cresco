@@ -207,6 +207,59 @@
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background: transparent; color: #444; cursor: default;
     flex-shrink: 0; align-self: center;
+    
+}
+
+
+/* Responsive input area for small screens */
+@media (max-width: 600px) {
+    .inputWrapper {
+        padding: 8px;
+    }
+
+    .inputContainer {
+        max-width: 85vw;
+        padding: 6px 6px 6px 12px;
+        border-radius: 16px;
+        gap: 6px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .textarea {
+        font-size: 0.85rem;
+        padding: 4px 0;
+    }
+
+    .sendBtn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+    }
+    
+
+    .contentArea {
+        flex: 1;
+        max-width: 85vw;
+        box-sizing: border-box;
+        width : 100%;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        margin: 0 auto;
+        overflow-y: scroll;
+    }
+
+    .messageList {
+        padding: 20px 8px 40px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 100%;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
 }
 
 .sendActive {
