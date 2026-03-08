@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import DroneImagery from '../drone_imagery';
 import { CloudSun, Sprout, BarChart2, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Leaf, Droplets, Thermometer, Wind, MapPin, Loader } from 'lucide-react';
 import { ClipboardList } from 'lucide-react';
 import { fetchWeather } from '../services/api';
@@ -9,7 +10,7 @@ const statCards = [
 //     {
 //         label: 'labl',
 //         value: 'x%',
-//         change: '+-x%',
+//         change: '+-x%',í
 //         trend: 'up / down / neutral',
 //         icon: <#icon# size={18} />,
 //     },
@@ -148,14 +149,55 @@ function StatCard({ label, value, change, trend, icon }) {
 }
 
 export default function Dashboard({ farmLocation, messages = [] }) {
+        const [ndviImage, setNdviImage] = useState(null);
+
+        useEffect(() => {
+            // essentially, this fetches all ndvi images, then saves the latest one to state. We can optimize later by having an endpoint that just returns the latest image, but this is fine for now.
+            async function fetchLatestNdvi() {
+                try {
+                    const response = await fetch('http://127.0.0.1:8000/api/v1/ndvi-images');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.images && data.images.length > 0) {
+                            // Sort by timestamp descending
+                            const sorted = data.images.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                            setNdviImage(sorted[0]);
+                        } else {
+                            setNdviImage(null);
+                        }
+                    }
+                } catch {
+                    setNdviImage(null);
+                }
+            }
+            fetchLatestNdvi();
+        }, []);
     const allTasks = messages.flatMap(m => m.tasks ?? []);
+    // Helper to get current season and year
+    function getCurrentSeason() {
+        const now = new Date();
+        const month = now.getMonth(); // 0 = Jan
+        const year = now.getFullYear();
+        let season;
+        if (month >= 2 && month <= 4) {
+            season = 'Spring';
+        } else if (month >= 5 && month <= 7) {
+            season = 'Summer';
+        } else if (month >= 8 && month <= 10) {
+            season = 'Autumn';
+        } else {
+            season = 'Winter';
+        }
+        return `${season} ${year}`;
+    }
+
     return (
         <div className={styles.dashboard}>
 
             {/* Page Header */}
             <div className={styles.pageHeader}>
                 <h1 className={styles.pageTitle}>Farm Overview</h1>
-                <p className={styles.pageSubtitle}>Current season snapshot — Spring 2026</p>  {/* Change this to real time data in the future */}
+                <p className={styles.pageSubtitle}>Current season snapshot — {getCurrentSeason()}</p>
             </div>
 
             {/* Stat Cards */}
@@ -274,8 +316,22 @@ export default function Dashboard({ farmLocation, messages = [] }) {
                         <span className={styles.panelTitle}>Field Health</span>
                     </div>
                     <div className={styles.chartPlaceholder}>
-                        <Leaf size={40} className={styles.placeholderIcon} />
-                        <span className={styles.placeholderText}>NDVI map coming soon</span>
+                        {ndviImage ? (
+                            <>
+                                <img
+                                    src={`http://127.0.0.1:8000/api/v1/ndvi-images/${ndviImage.filename}`}
+                                    alt="NDVI Map"
+                                    className={styles.placeholderIcon}
+                                    style={{ maxWidth: 300, borderRadius: 8 }}
+                                />
+                                <span className={styles.placeholderText}>NDVI map from {new Date(ndviImage.timestamp).toLocaleString()}</span>
+                            </>
+                        ) : (
+                            <>
+                                <Leaf size={40} className={styles.placeholderIcon} />
+                                <span className={styles.placeholderText}>NDVI map coming soon</span>
+                            </>
+                        )}
                     </div>
                 </div>
 
