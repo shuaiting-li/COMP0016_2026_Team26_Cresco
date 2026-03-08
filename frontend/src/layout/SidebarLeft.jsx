@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Plus, Trash2, FileText, Image, File, UploadCloud, ChevronLeft } from 'lucide-react';
 import styles from './SidebarLeft.module.css';
 
-export default function SidebarLeft({ files, onUpload, onRemove, collapsed, onCollapse }) {
+export default function SidebarLeft({ files, onUpload, onRemove, onCollapse }) {
     const fileInputRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
 

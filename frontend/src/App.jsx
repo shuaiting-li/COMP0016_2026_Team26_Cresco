@@ -176,8 +176,6 @@ function App() {
                 username={getUsername()}
                 leftCollapsed={leftCollapsed}
                 rightCollapsed={rightCollapsed}
-                onRestoreLeft={() => setLeftCollapsed(false)}
-                onRestoreRight={() => setRightCollapsed(false)}
             />
             <div style={layoutStyle}>
                 {!leftCollapsed && (
@@ -218,7 +216,7 @@ function App() {
                             onClick={() => setLeftCollapsed(false)}
                             aria-label="Show left sidebar"
                         >
-                            <span style={{ fontSize: 18 }}>&#x25C0;</span>
+                            <span style={{ fontSize: 18 }}>&#x25B6;</span>
                         </button>
                     )}
                     {rightCollapsed && (
@@ -242,7 +240,7 @@ function App() {
                             onClick={() => setRightCollapsed(false)}
                             aria-label="Show right sidebar"
                         >
-                            <span style={{ fontSize: 18 }}>&#x25B6;</span>
+                            <span style={{ fontSize: 18 }}>&#x25C0;</span>
                         </button>
                     )}
                 </div>

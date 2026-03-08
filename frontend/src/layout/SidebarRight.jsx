@@ -4,7 +4,7 @@ import styles from './SidebarRight.module.css';
 import { STUDIO_ITEMS } from '../tools/toolMenu';
 import Weather from '../weather';
 
-export default function SidebarRight({ handleOpenSatellite, handleOpenWeather, handleOpenDroneImagery, handleOpenSatelliteImagery, collapsed, onCollapse }) {
+export default function SidebarRight({ handleOpenSatellite, handleOpenWeather, handleOpenDroneImagery, handleOpenSatelliteImagery, onCollapse }) {
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
 
     const handleCloseWeather = () => {
