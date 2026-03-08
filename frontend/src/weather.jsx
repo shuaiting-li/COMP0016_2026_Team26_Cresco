@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from "react";
-import "./Weather.css"; // Weather.css for styling
 import styles from './weather.module.css';
-import { MapPin, CloudSun, Loader } from 'lucide-react';
+import { CloudSun } from 'lucide-react';
 import ChartRenderer from './ChartRenderer';
 import { fetchWeather } from './services/api';
-
-
 
 const WEATHER_ICONS = {
     'clear sky': '☀️', 'few clouds': '🌤️', 'scattered clouds': '⛅',
@@ -19,66 +16,28 @@ function weatherIcon(description) {
     return WEATHER_ICONS[key] ?? '🌡️';
 }
 
-
-function ForecastPanel({ farmLocation }) {
-    const [days, setDays] = useState([]);
-    const [status, setStatus] = useState('idle'); // idle | loading | error
-
-    useEffect(() => {
-        if (!farmLocation?.lat || !farmLocation?.lng) {
-            return;
-        }
-        let cancelled = false;
-        async function loadForecast() {
-            setStatus('loading');
-            try {
-                const data = await fetchWeather(farmLocation.lat, farmLocation.lng);
-                if (cancelled) return;
-                const grouped = data.forecast.list.reduce((acc, entry) => {
-                    const date = entry.dt_txt.split(' ')[0];
-                    const hour = entry.dt_txt.split(' ')[1];
-                    if (!acc[date] || hour === '12:00:00') acc[date] = entry;
-                    return acc;
-                }, {});
-                setDays(Object.values(grouped).slice(0, 5));
-                setStatus('ok');
-            } catch {
-                if (!cancelled) setStatus('error');
-            }
-        }
-        loadForecast();
-        return () => { cancelled = true; };
-    }, [farmLocation]);
-
-    if (status === 'idle') {
-        return (
-            <div className={styles.chartPlaceholder}>
-                <MapPin size={36} className={styles.placeholderIcon} />
-                <span className={styles.placeholderText}>Set a farm location to see the forecast</span>
-            </div>
-        );
-    }
-
-    if (status === 'loading') {
-        return (
-            <div className={styles.chartPlaceholder}>
-                <Loader size={28} className={`${styles.placeholderIcon} ${styles.spin}`} />
-                <span className={styles.placeholderText}>Loading forecast…</span>
-            </div>
-        );
-    }
-
-    if (status === 'error') {
+// Receives pre-fetched forecast data from the parent Weather component.
+function ForecastPanel({ forecast }) {
+    if (!forecast?.list) {
         return (
             <div className={styles.chartPlaceholder}>
                 <CloudSun size={36} className={styles.placeholderIcon} />
-                <span className={styles.placeholderText}>Failed to load forecast</span>
+                <span className={styles.placeholderText}>No forecast data available</span>
             </div>
         );
     }
 
+    const grouped = forecast.list.reduce((acc, entry) => {
+        const date = entry.dt_txt.split(' ')[0];
+        const hour = entry.dt_txt.split(' ')[1];
+        if (!acc[date] || hour === '12:00:00') acc[date] = entry;
+        return acc;
+    }, {});
+    const days = Object.values(grouped).slice(0, 5);
+
     return (
         <div className={styles.forecastPanel}>
+            <h2>5-Day Forecast</h2>
             <div className={styles.forecastGrid}>
                 {days.map((entry, i) => {
                     const date = new Date(entry.dt * 1000);
@@ -144,19 +103,17 @@ const Weather = ({ lat, lon }) => {
     }, [lat, lon]);
 
     if (error) {
-        return <div className="weather-container">Error: {error}</div>;
+        return <div className={styles.weatherContainer}>Error: {error}</div>;
     }
 
     if (!weather || !forecast) {
-        return <div className="weather-container">Loading...</div>;
+        return <div className={styles.weatherContainer}>Loading...</div>;
     }
 
-
-
     return (
-        <div className="weather-container scrollable">
-            <h1 className="weather-title">Weather in {locationName || "Selected Location"}</h1>
-            <ForecastPanel farmLocation={{ lat, lng: lon }} />
+        <div className={styles.weatherContainer}>
+            <h1 className={styles.weatherTitle}>Weather in {locationName || "Selected Location"}</h1>
+            <ForecastPanel forecast={forecast} />
         </div>
     );
 };

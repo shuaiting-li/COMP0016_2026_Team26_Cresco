@@ -27,6 +27,7 @@ export default function SidebarRight({ handleOpenSatellite, handleOpenWeather, h
                         <button
                             key={index}
                             className={styles.card}
+                            data-testid="studio-item"
                             onClick={
                                 item.title === "Add Farm"
                                     ? handleOpenSatellite

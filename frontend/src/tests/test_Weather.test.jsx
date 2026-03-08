@@ -55,7 +55,7 @@ describe('Weather', () => {
     });
 
     it('renders weather data after fetch', async () => {
-        /** Verifies weather information is displayed once data loads. */
+        /** Verifies location name and Today card are displayed once data loads. */
         fetchWeather.mockResolvedValueOnce(MOCK_WEATHER_DATA);
 
         render(<Weather lat={52.2} lon={0.12} />);
@@ -64,10 +64,8 @@ describe('Weather', () => {
             expect(screen.getByText(/cambridge/i)).toBeInTheDocument();
         });
 
-        expect(screen.getByText(/14°C/)).toBeInTheDocument();
-        expect(screen.getByText(/Light Rain/i)).toBeInTheDocument();
-        expect(screen.getByText(/72%/)).toBeInTheDocument();
-        expect(screen.getByText(/3.5 m\/s/)).toBeInTheDocument();
+        expect(screen.getByText('Today')).toBeInTheDocument();
+        expect(screen.getByText('13°C')).toBeInTheDocument();
     });
 
     it('renders forecast section', async () => {
