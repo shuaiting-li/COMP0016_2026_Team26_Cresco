@@ -279,6 +279,20 @@ async def upload_file(
             chunks_indexed = await index_user_upload(settings, user_id=user_id, filename=filename)
         except Exception:
             logger.exception("Indexing failed for '%s' (user '%s')", filename, user_id)
+            # Roll back any partially indexed chunks for this user/file to keep state consistent
+            try:
+                await delete_user_upload(settings, user_id=user_id, filename=filename)
+            except Exception:
+                logger.exception(
+                    "Failed to roll back indexed chunks for '%s' (user '%s') after indexing error",
+                    filename,
+                    user_id,
+                )
+                # Surface a server error if we cannot guarantee a consistent index state
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to index and roll back uploaded file; index state may be inconsistent.",
+                )
 
         status = "indexed" if chunks_indexed > 0 else "uploaded"
         return FileUploadResponse(
