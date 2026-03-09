@@ -166,6 +166,17 @@ class TestLoadUserDocuments:
             assert len(documents) > 0
             assert documents[0].metadata["filename"] == "report.md"
 
+    def test_forwards_filename_to_loader(self, tmp_path):
+        """Test filename parameter is forwarded to _load_documents_from_dir."""
+        user_dir = tmp_path / "user1"
+        user_dir.mkdir()
+
+        with patch("cresco.rag.document_loader._load_documents_from_dir") as mock_load:
+            mock_load.return_value = []
+            load_user_documents(user_dir, filename="report.pdf")
+
+            mock_load.assert_called_once_with(user_dir, filename="report.pdf")
+
     def test_does_not_stamp_user_id(self, tmp_path):
         """Test load_user_documents does NOT set user_id — caller is responsible."""
         user_dir = tmp_path / "user1"
@@ -221,6 +232,36 @@ class TestLoadDocumentsFromDir:
             loader_cls = pdf_call.kwargs.get("loader_cls")
             assert loader_cls.__name__ == "PyPDFLoader"
 
+    def test_single_filename_uses_specific_glob(self, tmp_path):
+        """Test that filename param uses a specific glob with PyPDFLoader."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path, filename="report.pdf")
+
+            mock_dir.assert_called_once()
+            call_kwargs = mock_dir.call_args.kwargs
+            assert call_kwargs["glob"] == "**/report.pdf"
+            assert call_kwargs["loader_cls"].__name__ == "PyPDFLoader"
+
+    def test_single_filename_text_uses_text_loader(self, tmp_path):
+        """Test that filename param with text extension uses TextLoader."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path, filename="notes.md")
+
+            mock_dir.assert_called_once()
+            call_kwargs = mock_dir.call_args.kwargs
+            assert call_kwargs["glob"] == "**/notes.md"
+            assert call_kwargs["loader_cls"].__name__ == "TextLoader"
+
+    def test_single_filename_unknown_ext_returns_empty(self, tmp_path):
+        """Test that unsupported extension returns empty list."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            result = _load_documents_from_dir(tmp_path, filename="image.png")
+
+            mock_dir.assert_not_called()
+            assert result == []
+
     def test_pdf_loader_has_no_encoding_kwarg(self, tmp_path):
         """Test that PyPDFLoader calls don't pass encoding (binary loader)."""
         with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
@@ -236,6 +277,35 @@ class TestLoadDocumentsFromDir:
             assert len(pdf_calls) == 1
             # loader_kwargs with encoding should NOT be present
             assert "loader_kwargs" not in pdf_calls[0].kwargs
+
+
+class TestSilentErrorHandling:
+    """Tests for silent_errors=True on DirectoryLoader calls."""
+
+    def test_text_loader_uses_silent_errors(self, tmp_path):
+        """Test that text-based DirectoryLoader calls pass silent_errors=True."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            text_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("loader_cls").__name__ == "TextLoader"
+            ]
+            assert len(text_calls) > 0
+            for call in text_calls:
+                assert call.kwargs.get("silent_errors") is True
+
+    def test_pdf_loader_uses_silent_errors(self, tmp_path):
+        """Test that PDF DirectoryLoader calls pass silent_errors=True."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            pdf_calls = [c for c in mock_dir.call_args_list if c.kwargs.get("glob") == "**/*.pdf"]
+            assert len(pdf_calls) == 1
+            assert pdf_calls[0].kwargs.get("silent_errors") is True
 
 
 class TestSplitDocuments:

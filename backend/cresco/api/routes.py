@@ -13,7 +13,12 @@ from cresco import __version__
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import delete_user_upload, index_knowledge_base, is_indexed
+from cresco.rag.indexer import (
+    delete_user_upload,
+    index_knowledge_base,
+    index_user_upload,
+    is_indexed,
+)
 
 # Drone and satellite imagery imports
 from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
@@ -269,10 +274,32 @@ async def upload_file(
             shutil.copyfileobj(file.file, buffer)
 
         # Index with user_id metadata so retrieval is scoped
-        # await index_user_upload(settings, user_id=user_id, filename=filename)
+        chunks_indexed = 0
+        try:
+            chunks_indexed = await index_user_upload(settings, user_id=user_id, filename=filename)
+        except Exception:
+            logger.exception("Indexing failed for '%s' (user '%s')", filename, user_id)
+            # Roll back any partially indexed chunks for this user/file to keep state consistent
+            try:
+                await delete_user_upload(settings, user_id=user_id, filename=filename)
+            except Exception:
+                logger.exception(
+                    "Failed to roll back indexed chunks for '%s' (user '%s') after indexing error",
+                    filename,
+                    user_id,
+                )
+                # Surface a server error if we cannot guarantee a consistent index state
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to index and roll back uploaded file;"
+                    " index state may be inconsistent.",
+                )
+
+        status = "indexed" if chunks_indexed > 0 else "uploaded"
         return FileUploadResponse(
             filename=filename,
-            status="indexed",
+            status=status,
+            chunks_indexed=chunks_indexed,
         )
     except HTTPException:
         raise
