@@ -69,9 +69,7 @@ def load_user_documents(upload_dir: Path, filename: str | None = None) -> list[D
     return documents
 
 
-def _load_documents_from_dir(
-    directory: Path, filename: str | None = None
-) -> list[Document]:
+def _load_documents_from_dir(directory: Path, filename: str | None = None) -> list[Document]:
     """Load documents from a directory using the appropriate loader per file type.
 
     Text-based files (.md, .txt, .csv, .json) are loaded with ``TextLoader``.

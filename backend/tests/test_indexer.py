@@ -226,7 +226,6 @@ class TestIndexUserUpload:
             expected_dir = Path(mock_settings.uploads_path) / "user42"
             mock_load.assert_called_once_with(expected_dir, filename="f.md")
 
-
     @pytest.mark.asyncio
     async def test_passes_filename_to_load_user_documents(self, mock_settings):
         """Test that filename is forwarded to load_user_documents."""
