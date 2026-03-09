@@ -10,7 +10,7 @@ Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI ba
 
 | Layer | Key files | Purpose |
 |---|---|---|
-| **API** | `api/routes.py`, `api/schemas.py` | FastAPI router mounted at `/api/v1`. Pydantic v2 request/response models. Proxy endpoints for third-party APIs (geocoding, weather). |
+| **API** | `api/routes.py`, `api/schemas.py` | FastAPI router mounted at `/api/v1`. Pydantic v2 request/response models. Proxy endpoints for third-party APIs (geocoding, weather). Imagery endpoints (drone NDVI, satellite). |
 | **Auth** | `auth/routes.py`, `auth/dependencies.py`, `auth/jwt.py`, `auth/users.py`, `auth/schemas.py` | JWT Bearer auth (HS256 via `pyjwt`). Passwords hashed with `bcrypt`. Users stored in JSON file (`data/users.json`). Registration is admin-only; login is public. |
 | **Agent** | `agent/agent.py`, `agent/prompts.py` | LangGraph agent (`CrescoAgent`) with three tools: `retrieve_agricultural_info` (RAG), `get_weather_data` (user farm context), and `TavilySearch` (internet). Uses `InMemorySaver` checkpointer keyed by `thread_id` for conversation memory. Agent passes `user_id` via `RunnableConfig` to tools. Parses `---CHART---` JSON blocks for data visualization and `---TASKS---` JSON blocks for actionable farming tasks. Azure OpenAI (primary) or generic providers via `init_chat_model`. |
 | **RAG** | `rag/retriever.py`, `rag/indexer.py`, `rag/embeddings.py`, `rag/document_loader.py` | ChromaDB vector store (`"cresco_knowledge_base"` collection), Azure OpenAI embeddings, markdown document loading with filename-based category metadata. Chunks: 1500 chars, 200 overlap. |
@@ -25,19 +25,31 @@ Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI ba
 **Data flow**: User message → `POST /api/v1/chat` (requires Bearer token) → farm/weather context appended from in-memory `farm_data` dict (keyed by JWT `user_id`) → `CrescoAgent.chat()` → LangGraph agent invokes RAG + weather + search tools → ChromaDB similarity search (k=5) → LLM generates answer. Agent parses `---TASKS---` JSON blocks for actionable farming tasks and `---CHART---` JSON blocks for data visualization (see `prompts.py` for format).
 
 **Agent response parsing**: The agent returns structured data with optional embedded blocks:
-  - **Charts**: `---CHART--- {...JSON...} ---END_CHART---` blocks are parsed by `agent.py` and sent as separate `charts` field in response (see `ChartRenderer.jsx` for rendering).
-  - **Tasks**: `---TASKS--- [{...task_json...}] ---END_TASKS---` blocks are parsed and included as `tasks` field. Each task: `{title, detail, priority}`.
-  - **Answers**: Main text response sent to frontend as `answer` (mapped to `reply` in `api.js`).
+  - **Charts**: `---CHART--- {...JSON...} ---END_CHART---` blocks are parsed by `agent.py` and sent as separate `charts` field in response (see `ChartRenderer.jsx` for rendering). Each chart includes `position` metadata for frontend placement.
+  - **Tasks**: `---TASKS--- [{...task_json...}] ---END_TASKS---` blocks are parsed and included as `tasks` field. Each task: `{title, detail, priority}`. Hard limit of 5 tasks enforced via `[:5]` slice.
+  - **Answers**: Main text response sent to frontend as `answer` (mapped to `reply` in `api.js`). Content can be `str` or `list` (multimodal) — agent handles both.
+  - **Sources**: Extracted from tool artifacts in the last 2 messages only.
+  - **Error handling**: JSON parsing errors in chart/task blocks are silently ignored (no user-facing error).
+
+**Conversation memory**: Agent uses `InMemorySaver` keyed by `thread_id`. `CrescoAgent.delete_last_exchange()` removes the last `HumanMessage` and all subsequent messages (tool calls, AI reply) via LangGraph `RemoveMessage`. Exposed at `DELETE /api/v1/chat/last-exchange`.
+
+**Async patterns**: Routes and agent methods are all `async`. Weather fetching uses `asyncio.gather()` for parallel requests. Agent invocation uses `.ainvoke()` and `aget_state()`. New endpoints should follow the same async pattern.
 
 **Auth flow**: `POST /auth/login` returns JWT → all other endpoints (except `/health`) require `Authorization: Bearer <token>` via `get_current_user` dependency. Admin bootstrap: `uv run python scripts/create_admin.py <username> <password>`.
 
 **Third-party API proxy pattern**: External APIs (Nominatim geocoding, OpenWeatherMap) are called **server-side** via `httpx` in `routes.py` — never directly from the frontend. This avoids CORS issues and keeps API keys off the client. Proxy endpoints: `GET /geocode/search`, `GET /geocode/reverse`, `GET /weather`.
 
+**All API endpoints**: `/chat`, `/chat/last-exchange` (DELETE), `/upload` (POST multipart), `/upload/{filename}` (DELETE), `/index`, `/farm-data`, `/weather`, `/geocode/search`, `/geocode/reverse`, `/droneimage` (POST, expects 2 files: RGB + NIR), `/ndvi-images`, `/ndvi-images/{filename}`, `/satellite-image` (POST), `/health`.
+
+**Error handling philosophy**: Graceful degradation — weather fetch failures are silently logged (user can retry manually), upstream API errors return 502, conflicts return 409. Structured logging via `logger.info()`/`logger.exception()` on every endpoint.
+
+**User upload scoping**: Uploaded files are stored in `uploads_dir / user_id` for per-user isolation. RAG retrieval uses a `$or` filter to include both `"__shared__"` (knowledge base) and user-specific documents.
+
 ### Frontend (`frontend/src/`)
 
 React 19 + Vite. **No TypeScript** (plain JSX). CSS Modules for layout (`layout/*.module.css`).
 
-- **Centralized API layer**: **All** backend calls go through `services/api.js` — components never use `fetch()` directly to the backend. `api.js` provides `authHeaders()` (attaches JWT Bearer token), auto-logout on 401/403, and a single `API_BASE_URL`. When adding new backend endpoints, add a corresponding function in `api.js` and import it from the component.
+- **Centralized API layer**: **All** backend calls go through `services/api.js` — components never use `fetch()` directly to the backend. `api.js` provides `authHeaders()` (attaches JWT Bearer token), auto-logout on 401/403, and a single `API_BASE_URL`. When adding new backend endpoints, add a corresponding function in `api.js` and import it from the component. Key functions: `sendMessage()` (120s timeout via `AbortController`), `uploadAndIndexFile()` (FormData multipart POST), `handleSatelliteImage()` (returns Blob), `deleteLastExchange()`.
 - **Auth**: JWT stored in `localStorage` (`cresco_token`/`cresco_username`). `AuthPage` component gates app access.
 - **Response mapping**: Backend `{answer, sources, tasks}` → frontend `{reply, citations, tasks}` in `api.js`.
 - **Rendering**: `react-markdown` + `remark-gfm` + `remark-math` + `rehype-katex`.
