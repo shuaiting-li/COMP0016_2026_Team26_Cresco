@@ -136,10 +136,7 @@ async def index_user_upload(settings: Settings, user_id: str, filename: str) -> 
         Number of document chunks indexed.
     """
     upload_dir = settings.uploads_dir / user_id
-    documents = load_user_documents(upload_dir)
-
-    # Keep only the requested file
-    documents = [doc for doc in documents if doc.metadata.get("filename") == filename]
+    documents = load_user_documents(upload_dir, filename=filename)
 
     # Stamp every chunk with the owning user
     for doc in documents:

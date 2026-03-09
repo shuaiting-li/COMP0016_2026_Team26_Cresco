@@ -45,11 +45,12 @@ def load_knowledge_base(settings: Settings) -> list[Document]:
     return documents
 
 
-def load_user_documents(upload_dir: Path) -> list[Document]:
+def load_user_documents(upload_dir: Path, filename: str | None = None) -> list[Document]:
     """Load documents from a user-specific upload directory.
 
     Args:
         upload_dir: Path to the user's upload directory.
+        filename: If provided, load only this specific file.
 
     Returns:
         List of Document objects ready for embedding.
@@ -57,7 +58,7 @@ def load_user_documents(upload_dir: Path) -> list[Document]:
     if not upload_dir.exists():
         return []
 
-    documents = _load_documents_from_dir(upload_dir)
+    documents = _load_documents_from_dir(upload_dir, filename=filename)
 
     for doc in documents:
         source_path = Path(doc.metadata.get("source", ""))
@@ -68,7 +69,9 @@ def load_user_documents(upload_dir: Path) -> list[Document]:
     return documents
 
 
-def _load_documents_from_dir(directory: Path) -> list[Document]:
+def _load_documents_from_dir(
+    directory: Path, filename: str | None = None
+) -> list[Document]:
     """Load documents from a directory using the appropriate loader per file type.
 
     Text-based files (.md, .txt, .csv, .json) are loaded with ``TextLoader``.
@@ -76,11 +79,35 @@ def _load_documents_from_dir(directory: Path) -> list[Document]:
 
     Args:
         directory: Path to the directory to scan.
+        filename: If provided, load only this specific file instead of all files.
 
     Returns:
         List of raw Document objects (metadata enrichment is left to callers).
     """
     documents: list[Document] = []
+
+    if filename is not None:
+        ext = Path(filename).suffix.lower()
+        if ext in _PDF_EXTENSIONS:
+            loader = DirectoryLoader(
+                str(directory),
+                glob=f"**/{filename}",
+                loader_cls=PyPDFLoader,
+                show_progress=True,
+                silent_errors=True,
+            )
+            documents.extend(loader.load())
+        elif ext in _TEXT_EXTENSIONS:
+            loader = DirectoryLoader(
+                str(directory),
+                glob=f"**/{filename}",
+                loader_cls=TextLoader,
+                loader_kwargs={"encoding": "utf-8"},
+                show_progress=True,
+                silent_errors=True,
+            )
+            documents.extend(loader.load())
+        return documents
 
     # Text-based files
     for ext in _TEXT_EXTENSIONS:

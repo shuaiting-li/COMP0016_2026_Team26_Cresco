@@ -224,7 +224,24 @@ class TestIndexUserUpload:
             await index_user_upload(mock_settings, user_id="user42", filename="f.md")
 
             expected_dir = Path(mock_settings.uploads_path) / "user42"
-            mock_load.assert_called_once_with(expected_dir)
+            mock_load.assert_called_once_with(expected_dir, filename="f.md")
+
+
+    @pytest.mark.asyncio
+    async def test_passes_filename_to_load_user_documents(self, mock_settings):
+        """Test that filename is forwarded to load_user_documents."""
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.get_vector_store"),
+        ):
+            mock_load.return_value = []
+            mock_split.return_value = []
+
+            await index_user_upload(mock_settings, user_id="u1", filename="report.md")
+
+            expected_dir = Path(mock_settings.uploads_path) / "u1"
+            mock_load.assert_called_once_with(expected_dir, filename="report.md")
 
 
 class TestDeleteUserUpload:
