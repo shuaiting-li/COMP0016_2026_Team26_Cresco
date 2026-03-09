@@ -90,6 +90,7 @@ def _load_documents_from_dir(directory: Path) -> list[Document]:
             loader_cls=TextLoader,
             loader_kwargs={"encoding": "utf-8"},
             show_progress=True,
+            silent_errors=True,
         )
         documents.extend(loader.load())
 
@@ -100,6 +101,7 @@ def _load_documents_from_dir(directory: Path) -> list[Document]:
             glob=f"**/*{ext}",
             loader_cls=PyPDFLoader,
             show_progress=True,
+            silent_errors=True,
         )
         documents.extend(loader.load())
 

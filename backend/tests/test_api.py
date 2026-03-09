@@ -339,6 +339,98 @@ class TestWeatherEndpoint:
         assert response.status_code == 500
 
 
+class TestUploadFileEndpoint:
+    """Tests for the POST /upload endpoint."""
+
+    def test_upload_and_index_success(self, client):
+        """Test successful upload indexes the file and returns status='indexed'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload", new_callable=AsyncMock, return_value=5
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("report.md", b"# Report\nContent", "text/markdown")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["filename"] == "report.md"
+            assert data["status"] == "indexed"
+            assert data["chunks_indexed"] == 5
+
+    def test_upload_index_failure_returns_uploaded(self, client):
+        """Test that indexing failure still saves the file with status='uploaded'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload",
+                new_callable=AsyncMock,
+                side_effect=Exception("PDF parse error"),
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("bad.pdf", b"%PDF-corrupt", "application/pdf")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "uploaded"
+            assert data["chunks_indexed"] == 0
+            # File should still be saved to disk
+            user_dir = mock_settings.uploads_dir / "test-user-id"
+            assert (user_dir / "bad.pdf").exists()
+
+    def test_upload_zero_chunks_returns_uploaded(self, client):
+        """Test that zero indexed chunks returns status='uploaded'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload", new_callable=AsyncMock, return_value=0
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("empty.txt", b"", "text/plain")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "uploaded"
+            assert data["chunks_indexed"] == 0
+
+    def test_upload_unsupported_extension_rejected(self, client):
+        """Test that unsupported file extensions are rejected with 400."""
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("malware.exe", b"binary", "application/octet-stream")},
+        )
+
+        assert response.status_code == 400
+        assert "unsupported" in response.json()["detail"].lower()
+
+
 class TestDeleteFileEndpoint:
     """Tests for the DELETE /upload/{filename} endpoint."""
 

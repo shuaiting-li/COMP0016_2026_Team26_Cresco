@@ -238,6 +238,35 @@ class TestLoadDocumentsFromDir:
             assert "loader_kwargs" not in pdf_calls[0].kwargs
 
 
+class TestSilentErrorHandling:
+    """Tests for silent_errors=True on DirectoryLoader calls."""
+
+    def test_text_loader_uses_silent_errors(self, tmp_path):
+        """Test that text-based DirectoryLoader calls pass silent_errors=True."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            text_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("loader_cls").__name__ == "TextLoader"
+            ]
+            assert len(text_calls) > 0
+            for call in text_calls:
+                assert call.kwargs.get("silent_errors") is True
+
+    def test_pdf_loader_uses_silent_errors(self, tmp_path):
+        """Test that PDF DirectoryLoader calls pass silent_errors=True."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            pdf_calls = [c for c in mock_dir.call_args_list if c.kwargs.get("glob") == "**/*.pdf"]
+            assert len(pdf_calls) == 1
+            assert pdf_calls[0].kwargs.get("silent_errors") is True
+
+
 class TestSplitDocuments:
     """Tests for document splitting."""
 
