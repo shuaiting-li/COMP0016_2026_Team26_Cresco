@@ -152,7 +152,7 @@ describe('ChatArea', () => {
         /** Verifies the input is disabled and shows a loading placeholder during processing. */
         render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={true} />);
 
-        expect(screen.getByPlaceholderText(/waiting for response/i)).toBeDisabled();
+        expect(screen.getByPlaceholderText(/waiting for cresco/i)).toBeDisabled();
         expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
     });
 

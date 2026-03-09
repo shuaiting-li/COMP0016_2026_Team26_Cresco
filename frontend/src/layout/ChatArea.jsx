@@ -239,7 +239,7 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                     <textarea
                         ref={textareaRef}
                         rows={1}
-                        placeholder={isLoading ? "Waiting for response..." : "Message Cresco..."}
+                        placeholder={isLoading ? "Waiting for Cresco..." : "Message Cresco..."}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
