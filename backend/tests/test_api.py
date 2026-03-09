@@ -378,10 +378,16 @@ class TestUploadFileEndpoint:
 
             app.dependency_overrides[get_settings] = lambda: mock_settings
 
-            with patch(
-                "cresco.api.routes.index_user_upload",
-                new_callable=AsyncMock,
-                side_effect=Exception("PDF parse error"),
+            with (
+                patch(
+                    "cresco.api.routes.index_user_upload",
+                    new_callable=AsyncMock,
+                    side_effect=Exception("PDF parse error"),
+                ),
+                patch(
+                    "cresco.api.routes.delete_user_upload",
+                    new_callable=AsyncMock,
+                ),
             ):
                 response = client.post(
                     "/api/v1/upload",
