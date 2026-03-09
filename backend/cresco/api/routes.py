@@ -291,7 +291,8 @@ async def upload_file(
                 # Surface a server error if we cannot guarantee a consistent index state
                 raise HTTPException(
                     status_code=500,
-                    detail="Failed to index and roll back uploaded file; index state may be inconsistent.",
+                    detail="Failed to index and roll back uploaded file;"
+                    " index state may be inconsistent.",
                 )
 
         status = "indexed" if chunks_indexed > 0 else "uploaded"
