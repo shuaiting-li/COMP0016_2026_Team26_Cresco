@@ -6,7 +6,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cresco.rag.indexer import BATCH_DELAY, BATCH_SIZE, index_knowledge_base, is_indexed
+from cresco.rag.indexer import (
+    BATCH_DELAY,
+    BATCH_SIZE,
+    index_knowledge_base,
+    index_user_upload,
+    is_indexed,
+)
 
 
 class TestIsIndexed:
@@ -21,10 +27,10 @@ class TestIsIndexed:
         """Test returns False when collection has no documents."""
         Path(mock_settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-        with patch("cresco.rag.indexer.Chroma") as mock_chroma:
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
             mock_collection = MagicMock()
             mock_collection.count.return_value = 0
-            mock_chroma.return_value._collection = mock_collection
+            mock_get_vs.return_value._collection = mock_collection
 
             assert is_indexed(mock_settings) is False
 
@@ -32,10 +38,10 @@ class TestIsIndexed:
         """Test returns True when collection has documents."""
         Path(mock_settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-        with patch("cresco.rag.indexer.Chroma") as mock_chroma:
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
             mock_collection = MagicMock()
             mock_collection.count.return_value = 100
-            mock_chroma.return_value._collection = mock_collection
+            mock_get_vs.return_value._collection = mock_collection
 
             assert is_indexed(mock_settings) is True
 
@@ -43,8 +49,8 @@ class TestIsIndexed:
         """Test returns False when Chroma raises exception."""
         Path(mock_settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-        with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-            mock_chroma.side_effect = Exception("Database error")
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+            mock_get_vs.side_effect = Exception("Database error")
 
             assert is_indexed(mock_settings) is False
 
@@ -56,10 +62,10 @@ class TestIndexKnowledgeBase:
     async def test_returns_existing_count_when_indexed(self, mock_settings):
         """Test returns existing document count when already indexed."""
         with patch("cresco.rag.indexer.is_indexed", return_value=True):
-            with patch("cresco.rag.indexer.Chroma") as mock_chroma:
+            with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
                 mock_collection = MagicMock()
                 mock_collection.count.return_value = 50
-                mock_chroma.return_value._collection = mock_collection
+                mock_get_vs.return_value._collection = mock_collection
 
                 count = await index_knowledge_base(mock_settings, force=False)
 
@@ -76,11 +82,11 @@ class TestIndexKnowledgeBase:
         with patch("cresco.rag.indexer.is_indexed", return_value=True):
             with patch("cresco.rag.indexer.load_knowledge_base") as mock_load:
                 with patch("cresco.rag.indexer.split_documents") as mock_split:
-                    with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-                        with patch("cresco.rag.indexer.get_embeddings"):
+                    with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+                        with patch("cresco.rag.indexer.reset_vector_store"):
                             mock_load.return_value = []
                             mock_split.return_value = []
-                            mock_chroma.return_value._collection.count.return_value = 0
+                            mock_get_vs.return_value._collection.count.return_value = 0
 
                             await index_knowledge_base(mock_settings, force=True)
 
@@ -98,16 +104,17 @@ class TestIndexKnowledgeBase:
         with patch("cresco.rag.indexer.is_indexed", return_value=False):
             with patch("cresco.rag.indexer.load_knowledge_base") as mock_load:
                 with patch("cresco.rag.indexer.split_documents") as mock_split:
-                    with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-                        with patch("cresco.rag.indexer.get_embeddings"):
-                            mock_load.return_value = []
-                            mock_split.return_value = []
-                            mock_chroma.return_value.add_documents = MagicMock()
-                            mock_chroma.return_value._collection.count.return_value = 0
+                    with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+                        mock_load.return_value = []
+                        mock_split.return_value = []
+                        mock_vectorstore = MagicMock()
+                        mock_vectorstore.add_documents = MagicMock()
+                        mock_vectorstore._collection.count.return_value = 0
+                        mock_get_vs.return_value = mock_vectorstore
 
-                            await index_knowledge_base(mock_settings, force=False)
+                        await index_knowledge_base(mock_settings, force=False)
 
-                            assert chroma_path.exists()
+                        assert chroma_path.exists()
 
     @pytest.mark.asyncio
     async def test_indexes_documents_in_batches(self, mock_settings):
@@ -123,14 +130,14 @@ class TestIndexKnowledgeBase:
         with patch("cresco.rag.indexer.is_indexed", return_value=False):
             with patch("cresco.rag.indexer.load_knowledge_base") as mock_load:
                 with patch("cresco.rag.indexer.split_documents") as mock_split:
-                    with patch("cresco.rag.indexer.Chroma") as mock_chroma:
-                        with patch("cresco.rag.indexer.get_embeddings"):
+                    with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+                        with patch("cresco.rag.indexer.reset_vector_store"):
                             mock_load.return_value = docs
                             mock_split.return_value = docs
                             mock_vectorstore = MagicMock()
                             mock_vectorstore.add_documents = MagicMock()
                             mock_vectorstore._collection.count.return_value = len(docs)
-                            mock_chroma.return_value = mock_vectorstore
+                            mock_get_vs.return_value = mock_vectorstore
 
                             await index_knowledge_base(mock_settings, force=True)
 
@@ -150,3 +157,142 @@ class TestBatchSettings:
         """Test batch delay is positive for rate limiting."""
         assert BATCH_DELAY > 0
         assert BATCH_DELAY <= 10  # Not too slow
+
+
+class TestIndexUserUpload:
+    """Tests for index_user_upload function."""
+
+    @pytest.mark.asyncio
+    async def test_indexes_single_user_file(self, mock_settings):
+        """Test indexing a single user-uploaded file with user_id metadata."""
+        from langchain_core.documents import Document
+
+        docs = [
+            Document(
+                page_content="User report content",
+                metadata={"filename": "report.md", "category": "general"},
+            )
+        ]
+
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.get_vector_store") as mock_get_vs,
+        ):
+            mock_load.return_value = docs
+            mock_split.return_value = docs
+            mock_vectorstore = MagicMock()
+            mock_vectorstore.add_documents = MagicMock()
+            mock_get_vs.return_value = mock_vectorstore
+
+            count = await index_user_upload(mock_settings, user_id="user42", filename="report.md")
+
+            assert count == 1
+            mock_vectorstore.add_documents.assert_called_once()
+
+            # Verify user_id metadata was stamped
+            indexed_docs = mock_vectorstore.add_documents.call_args.args[0]
+            assert indexed_docs[0].metadata["user_id"] == "user42"
+
+    @pytest.mark.asyncio
+    async def test_returns_zero_when_no_matching_file(self, mock_settings):
+        """Test returns 0 when the uploaded file is not found."""
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+        ):
+            mock_load.return_value = []
+            mock_split.return_value = []
+
+            count = await index_user_upload(mock_settings, user_id="user42", filename="missing.md")
+
+            assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_loads_from_user_upload_directory(self, mock_settings):
+        """Test that documents are loaded from the correct per-user directory."""
+        from pathlib import Path
+
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.get_vector_store"),
+        ):
+            mock_load.return_value = []
+            mock_split.return_value = []
+
+            await index_user_upload(mock_settings, user_id="user42", filename="f.md")
+
+            expected_dir = Path(mock_settings.uploads_path) / "user42"
+            mock_load.assert_called_once_with(expected_dir, filename="f.md")
+
+    @pytest.mark.asyncio
+    async def test_passes_filename_to_load_user_documents(self, mock_settings):
+        """Test that filename is forwarded to load_user_documents."""
+        with (
+            patch("cresco.rag.indexer.load_user_documents") as mock_load,
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.get_vector_store"),
+        ):
+            mock_load.return_value = []
+            mock_split.return_value = []
+
+            await index_user_upload(mock_settings, user_id="u1", filename="report.md")
+
+            expected_dir = Path(mock_settings.uploads_path) / "u1"
+            mock_load.assert_called_once_with(expected_dir, filename="report.md")
+
+
+class TestDeleteUserUpload:
+    """Tests for delete_user_upload function."""
+
+    def test_deletes_matching_chunks(self, mock_settings):
+        """Test chunks with matching user_id and filename are deleted."""
+        from cresco.rag.indexer import delete_user_upload
+
+        mock_collection = MagicMock()
+        mock_collection.get.return_value = {"ids": ["id1", "id2", "id3"]}
+
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+            mock_vectorstore = MagicMock()
+            mock_vectorstore._collection = mock_collection
+            mock_get_vs.return_value = mock_vectorstore
+
+            # Ensure chroma_path exists
+            mock_settings.chroma_path.mkdir(parents=True, exist_ok=True)
+
+            count = delete_user_upload(mock_settings, user_id="user42", filename="report.md")
+
+            assert count == 3
+            mock_collection.delete.assert_called_once_with(ids=["id1", "id2", "id3"])
+            mock_collection.get.assert_called_once_with(
+                where={"$and": [{"user_id": "user42"}, {"filename": "report.md"}]},
+            )
+
+    def test_returns_zero_when_no_chunks_found(self, mock_settings):
+        """Test returns 0 when no matching chunks exist in ChromaDB."""
+        from cresco.rag.indexer import delete_user_upload
+
+        mock_collection = MagicMock()
+        mock_collection.get.return_value = {"ids": []}
+
+        with patch("cresco.rag.indexer.get_vector_store") as mock_get_vs:
+            mock_vectorstore = MagicMock()
+            mock_vectorstore._collection = mock_collection
+            mock_get_vs.return_value = mock_vectorstore
+
+            mock_settings.chroma_path.mkdir(parents=True, exist_ok=True)
+
+            count = delete_user_upload(mock_settings, user_id="user42", filename="missing.md")
+
+            assert count == 0
+            mock_collection.delete.assert_not_called()
+
+    def test_returns_zero_when_chroma_path_missing(self, mock_settings):
+        """Test returns 0 when the ChromaDB directory does not exist."""
+        from cresco.rag.indexer import delete_user_upload
+
+        # Don't create chroma_path — it should not exist
+        count = delete_user_upload(mock_settings, user_id="user42", filename="report.md")
+
+        assert count == 0

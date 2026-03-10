@@ -123,23 +123,17 @@ export async function deleteAccount() {
  * @param {string} message - The user's message
  * @param {string} conversationId - Optional conversation ID for context
  * @param {Array<File>} files - Optional array of uploaded files
- * @returns {Promise<{reply: string, tasks: Array, citations: Array}>}
+ * @returns {Promise<{reply: string, tasks: Array, citations: Array, charts: Array, conversationId: string}>}
  */
 export async function sendMessage(message, conversationId = null, files = []) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
 
     try {
-        // Read file contents if files are provided
-        const fileData = await Promise.all(
-            files.map(async (file) => {
-                const content = await file.text();
-                return {
-                    name: file.name,
-                    content: content,
-                };
-            })
-        );
+        // Send only file names — content is already indexed in the
+        // knowledge base via the upload endpoint, so the agent
+        // retrieves it through the RAG tool.
+        const fileData = files.map((file) => ({ name: file.name }));
 
         const response = await fetch(`${API_BASE_URL}/chat`, {
             method: 'POST',
@@ -164,11 +158,12 @@ export async function sendMessage(message, conversationId = null, files = []) {
         const data = await response.json();
 
         // Transform backend response to frontend format
-        // Backend returns: { answer: string, sources: string[], tasks: array, conversation_id?: string }
-        // Frontend expects: { reply: string, tasks: Array, citations: Array }
+        // Backend returns: { answer: string, sources: string[], tasks: array, charts: array, conversation_id?: string }
+        // Frontend expects: { reply: string, tasks: Array, citations: Array, charts: Array }
         return {
             reply: data.answer,
             tasks: data.tasks || [], // Backend now provides tasks
+            charts: data.charts || [], // Backend now provides charts
             citations: data.sources || [],
             conversationId: data.conversation_id,
         };
@@ -228,6 +223,8 @@ export async function indexKnowledgeBase(forceReindex = false) {
         throw error;
     }
 }
+
+
 
 /**
  * Trigger indexing of the knowledge base
@@ -331,6 +328,52 @@ export async function fetchWeather(lat, lon) {
     return await response.json();
 }
 
+/**
+ * Delete the last user-assistant exchange from the agent's conversation memory.
+ * @returns {Promise<{status: string}>}
+ */
+export async function deleteLastExchange() {
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/chat/last-exchange`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Delete exchange failed (${response.status})`);
+    }
+
+    return await response.json();
+}
+
+export const deleteUploadedFile = async (filename) => {
+    const response = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Delete failed (${response.status})`);
+    }
+
+    return await response.json();
+};
+
 export const uploadAndIndexFile = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -354,3 +397,30 @@ export const uploadAndIndexFile = async (file) => {
     return await response.json();
 };
 
+
+/**
+ * handle satellite image upload and processing
+ */
+export async function handleSatelliteImage() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/satellite-image`, {
+            method: 'POST',
+            headers: authHeaders(),
+            // body: JSON.stringify({
+            //     force_reindex: forceReindex,
+            // }),
+        });
+
+
+        if (response.ok) {
+            // Return the raw Blob so the caller can manage createObjectURL/revokeObjectURL.
+            return await response.blob();
+        } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+    } catch (error) {
+        console.error('Error handling satellite image:', error);
+        throw error;
+    }
+}

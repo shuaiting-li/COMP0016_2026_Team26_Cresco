@@ -2,15 +2,25 @@
 
 from pathlib import Path
 
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from cresco.config import Settings
 
+# Supported file extensions for knowledge base ingestion
+SUPPORTED_EXTENSIONS = [".md", ".pdf", ".txt", ".csv", ".json"]
+
+# Extensions that require a binary loader instead of TextLoader
+_PDF_EXTENSIONS = {".pdf"}
+_TEXT_EXTENSIONS = [ext for ext in SUPPORTED_EXTENSIONS if ext not in _PDF_EXTENSIONS]
+
+# Sentinel value used to tag shared knowledge-base docs in the vector store
+SHARED_USER_ID = "__shared__"
+
 
 def load_knowledge_base(settings: Settings) -> list[Document]:
-    """Load all markdown documents from the knowledge base directory.
+    """Load all supported text documents from the knowledge base directory.
 
     Args:
         settings: Application settings containing knowledge base path.
@@ -23,22 +33,102 @@ def load_knowledge_base(settings: Settings) -> list[Document]:
     if not kb_path.exists():
         raise FileNotFoundError(f"Knowledge base directory not found: {kb_path}")
 
-    # Load all markdown files
-    loader = DirectoryLoader(
-        str(kb_path),
-        glob="**/*.md",
-        loader_cls=TextLoader,
-        loader_kwargs={"encoding": "utf-8"},
-        show_progress=True,
-    )
-
-    documents = loader.load()
+    documents = _load_documents_from_dir(kb_path)
 
     # Add metadata to each document
     for doc in documents:
         source_path = Path(doc.metadata.get("source", ""))
         doc.metadata["filename"] = source_path.name
         doc.metadata["category"] = _categorize_document(source_path.name)
+        doc.metadata["user_id"] = SHARED_USER_ID
+
+    return documents
+
+
+def load_user_documents(upload_dir: Path, filename: str | None = None) -> list[Document]:
+    """Load documents from a user-specific upload directory.
+
+    Args:
+        upload_dir: Path to the user's upload directory.
+        filename: If provided, load only this specific file.
+
+    Returns:
+        List of Document objects ready for embedding.
+    """
+    if not upload_dir.exists():
+        return []
+
+    documents = _load_documents_from_dir(upload_dir, filename=filename)
+
+    for doc in documents:
+        source_path = Path(doc.metadata.get("source", ""))
+        doc.metadata["filename"] = source_path.name
+        doc.metadata["category"] = _categorize_document(source_path.name)
+        # user_id is set by the caller (indexer) after loading
+
+    return documents
+
+
+def _load_documents_from_dir(directory: Path, filename: str | None = None) -> list[Document]:
+    """Load documents from a directory using the appropriate loader per file type.
+
+    Text-based files (.md, .txt, .csv, .json) are loaded with ``TextLoader``.
+    PDF files are loaded with ``PyPDFLoader`` which handles binary content.
+
+    Args:
+        directory: Path to the directory to scan.
+        filename: If provided, load only this specific file instead of all files.
+
+    Returns:
+        List of raw Document objects (metadata enrichment is left to callers).
+    """
+    documents: list[Document] = []
+
+    if filename is not None:
+        ext = Path(filename).suffix.lower()
+        if ext in _PDF_EXTENSIONS:
+            loader = DirectoryLoader(
+                str(directory),
+                glob=f"**/{filename}",
+                loader_cls=PyPDFLoader,
+                show_progress=True,
+                silent_errors=True,
+            )
+            documents.extend(loader.load())
+        elif ext in _TEXT_EXTENSIONS:
+            loader = DirectoryLoader(
+                str(directory),
+                glob=f"**/{filename}",
+                loader_cls=TextLoader,
+                loader_kwargs={"encoding": "utf-8"},
+                show_progress=True,
+                silent_errors=True,
+            )
+            documents.extend(loader.load())
+        return documents
+
+    # Text-based files
+    for ext in _TEXT_EXTENSIONS:
+        loader = DirectoryLoader(
+            str(directory),
+            glob=f"**/*{ext}",
+            loader_cls=TextLoader,
+            loader_kwargs={"encoding": "utf-8"},
+            show_progress=True,
+            silent_errors=True,
+        )
+        documents.extend(loader.load())
+
+    # PDF files (binary — cannot use TextLoader)
+    for ext in _PDF_EXTENSIONS:
+        loader = DirectoryLoader(
+            str(directory),
+            glob=f"**/*{ext}",
+            loader_cls=PyPDFLoader,
+            show_progress=True,
+            silent_errors=True,
+        )
+        documents.extend(loader.load())
 
     return documents
 

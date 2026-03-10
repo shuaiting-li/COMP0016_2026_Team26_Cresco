@@ -3,17 +3,65 @@
     background-color: var(--bg-app);
 }
 
+/* --- Top Bar / Tabs --- */
+.topBar {
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-app);
+    flex-shrink: 0;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+
+.tab:hover {
+    color: var(--text-main);
+}
+
+.activeTab {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.tabLabel {
+    pointer-events: none;
+}
+
 /* --- Chat Content --- */
 .contentArea { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
 .messageList {
     padding: 20px 20px 40px 20px;
     display: flex; flex-direction: column; gap: 24px;
-    max-width: 550px; margin: 0 auto; width: 100%;
+    max-width: 80%; margin: 0 auto; width: 100%;
 }
 
 .messageRow { display: flex; gap: 16px; align-items: flex-start; }
 .userRow { justify-content: flex-end; }
+
+.deleteExchangeBtn {
+    background: transparent; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 4px; display: flex; align-items: center;
+    transition: 0.2s; align-self: center;
+}
+.deleteExchangeBtn:hover { color: #ff6b6b; transform: scale(1.1); }
 
 .botAvatar {
     width: 28px; height: 28px;
@@ -137,21 +185,81 @@
 /* --- Input Area --- */
 .inputWrapper { padding: 24px; display: flex; justify-content: center; width: 100%; }
 .inputContainer {
-    width: 100%; max-width: 700px; height: 52px;
-    background: var(--bg-panel); border-radius: 50px;
-    padding: 0 8px 0 24px; display: flex; align-items: center; gap: 12px;
+    width: 100%; max-width: 700px; min-height: 52px;
+    background: var(--bg-panel); border-radius: 26px;
+    padding: 8px 8px 8px 24px; display: flex; align-items: flex-end; gap: 12px;
     border: 1px solid var(--border); transition: 0.2s;
 }
 .inputContainer:focus-within { border-color: var(--accent); }
 
-input { flex: 1; background: transparent; border: none; color: white; font-size: 0.95rem; outline: none; }
-input::placeholder { color: #555; }
+.textarea {
+    flex: 1; background: transparent; border: none; color: white;
+    font-size: 0.95rem; outline: none; resize: none;
+    font-family: inherit; line-height: 1.5;
+    padding: 6px 0; margin: 0;
+    max-height: 150px; overflow-y: auto;
+}
+.textarea::placeholder { color: #555; }
 
 .sendBtn {
     width: 36px; height: 36px; border-radius: 50%; border: none;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background: transparent; color: #444; cursor: default;
+    flex-shrink: 0; align-self: center;
+    
+}
+
+
+/* Responsive input area for small screens */
+@media (max-width: 600px) {
+    .inputWrapper {
+        padding: 8px;
+    }
+
+    .inputContainer {
+        max-width: 85vw;
+        padding: 6px 6px 6px 12px;
+        border-radius: 16px;
+        gap: 6px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .textarea {
+        font-size: 0.85rem;
+        padding: 4px 0;
+    }
+
+    .sendBtn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+    }
+    
+
+    .contentArea {
+        flex: 1;
+        max-width: 85vw;
+        box-sizing: border-box;
+        width : 100%;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        margin: 0 auto;
+        overflow-y: scroll;
+    }
+
+    .messageList {
+        padding: 20px 8px 40px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 100%;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
 }
 
 .sendActive {
@@ -178,3 +286,8 @@ input::placeholder { color: #555; }
 }
 
 .emptyContainer h1 { font-size: 1.3rem; font-weight: 500; }
+
+.userText {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

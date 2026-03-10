@@ -63,9 +63,7 @@ def _ensure_dimension_match(red, green, blue, nir):
     return red, green, blue, nir
 
 
-def _calculate_and_save_index(
-    index_array, filename_prefix, rgb_filename, nir_filename, save_to_disk
-):
+def _calculate_and_save_index(index_array, filename_prefix, rgb_filename, nir_filename, save_to_disk):
     """Normalize index array, apply colormap, and save as PNG."""
     # Normalize from [-1,1] to [0,1]
     index_normalized = (index_array + 1) / 2
@@ -112,16 +110,10 @@ def _calculate_and_save_index(
     return result
 
 
-def compute_ndvi_image(
-    rgb_file: bytes,
-    nir_file: bytes,
-    rgb_filename: str = "rgb.png",
-    nir_filename: str = "nir.png",
-    save_to_disk: bool = True,
-) -> dict:
+def compute_ndvi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = True) -> dict:
     """
     Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
-
+    
     Returns:
         dict with keys:
         - 'image_bytes': PNG image as bytes
@@ -147,16 +139,10 @@ def compute_ndvi_image(
         return _calculate_and_save_index(ndvi, "ndvi", rgb_filename, nir_filename, save_to_disk)
 
 
-def compute_evi_image(
-    rgb_file: bytes,
-    nir_file: bytes,
-    rgb_filename: str = "rgb.png",
-    nir_filename: str = "nir.png",
-    save_to_disk: bool = True,
-) -> dict:
+def compute_evi_image(rgb_file: bytes, nir_file: bytes, rgb_filename: str = "rgb.png", nir_filename: str = "nir.png", save_to_disk: bool = True) -> dict:
     """
     Compute EVI (Enhanced Vegetation Index) from RGB and NIR images.
-
+    
     Returns:
         dict with keys:
         - 'image_bytes': PNG image as bytes

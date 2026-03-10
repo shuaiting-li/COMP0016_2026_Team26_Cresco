@@ -1,5 +1,7 @@
 """Tests for API endpoints."""
 
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -335,3 +337,214 @@ class TestWeatherEndpoint:
         response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 500
+
+
+class TestUploadFileEndpoint:
+    """Tests for the POST /upload endpoint."""
+
+    def test_upload_and_index_success(self, client):
+        """Test successful upload indexes the file and returns status='indexed'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload", new_callable=AsyncMock, return_value=5
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("report.md", b"# Report\nContent", "text/markdown")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["filename"] == "report.md"
+            assert data["status"] == "indexed"
+            assert data["chunks_indexed"] == 5
+
+    def test_upload_index_failure_returns_uploaded(self, client):
+        """Test that indexing failure still saves the file with status='uploaded'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with (
+                patch(
+                    "cresco.api.routes.index_user_upload",
+                    new_callable=AsyncMock,
+                    side_effect=Exception("PDF parse error"),
+                ),
+                patch(
+                    "cresco.api.routes.delete_user_upload",
+                    new_callable=AsyncMock,
+                ),
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("bad.pdf", b"%PDF-corrupt", "application/pdf")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "uploaded"
+            assert data["chunks_indexed"] == 0
+            # File should still be saved to disk
+            user_dir = mock_settings.uploads_dir / "test-user-id"
+            assert (user_dir / "bad.pdf").exists()
+
+    def test_upload_zero_chunks_returns_uploaded(self, client):
+        """Test that zero indexed chunks returns status='uploaded'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload", new_callable=AsyncMock, return_value=0
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("empty.txt", b"", "text/plain")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "uploaded"
+            assert data["chunks_indexed"] == 0
+
+    def test_upload_unsupported_extension_rejected(self, client):
+        """Test that unsupported file extensions are rejected with 400."""
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("malware.exe", b"binary", "application/octet-stream")},
+        )
+
+        assert response.status_code == 400
+        assert "unsupported" in response.json()["detail"].lower()
+
+
+class TestDeleteFileEndpoint:
+    """Tests for the DELETE /upload/{filename} endpoint."""
+
+    def test_delete_file_success(self, client):
+        """Test successful file deletion returns filename and chunks_removed."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            (user_dir / "report.md").write_text("test content")
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch("cresco.api.routes.delete_user_upload", return_value=5):
+                response = client.delete("/api/v1/upload/report.md")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["filename"] == "report.md"
+            assert data["status"] == "deleted"
+            assert data["chunks_removed"] == 5
+            # File should be removed from disk
+            assert not (user_dir / "report.md").exists()
+
+    def test_delete_file_not_found(self, client):
+        """Test 404 when file does not exist on disk."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.delete("/api/v1/upload/nonexistent.md")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_delete_file_scoped_to_user(self, client):
+        """Test that delete only targets the current user's upload directory."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            # Create file under a different user
+            other_dir = uploads_dir / "other-user"
+            other_dir.mkdir(parents=True)
+            (other_dir / "secret.md").write_text("private")
+            # Current user's directory does not have the file
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.delete("/api/v1/upload/secret.md")
+
+            assert response.status_code == 404
+            # Other user's file must remain untouched
+            assert (other_dir / "secret.md").exists()
+
+
+class TestDeleteLastExchangeEndpoint:
+    """Tests for the DELETE /chat/last-exchange endpoint."""
+
+    def test_delete_last_exchange_success(self, client):
+        """Test successful deletion returns 200 with status 'deleted'."""
+        response = client.delete("/api/v1/chat/last-exchange")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "deleted"
+
+    def test_delete_last_exchange_calls_agent(self, client):
+        """Test the endpoint delegates to agent.delete_last_exchange with the user's ID."""
+        from cresco.agent.agent import get_agent
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.delete_last_exchange.return_value = True
+        app.dependency_overrides[get_agent] = lambda: mock_agent
+
+        client.delete("/api/v1/chat/last-exchange")
+
+        mock_agent.delete_last_exchange.assert_called_once_with(
+            thread_id="test-user-id", user_id="test-user-id"
+        )
+
+    def test_delete_last_exchange_returns_404_when_empty(self, client):
+        """Test 404 response when there is no exchange to delete."""
+        from cresco.agent.agent import get_agent
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.delete_last_exchange.return_value = False
+        app.dependency_overrides[get_agent] = lambda: mock_agent
+
+        response = client.delete("/api/v1/chat/last-exchange")
+        assert response.status_code == 404
+        assert "no exchange" in response.json()["detail"].lower()

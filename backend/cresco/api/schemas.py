@@ -1,6 +1,5 @@
-"""Pydantic schemas for API request/response models."""
-
 from pydantic import BaseModel, Field
+from fastapi.responses import StreamingResponse
 
 
 class ChatRequest(BaseModel):
@@ -19,6 +18,7 @@ class ChatResponse(BaseModel):
     answer: str = Field(..., description="AI-generated response")
     sources: list[str] = Field(default_factory=list, description="Source documents used")
     tasks: list[dict] = Field(default_factory=list, description="Suggested action plan tasks")
+    charts: list[dict] = Field(default_factory=list, description="Charts included in the response")
     conversation_id: str | None = Field(None, description="Conversation ID for follow-up")
 
 
@@ -49,3 +49,4 @@ class FileUploadResponse(BaseModel):
 
     filename: str = Field(..., description="Name of the uploaded file")
     status: str = Field(..., description="Upload status")
+

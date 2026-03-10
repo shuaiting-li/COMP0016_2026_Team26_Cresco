@@ -7,8 +7,11 @@ import pytest
 from langchain_core.documents import Document
 
 from cresco.rag.document_loader import (
+    SHARED_USER_ID,
     _categorize_document,
+    _load_documents_from_dir,
     load_knowledge_base,
+    load_user_documents,
     split_documents,
 )
 
@@ -122,6 +125,187 @@ class TestLoadKnowledgeBase:
             documents = load_knowledge_base(mock_settings)
 
             assert documents[0].metadata.get("category") == "disease_management"
+
+    def test_stamps_shared_user_id(self, temp_knowledge_base, mock_settings):
+        """Test shared knowledge base docs are stamped with SHARED_USER_ID."""
+        mock_settings.knowledge_base_path = str(temp_knowledge_base)
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
+            mock_doc = MagicMock()
+            mock_doc.page_content = "Test content"
+            mock_doc.metadata = {"source": str(temp_knowledge_base / "test.md")}
+            mock_loader.return_value.load.return_value = [mock_doc]
+
+            documents = load_knowledge_base(mock_settings)
+
+            assert documents[0].metadata["user_id"] == SHARED_USER_ID
+
+
+class TestLoadUserDocuments:
+    """Tests for user document loading."""
+
+    def test_returns_empty_for_missing_directory(self, tmp_path):
+        """Test returns empty list when directory doesn't exist."""
+        result = load_user_documents(tmp_path / "nonexistent")
+        assert result == []
+
+    def test_loads_documents_from_user_directory(self, tmp_path):
+        """Test documents are loaded from user upload directory."""
+        user_dir = tmp_path / "user1"
+        user_dir.mkdir()
+        (user_dir / "report.md").write_text("# My Report\nSome content")
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
+            mock_doc = MagicMock()
+            mock_doc.page_content = "# My Report\nSome content"
+            mock_doc.metadata = {"source": str(user_dir / "report.md")}
+            mock_loader.return_value.load.return_value = [mock_doc]
+
+            documents = load_user_documents(user_dir)
+
+            assert len(documents) > 0
+            assert documents[0].metadata["filename"] == "report.md"
+
+    def test_forwards_filename_to_loader(self, tmp_path):
+        """Test filename parameter is forwarded to _load_documents_from_dir."""
+        user_dir = tmp_path / "user1"
+        user_dir.mkdir()
+
+        with patch("cresco.rag.document_loader._load_documents_from_dir") as mock_load:
+            mock_load.return_value = []
+            load_user_documents(user_dir, filename="report.pdf")
+
+            mock_load.assert_called_once_with(user_dir, filename="report.pdf")
+
+    def test_does_not_stamp_user_id(self, tmp_path):
+        """Test load_user_documents does NOT set user_id — caller is responsible."""
+        user_dir = tmp_path / "user1"
+        user_dir.mkdir()
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_loader:
+            mock_doc = MagicMock()
+            mock_doc.page_content = "content"
+            mock_doc.metadata = {"source": str(user_dir / "file.txt")}
+            mock_loader.return_value.load.return_value = [mock_doc]
+
+            documents = load_user_documents(user_dir)
+
+            # user_id should NOT be set by load_user_documents
+            assert "user_id" not in documents[0].metadata
+
+
+class TestLoadDocumentsFromDir:
+    """Tests for the _load_documents_from_dir helper."""
+
+    def test_uses_text_loader_for_text_files(self, tmp_path):
+        """Test that text-based extensions use TextLoader."""
+        (tmp_path / "notes.md").write_text("# Notes")
+
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            # At least one call should use TextLoader for .md
+            text_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("loader_cls").__name__ == "TextLoader"
+                or (len(c.args) > 2 and getattr(c.args[2], "__name__", "") == "TextLoader")
+            ]
+            assert len(text_calls) > 0
+
+    def test_uses_pypdf_loader_for_pdf_files(self, tmp_path):
+        """Test that .pdf extension uses PyPDFLoader instead of TextLoader."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            # Find the call that uses glob "**/*.pdf"
+            pdf_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("glob") == "**/*.pdf"
+                or (len(c.args) > 1 and c.args[1] == "**/*.pdf")
+            ]
+            assert len(pdf_calls) == 1
+            pdf_call = pdf_calls[0]
+            loader_cls = pdf_call.kwargs.get("loader_cls")
+            assert loader_cls.__name__ == "PyPDFLoader"
+
+    def test_single_filename_uses_specific_glob(self, tmp_path):
+        """Test that filename param uses a specific glob with PyPDFLoader."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path, filename="report.pdf")
+
+            mock_dir.assert_called_once()
+            call_kwargs = mock_dir.call_args.kwargs
+            assert call_kwargs["glob"] == "**/report.pdf"
+            assert call_kwargs["loader_cls"].__name__ == "PyPDFLoader"
+
+    def test_single_filename_text_uses_text_loader(self, tmp_path):
+        """Test that filename param with text extension uses TextLoader."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path, filename="notes.md")
+
+            mock_dir.assert_called_once()
+            call_kwargs = mock_dir.call_args.kwargs
+            assert call_kwargs["glob"] == "**/notes.md"
+            assert call_kwargs["loader_cls"].__name__ == "TextLoader"
+
+    def test_single_filename_unknown_ext_returns_empty(self, tmp_path):
+        """Test that unsupported extension returns empty list."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            result = _load_documents_from_dir(tmp_path, filename="image.png")
+
+            mock_dir.assert_not_called()
+            assert result == []
+
+    def test_pdf_loader_has_no_encoding_kwarg(self, tmp_path):
+        """Test that PyPDFLoader calls don't pass encoding (binary loader)."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            pdf_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("glob") == "**/*.pdf"
+                or (len(c.args) > 1 and c.args[1] == "**/*.pdf")
+            ]
+            assert len(pdf_calls) == 1
+            # loader_kwargs with encoding should NOT be present
+            assert "loader_kwargs" not in pdf_calls[0].kwargs
+
+
+class TestSilentErrorHandling:
+    """Tests for silent_errors=True on DirectoryLoader calls."""
+
+    def test_text_loader_uses_silent_errors(self, tmp_path):
+        """Test that text-based DirectoryLoader calls pass silent_errors=True."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            text_calls = [
+                c
+                for c in mock_dir.call_args_list
+                if c.kwargs.get("loader_cls").__name__ == "TextLoader"
+            ]
+            assert len(text_calls) > 0
+            for call in text_calls:
+                assert call.kwargs.get("silent_errors") is True
+
+    def test_pdf_loader_uses_silent_errors(self, tmp_path):
+        """Test that PDF DirectoryLoader calls pass silent_errors=True."""
+        with patch("cresco.rag.document_loader.DirectoryLoader") as mock_dir:
+            mock_dir.return_value.load.return_value = []
+            _load_documents_from_dir(tmp_path)
+
+            pdf_calls = [c for c in mock_dir.call_args_list if c.kwargs.get("glob") == "**/*.pdf"]
+            assert len(pdf_calls) == 1
+            assert pdf_calls[0].kwargs.get("silent_errors") is True
 
 
 class TestSplitDocuments:

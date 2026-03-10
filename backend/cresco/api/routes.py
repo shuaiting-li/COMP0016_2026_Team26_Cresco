@@ -1,12 +1,10 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
-import io
 import shutil
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, FastAPI
 from pydantic import BaseModel
 
 from cresco import __version__
@@ -14,28 +12,30 @@ from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
 from cresco.rag.indexer import index_knowledge_base, is_indexed
-from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
+from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
+import shutil
+from pathlib import Path
+from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse, FileResponse
+from cresco.rag.indexer import index_knowledge_base
 
 from .schemas import (
     ChatRequest,
     ChatResponse,
+    FarmData,
+    FileDeleteResponse,
     FileUploadResponse,
     HealthResponse,
     IndexRequest,
     IndexResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 # In-memory storage for farm data
 farm_data = {}
-
-
-class FarmData(BaseModel):
-    location: str
-    area: float
-    lat: float | None = None
-    lon: float | None = None
 
 
 @router.post("/farm-data")
@@ -51,6 +51,7 @@ async def save_farm_data(
             "area": farm.area,
             "lat": farm.lat,
             "lon": farm.lon,
+            "nodes": farm.nodes if farm.nodes is not None else [],
         }
 
         # Auto-fetch weather if coordinates are provided
@@ -193,21 +194,50 @@ async def chat(
 
         user_id = current_user["user_id"]
         if request.files and len(request.files) > 0:
-            file_context = "\n\n[Uploaded Files Context]:\n"
-            for file in request.files:
-                file_name = file.get("name", "unknown")
-                file_content = file.get("content", "")
-                file_context += f"\n--- {file_name} ---\n{file_content}\n"
-            message = message + file_context
+            names = ", ".join(f.get("name", "unknown") for f in request.files)
+            message += (
+                f"\n\n[The user has uploaded the following files which are "
+                f"indexed in the knowledge base — use the retrieval tool to "
+                f"search their contents: {names}]"
+            )
+        logger.info(
+            "Chat request from user '%s': message length=%d, files=%s",
+            user_id,
+            len(message),
+            request.files,
+        )
+        print("Full message to agent: %s", message)
         result = await agent.chat(message, thread_id=user_id, user_id=user_id)
+        logger.info(
+            "Chat response: answer length=%d, sources=%d, tasks=%d, charts=%d",
+            len(result["answer"]),
+            len(result.get("sources", [])),
+            len(result.get("tasks", [])),
+            len(result.get("charts", [])),
+        )
         return ChatResponse(
             answer=result["answer"],
             sources=result.get("sources", []),
             tasks=result.get("tasks", []),
+            charts=result.get("charts", []),
             conversation_id=request.conversation_id,
         )
     except Exception as e:
+        logger.exception("Chat error for user '%s'", current_user.get("user_id", "?"))
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
+
+@router.delete("/chat/last-exchange", tags=["Chat"])
+async def delete_last_exchange(
+    current_user: dict = Depends(get_current_user),
+    agent: CrescoAgent = Depends(get_agent),
+):
+    """Delete the last user-assistant exchange from the agent's memory."""
+    user_id = current_user["user_id"]
+    deleted = await agent.delete_last_exchange(thread_id=user_id, user_id=user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No exchange to delete")
+    return {"status": "deleted"}
 
 
 @router.post("/upload", response_model=FileUploadResponse, tags=["Files"])
@@ -216,8 +246,21 @@ async def upload_file(
     current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ):
+    from cresco.rag.document_loader import SUPPORTED_EXTENSIONS
+
     try:
-        upload_dir = settings.knowledge_base
+        # Validate file extension
+        file_ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        if file_ext not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{file_ext}'. "
+                f"Accepted: {', '.join(SUPPORTED_EXTENSIONS)}",
+            )
+
+        # Save to per-user upload directory (not the shared knowledge base)
+        user_id = current_user["user_id"]
+        upload_dir = settings.uploads_dir / user_id
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         filename = file.filename if file.filename else "unknown"
@@ -225,12 +268,36 @@ async def upload_file(
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Trigger reindexing
-        await index_knowledge_base(settings, force=False, upload_file=filename)
+        # Index with user_id metadata so retrieval is scoped
+        chunks_indexed = 0
+        try:
+            chunks_indexed = await index_user_upload(settings, user_id=user_id, filename=filename)
+        except Exception:
+            logger.exception("Indexing failed for '%s' (user '%s')", filename, user_id)
+            # Roll back any partially indexed chunks for this user/file to keep state consistent
+            try:
+                await delete_user_upload(settings, user_id=user_id, filename=filename)
+            except Exception:
+                logger.exception(
+                    "Failed to roll back indexed chunks for '%s' (user '%s') after indexing error",
+                    filename,
+                    user_id,
+                )
+                # Surface a server error if we cannot guarantee a consistent index state
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to index and roll back uploaded file;"
+                    " index state may be inconsistent.",
+                )
+
+        status = "indexed" if chunks_indexed > 0 else "uploaded"
         return FileUploadResponse(
             filename=filename,
-            status="indexed",
+            status=status,
+            chunks_indexed=chunks_indexed,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
@@ -241,9 +308,7 @@ async def upload_file_drone(
 ):
     try:
         if len(files) != 2:
-            raise HTTPException(
-                status_code=400, detail="Exactly 2 files (NIR and RGB) are required"
-            )
+            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
 
         rgb = await files[0].read()
         nir = await files[1].read()
@@ -283,6 +348,33 @@ async def get_ndvi_image(filename: str):
         raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
 
 
+@router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
+async def delete_file(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Delete a user-uploaded file and its indexed chunks."""
+    user_id = current_user["user_id"]
+    upload_dir = settings.uploads_dir / user_id
+    file_path = upload_dir / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
+
+    # Remove chunks from ChromaDB
+    chunks_deleted = delete_user_upload(settings, user_id=user_id, filename=filename)
+
+    # Remove file from disk
+    file_path.unlink()
+
+    return FileDeleteResponse(
+        filename=filename,
+        status="deleted",
+        chunks_removed=chunks_deleted,
+    )
+
+
 @router.post("/index", response_model=IndexResponse, tags=["System"])
 async def index_documents(
     request: IndexRequest,
@@ -299,3 +391,31 @@ async def index_documents(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Indexing error: {str(e)}")
+
+
+@router.post("/satellite-image", tags=["System"])
+async def satellite_image(
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Index or re-index the knowledge base documents."""
+    try:
+        user_id = current_user["user_id"]
+        if user_id in farm_data:
+            lat = farm_data[user_id]["lat"]
+            lon = farm_data[user_id]["lon"]
+        else:
+            raise HTTPException(status_code=404, detail="No farm data found for the user")
+        print(f"Received request for satellite image with lat={lat}, lon={lon}")  # Debug log
+        result = await satellite_images_main(lat, lon)
+        if result is None:
+            # Upstream satellite image generation failed; surface a clear error.
+            raise HTTPException(
+                status_code=502,
+                detail="Failed to generate satellite image from upstream service",
+            )
+
+        return StreamingResponse(io.BytesIO(result), media_type="image/png")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"satellite image error: {str(e)}")

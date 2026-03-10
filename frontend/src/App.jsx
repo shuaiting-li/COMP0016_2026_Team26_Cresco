@@ -4,17 +4,12 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import {
-    sendMessage,
-    uploadAndIndexFile,
-    isLoggedIn,
-    logout,
-    getUsername,
-    deleteAccount,
-} from './services/api';
+import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
+import SatelliteImagery from './satellite_imagery';
+
 
 const layoutStyle = {
     display: 'flex',
@@ -32,7 +27,11 @@ function App() {
     const [isSatelliteOpen, setIsSatelliteOpen] = useState(false);
     const [isWeatherOpen, setIsWeatherOpen] = useState(false);
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
+    const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
+    const [leftCollapsed, setLeftCollapsed] = useState(false);
+    const [rightCollapsed, setRightCollapsed] = useState(false);
+
 
     const handleAuth = () => setAuthenticated(true);
 
@@ -60,23 +59,48 @@ function App() {
         return <AuthPage onAuth={handleAuth} />;
     }
 
-    const handleFileUpload = async (e) => {
+    const handleFileUpload = async (filesToUpload) => {
         setIsLoading(true);
-        const uploadedFiles = Array.from(e.target.files);
+        // filesToUpload could be an event (from input change) or an array of files (from drop)
+        const uploadedFiles = filesToUpload.target ? Array.from(filesToUpload.target.files) : filesToUpload;
         console.log("Uploading files:");
         for (const file of uploadedFiles) {
             try {
                 await uploadAndIndexFile(file);
                 setFiles(prev => [...prev, file]);
-                setIsLoading(false);
             } catch {
                 console.error("Failed to upload and index:", file.name);
             }
-        };
+        }
+        setIsLoading(false);
     };
 
-    const handleRemoveFile = (index) => {
-        setFiles(files.filter((_, i) => i !== index));
+    const handleRemoveFile = async (index) => {
+        const file = files[index];
+        setFiles(prev => prev.filter((_, i) => i !== index));
+        try {
+            await deleteUploadedFile(file.name);
+        } catch (error) {
+            console.error('Failed to delete file from server:', error);
+        }
+    };
+
+    const handleDeleteLastExchange = async () => {
+        setMessages(prev => {
+            if (prev.length < 2) return prev;
+            const last = prev[prev.length - 1];
+            const secondLast = prev[prev.length - 2];
+            if (last.role === 'assistant' && secondLast.role === 'user') {
+                return prev.slice(0, -2);
+            }
+            return prev;
+        });
+
+        try {
+            await deleteLastExchange();
+        } catch (error) {
+            console.error('Failed to delete exchange from agent memory:', error);
+        }
     };
 
     const handleSendMessage = async (text) => {
@@ -105,6 +129,7 @@ function App() {
                     role: 'assistant',
                     content: response.reply,
                     tasks: response.tasks,
+                    charts: response.charts,
                     citations: response.citations
                 }
             ]);
@@ -148,31 +173,94 @@ function App() {
         setIsDroneImageryOpen(false);
     };
 
+    const handleOpenSatelliteImagery = () => {
+        setIsSatelliteImageryOpen(true);
+    };
+
+    const handleCloseSatelliteImagery = () => {
+        setIsSatelliteImageryOpen(false);
+    };
+
     return (
         <div className="app-container">
-            <Header
-                onLogout={handleLogout}
-                onDeleteAccount={handleDeleteAccount}
-                username={getUsername()}
-            />
+            <Header onLogout={handleLogout} username={getUsername()} />
             <div style={layoutStyle}>
-                <SidebarLeft
-                    files={files}
-                    onUpload={handleFileUpload}
-                    onRemove={handleRemoveFile}
-                />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {!leftCollapsed && (
+                    <SidebarLeft
+                        files={files}
+                        onUpload={handleFileUpload}
+                        onRemove={handleRemoveFile}
+                        collapsed={leftCollapsed}
+                        onCollapse={() => setLeftCollapsed(true)}
+                    />
+                )}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
                     <ChatArea
                         messages={messages}
                         onSendMessage={handleSendMessage}
+                        onDeleteLastExchange={handleDeleteLastExchange}
                         isLoading={isLoading}
+                        farmLocation={farmLocation}
                     />
+                    {leftCollapsed && (
+                        <button
+                            style={{
+                                position: 'absolute',
+                                top: '10%',
+                                left: 0,
+                                zIndex: 100,
+                                background: 'var(--bg-app)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '50%',
+                                width: 32,
+                                height: 32,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--accent)'
+                            }}
+                            onClick={() => setLeftCollapsed(false)}
+                            aria-label="Show left sidebar"
+                        >
+                            <span style={{ fontSize: 18 }}>&#x25B6;</span>
+                        </button>
+                    )}
+                    {rightCollapsed && (
+                        <button
+                            style={{
+                                position: 'absolute',
+                                top: '10%',
+                                right: 0,
+                                zIndex: 100,
+                                background: 'var(--bg-app)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '50%',
+                                width: 32,
+                                height: 32,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--accent)'
+                            }}
+                            onClick={() => setRightCollapsed(false)}
+                            aria-label="Show right sidebar"
+                        >
+                            <span style={{ fontSize: 18 }}>&#x25C0;</span>
+                        </button>
+                    )}
                 </div>
-                <SidebarRight
-                    handleOpenSatellite={handleOpenSatellite}
-                    handleOpenWeather={handleOpenWeather}
-                    handleOpenDroneImagery={handleOpenDroneImagery}
-                />
+                {!rightCollapsed && (
+                    <SidebarRight
+                        handleOpenSatellite={handleOpenSatellite}
+                        handleOpenWeather={handleOpenWeather}
+                        handleOpenDroneImagery={handleOpenDroneImagery}
+                        handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                        collapsed={rightCollapsed}
+                        onCollapse={() => setRightCollapsed(true)}
+                    />
+                )}
             </div>
 
             {isSatelliteOpen && (
@@ -261,6 +349,63 @@ function App() {
                             X
                         </button>
                         <DroneImagery />
+                    </div>
+                </div>
+            )}
+
+
+            {isSatelliteImageryOpen && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        position: 'relative',
+                        width: '80%',
+                        height: '80%',
+                        backgroundColor: '#0f1110',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                    }}>
+                        <button
+                            onClick={handleCloseSatelliteImagery}
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                backgroundColor: 'red',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            X
+                        </button>
+                        {farmLocation ? (
+                            <SatelliteImagery />
+                        ) : (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                height: '100%',
+                                fontSize: '18px',
+                                color: 'white'
+                            }}>
+                                Please select a farm location first.
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
