@@ -9,7 +9,7 @@ import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from cresco import __version__
+from cresco import __version__, db
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
@@ -33,14 +33,13 @@ from .schemas import (
     HealthResponse,
     IndexRequest,
     IndexResponse,
+    UploadedFileInfo,
+    UploadedFilesResponse,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# In-memory storage for farm data
-farm_data = {}
 
 
 @router.post("/farm-data")
@@ -51,37 +50,43 @@ async def save_farm_data(
 ):
     try:
         user_id = current_user["user_id"]
-        farm_data[user_id] = {
+        data = {
             "location": farm.location,
             "area": farm.area,
             "lat": farm.lat,
             "lon": farm.lon,
             "nodes": farm.nodes if farm.nodes is not None else [],
         }
+        db.save_farm_data(settings.database_path, user_id, data)
 
         # Auto-fetch weather if coordinates are provided
         if farm.lat is not None and farm.lon is not None:
             api_key = settings.openweather_api_key
             if api_key:
-                await fetch_weather(user_id, farm.lat, farm.lon, api_key)
+                await fetch_weather(user_id, farm.lat, farm.lon, api_key, settings.database_path)
                 # Failure is silent — user can still open the weather panel manually
 
-        return {"message": "Farm data saved successfully", "data": farm_data[user_id]}
+        saved = db.get_farm_data(settings.database_path, user_id)
+        return {"message": "Farm data saved successfully", "data": saved}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
 @router.get("/farm-data")
-async def get_farm_data(current_user: dict = Depends(get_current_user)):
+async def get_farm_data(
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
     user_id = current_user["user_id"]
-    if user_id in farm_data:
-        return {"data": farm_data[user_id]}
+    data = db.get_farm_data(settings.database_path, user_id)
+    if data is not None:
+        return {"data": data}
     else:
         raise HTTPException(status_code=404, detail="No farm data found for the user")
 
 
-async def fetch_weather(user_id: str, lat: float, lon: float, api_key: str) -> bool:
-    """Fetch weather + forecast from OWM and store in farm_data. Returns True on success."""
+async def fetch_weather(user_id: str, lat: float, lon: float, api_key: str, db_path: str) -> bool:
+    """Fetch weather + forecast from OWM and store in the database. Returns True on success."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             weather_resp, forecast_resp = await asyncio.gather(
@@ -98,13 +103,12 @@ async def fetch_weather(user_id: str, lat: float, lon: float, api_key: str) -> b
             forecast_resp.raise_for_status()
 
         weather_json = weather_resp.json()
-        if user_id not in farm_data:
-            farm_data[user_id] = {}
-        farm_data[user_id]["weather"] = {
+        weather_dict = {
             "location": weather_json.get("name", "Unknown"),
             "current_weather": weather_json,
             "forecast": forecast_resp.json(),
         }
+        db.update_farm_weather(db_path, user_id, weather_dict)
         return True
     except httpx.HTTPError:
         return False
@@ -125,11 +129,15 @@ async def get_weather(
         )
 
     user_id = current_user["user_id"]
-    success = await fetch_weather(user_id, lat, lon, api_key)
+    success = await fetch_weather(user_id, lat, lon, api_key, settings.database_path)
     if not success:
         raise HTTPException(status_code=502, detail="Weather API request failed.")
 
-    weather_block = farm_data[user_id]["weather"]
+    data = db.get_farm_data(settings.database_path, user_id)
+    weather_block = data.get("weather") if data else None
+    if not weather_block:
+        raise HTTPException(status_code=502, detail="Weather data could not be stored.")
+
     return {
         "current_weather": weather_block["current_weather"],
         "forecast": weather_block["forecast"],
@@ -307,6 +315,20 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 
 
+@router.get("/uploads", response_model=UploadedFilesResponse, tags=["Files"])
+async def list_uploads(
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """List uploaded files for the current user."""
+    user_id = current_user["user_id"]
+    upload_dir = settings.uploads_dir / user_id
+    if not upload_dir.exists():
+        return UploadedFilesResponse(files=[])
+    files = [UploadedFileInfo(name=f.name) for f in sorted(upload_dir.iterdir()) if f.is_file()]
+    return UploadedFilesResponse(files=files)
+
+
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
     files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
@@ -408,9 +430,10 @@ async def satellite_image(
     """Index or re-index the knowledge base documents."""
     try:
         user_id = current_user["user_id"]
-        if user_id in farm_data:
-            lat = farm_data[user_id]["lat"]
-            lon = farm_data[user_id]["lon"]
+        user_farm = db.get_farm_data(settings.database_path, user_id)
+        if user_farm and user_farm.get("lat") is not None and user_farm.get("lon") is not None:
+            lat = user_farm["lat"]
+            lon = user_farm["lon"]
         else:
             raise HTTPException(status_code=404, detail="No farm data found for the user")
         print(f"Received request for satellite image with lat={lat}, lon={lon}")  # Debug log
