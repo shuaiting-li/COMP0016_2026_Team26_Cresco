@@ -58,15 +58,13 @@ class TestGetWeatherDataTool:
     """Tests for the get_weather_data agent tool."""
 
     def _make_farm_data(self, *, with_weather=True):
-        """Build a sample farm_data dict for a test user."""
+        """Build a sample farm_data dict for a test user (flat, no user_id key)."""
         data = {
-            "user-123": {
-                "location": "Cambridge, UK",
-                "area": 1.5,
-            }
+            "location": "Cambridge, UK",
+            "area": 1.5,
         }
         if with_weather:
-            data["user-123"]["weather"] = {
+            data["weather"] = {
                 "location": "Cambridge",
                 "current_weather": SAMPLE_WEATHER,
                 "forecast": SAMPLE_FORECAST,
@@ -75,8 +73,11 @@ class TestGetWeatherDataTool:
 
     def test_returns_weather_when_available(self, weather_tool):
         """Test tool returns formatted weather when farm + weather data exist."""
-        farm = self._make_farm_data()
-        with patch("cresco.api.routes.farm_data", farm):
+        user_data = self._make_farm_data()
+        with (
+            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.config.get_settings"),
+        ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
 
         assert "Cambridge" in result
@@ -87,7 +88,10 @@ class TestGetWeatherDataTool:
 
     def test_returns_instruction_when_no_farm_data(self, weather_tool):
         """Test tool instructs user to set up farm when no data exists."""
-        with patch("cresco.api.routes.farm_data", {}):
+        with (
+            patch("cresco.db.get_farm_data", return_value=None),
+            patch("cresco.config.get_settings"),
+        ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
 
         assert "satellite map" in result.lower()
@@ -95,32 +99,43 @@ class TestGetWeatherDataTool:
 
     def test_returns_instruction_when_no_weather_data(self, weather_tool):
         """Test tool instructs user when weather is missing from farm data."""
-        farm = self._make_farm_data(with_weather=False)
-        with patch("cresco.api.routes.farm_data", farm):
+        user_data = self._make_farm_data(with_weather=False)
+        with (
+            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.config.get_settings"),
+        ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
 
         assert "weather" in result.lower()
 
     def test_unknown_user_id(self, weather_tool):
         """Test tool handles unknown user_id gracefully."""
-        farm = self._make_farm_data()
-        with patch("cresco.api.routes.farm_data", farm):
+        with (
+            patch("cresco.db.get_farm_data", return_value=None),
+            patch("cresco.config.get_settings"),
+        ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "unknown-user"}})
 
         assert "no farm data" in result.lower()
 
     def test_forecast_includes_rain(self, weather_tool):
         """Test forecast entry with rain data is formatted."""
-        farm = self._make_farm_data()
-        with patch("cresco.api.routes.farm_data", farm):
+        user_data = self._make_farm_data()
+        with (
+            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.config.get_settings"),
+        ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
 
         assert "rain" in result.lower()
 
     def test_forecast_missing_rain_defaults_to_zero(self, weather_tool):
         """Test forecast entry without rain data defaults to 0."""
-        farm = self._make_farm_data()
-        with patch("cresco.api.routes.farm_data", farm):
+        user_data = self._make_farm_data()
+        with (
+            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.config.get_settings"),
+        ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
 
         # The 2026-02-26 entry has no rain key → should show 0

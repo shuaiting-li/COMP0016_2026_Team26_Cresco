@@ -273,14 +273,21 @@ class TestWeatherEndpoint:
 
     def test_weather_returns_current_and_forecast(self, client):
         """Test weather endpoint returns both current weather and forecast data."""
+        weather_json = {
+            "name": "London",
+            "main": {"temp": 15},
+            "weather": [{"description": "clear"}],
+        }
+        forecast_json = {"list": [{"dt": 1700000000, "main": {"temp": 14}}]}
+
         mock_weather = httpx.Response(
             200,
-            json={"name": "London", "main": {"temp": 15}, "weather": [{"description": "clear"}]},
+            json=weather_json,
             request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/weather"),
         )
         mock_forecast = httpx.Response(
             200,
-            json={"list": [{"dt": 1700000000, "main": {"temp": 14}}]},
+            json=forecast_json,
             request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/forecast"),
         )
 
@@ -289,15 +296,21 @@ class TestWeatherEndpoint:
                 return mock_forecast
             return mock_weather
 
-        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+        with (
+            patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls,
+            patch("cresco.api.routes.db") as mock_db,
+        ):
             mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=fake_get
             )
-            with patch("cresco.api.routes.get_settings") as mock_gs:
-                mock_s = MagicMock()
-                mock_s.openweather_api_key = "test-key"
-                mock_gs.return_value = mock_s
-                response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+            mock_db.get_farm_data.return_value = {
+                "weather": {
+                    "location": "London",
+                    "current_weather": weather_json,
+                    "forecast": forecast_json,
+                }
+            }
+            response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 200
         data = response.json()
@@ -316,11 +329,7 @@ class TestWeatherEndpoint:
             mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=httpx.HTTPError("Connection refused")
             )
-            with patch("cresco.api.routes.get_settings") as mock_gs:
-                mock_s = MagicMock()
-                mock_s.openweather_api_key = "test-key"
-                mock_gs.return_value = mock_s
-                response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+            response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 502
 
@@ -548,3 +557,112 @@ class TestDeleteLastExchangeEndpoint:
         response = client.delete("/api/v1/chat/last-exchange")
         assert response.status_code == 404
         assert "no exchange" in response.json()["detail"].lower()
+
+
+class TestListUploadsEndpoint:
+    """Tests for the GET /uploads endpoint."""
+
+    def test_list_uploads_returns_files(self, client):
+        """Test listing uploaded files returns correct file names."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            (user_dir / "file_a.md").write_text("content a")
+            (user_dir / "file_b.txt").write_text("content b")
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.get("/api/v1/uploads")
+
+        assert response.status_code == 200
+        names = [f["name"] for f in response.json()["files"]]
+        assert "file_a.md" in names
+        assert "file_b.txt" in names
+
+    def test_list_uploads_empty_when_no_directory(self, client):
+        """Test listing uploads when no user directory exists returns empty list."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "nonexistent"
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.get("/api/v1/uploads")
+
+        assert response.status_code == 200
+        assert response.json() == {"files": []}
+
+    def test_list_uploads_scoped_to_user(self, client):
+        """Test listing uploads returns only the current user's files."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            # Current user has one file
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            (user_dir / "my_file.md").write_text("mine")
+            # Other user also has a file
+            other_dir = uploads_dir / "other-user"
+            other_dir.mkdir(parents=True)
+            (other_dir / "other_file.md").write_text("theirs")
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.get("/api/v1/uploads")
+
+        assert response.status_code == 200
+        names = [f["name"] for f in response.json()["files"]]
+        assert "my_file.md" in names
+        assert "other_file.md" not in names
+
+
+class TestFarmDataPersistence:
+    """Tests for farm data persistence via SQLite."""
+
+    def test_save_and_get_farm_data(self, client):
+        """Test POST then GET round-trips farm data through the database."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_s = MagicMock()
+            mock_s.database_path = str(Path(tmpdir) / "test.db")
+            mock_s.openweather_api_key = ""
+            app.dependency_overrides[get_settings] = lambda: mock_s
+
+            response = client.post(
+                "/api/v1/farm-data",
+                json={"location": "Kent, UK", "area": 50.0, "lat": 51.27, "lon": 0.52},
+            )
+            assert response.status_code == 200
+
+            response = client.get("/api/v1/farm-data")
+            assert response.status_code == 200
+            data = response.json()["data"]
+            assert data["location"] == "Kent, UK"
+            assert data["area"] == 50.0
+
+    def test_get_farm_data_404_when_empty(self, client):
+        """Test GET /farm-data returns 404 when no data has been saved."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_s = MagicMock()
+            mock_s.database_path = str(Path(tmpdir) / "test.db")
+            app.dependency_overrides[get_settings] = lambda: mock_s
+
+            response = client.get("/api/v1/farm-data")
+            assert response.status_code == 404

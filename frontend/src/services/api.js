@@ -304,6 +304,32 @@ export async function saveFarmData(farmData) {
 }
 
 /**
+ * Fetch saved farm data for the current user.
+ * @returns {Promise<object|null>} The farm data object, or null if none exists.
+ */
+export async function fetchFarmData() {
+    const response = await fetch(`${API_BASE_URL}/farm-data`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (response.status === 404) {
+        return null;
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch farm data (${response.status})`);
+    }
+
+    const json = await response.json();
+    return json.data;
+}
+
+/**
  * Fetch current weather and forecast for given coordinates via the backend proxy.
  * The backend fetches from OpenWeatherMap (keeping the API key server-side) and stores the data.
  * @param {number} lat
@@ -354,6 +380,28 @@ export async function deleteLastExchange() {
     }
 
     return await response.json();
+}
+
+/**
+ * Fetch the list of uploaded files for the current user.
+ * @returns {Promise<Array<{name: string}>>}
+ */
+export async function fetchUploadedFiles() {
+    const response = await fetch(`${API_BASE_URL}/uploads`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch uploaded files (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.files;
 }
 
 export const deleteUploadedFile = async (filename) => {
