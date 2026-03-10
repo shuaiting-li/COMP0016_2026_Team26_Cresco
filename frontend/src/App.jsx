@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from './layout/Header';
 import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, deleteUploadedFile, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
+import { sendMessage, uploadAndIndexFile, deleteUploadedFile, fetchUploadedFiles, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
@@ -32,6 +32,13 @@ function App() {
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
 
+    useEffect(() => {
+        if (authenticated) {
+            fetchUploadedFiles()
+                .then(serverFiles => setFiles(serverFiles))
+                .catch(err => console.error('Failed to fetch uploaded files:', err));
+        }
+    }, [authenticated]);
 
     const handleAuth = () => setAuthenticated(true);
 

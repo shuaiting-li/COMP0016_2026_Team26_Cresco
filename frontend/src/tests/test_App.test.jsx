@@ -11,6 +11,8 @@ import userEvent from '@testing-library/user-event';
 vi.mock('../services/api', () => ({
     sendMessage: vi.fn(),
     uploadAndIndexFile: vi.fn(),
+    deleteUploadedFile: vi.fn(),
+    fetchUploadedFiles: vi.fn(() => Promise.resolve([])),
     isLoggedIn: vi.fn(() => false),
     logout: vi.fn(),
     getUsername: vi.fn(() => 'testuser'),

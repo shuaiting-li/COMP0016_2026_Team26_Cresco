@@ -331,6 +331,28 @@ export async function deleteLastExchange() {
     return await response.json();
 }
 
+/**
+ * Fetch the list of uploaded files for the current user.
+ * @returns {Promise<Array<{name: string}>>}
+ */
+export async function fetchUploadedFiles() {
+    const response = await fetch(`${API_BASE_URL}/uploads`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch uploaded files (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.files;
+}
+
 export const deleteUploadedFile = async (filename) => {
     const response = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
         method: 'DELETE',

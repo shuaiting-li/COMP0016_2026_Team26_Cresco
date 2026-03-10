@@ -31,7 +31,7 @@ def mock_settings():
             debug=True,
             jwt_secret_key="test-secret-key-for-testing-only",
             jwt_expiry_hours=24,
-            users_file=str(Path(tmpdir) / "users.json"),
+            database_path=str(Path(tmpdir) / "cresco.db"),
         )
         # Create the knowledge base directory
         Path(settings.knowledge_base_path).mkdir(parents=True, exist_ok=True)
@@ -126,21 +126,21 @@ def client():
 
 
 @pytest.fixture
-def tmp_users_file(mock_settings):
-    """Ensure users_file points to a temporary file and is clean for each test."""
-    users_path = Path(mock_settings.users_file)
-    users_path.parent.mkdir(parents=True, exist_ok=True)
-    # Start with empty users
-    users_path.write_text('{"users": {}}', encoding="utf-8")
-    yield users_path
-    # Cleanup
-    if users_path.exists():
-        users_path.unlink()
+def tmp_database(mock_settings):
+    """Ensure database is initialised and clean for each test."""
+    from cresco.db import get_connection
+
+    conn = get_connection(mock_settings.database_path)
+    conn.close()
+    yield mock_settings.database_path
+    db_path = Path(mock_settings.database_path)
+    if db_path.exists():
+        db_path.unlink()
 
 
 @pytest.fixture
-def auth_client(mock_settings, tmp_users_file):
-    """Create FastAPI test client with mocked deps and real auth (using tmp users file)."""
+def auth_client(mock_settings, tmp_database):
+    """Create FastAPI test client with mocked deps and real auth (using tmp database)."""
     from cresco.agent.agent import get_agent
     from cresco.config import get_settings
     from cresco.main import app

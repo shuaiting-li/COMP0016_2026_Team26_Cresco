@@ -59,7 +59,7 @@ class TestPasswordHashing:
 class TestUserManagement:
     """Tests for user CRUD operations."""
 
-    def test_create_user_success(self, mock_settings, tmp_users_file):
+    def test_create_user_success(self, mock_settings, tmp_database):
         """Creating a user with a unique username succeeds."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             user = create_user("farmer_jane", "securepass123")
@@ -68,20 +68,20 @@ class TestUserManagement:
             assert user["is_admin"] is False
             assert "password_hash" not in user
 
-    def test_create_admin_user(self, mock_settings, tmp_users_file):
+    def test_create_admin_user(self, mock_settings, tmp_database):
         """Creating a user with is_admin=True stores admin flag."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             user = create_user("admin_user", "securepass123", is_admin=True)
             assert user["is_admin"] is True
 
-    def test_create_user_duplicate_raises(self, mock_settings, tmp_users_file):
+    def test_create_user_duplicate_raises(self, mock_settings, tmp_database):
         """Creating a user with a duplicate username raises ValueError."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             create_user("farmer_john", "password123")
             with pytest.raises(ValueError, match="already exists"):
                 create_user("farmer_john", "otherpass456")
 
-    def test_get_user_by_username_found(self, mock_settings, tmp_users_file):
+    def test_get_user_by_username_found(self, mock_settings, tmp_database):
         """Looking up an existing user by username returns the user."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             created = create_user("testfarmer", "password123")
@@ -89,12 +89,12 @@ class TestUserManagement:
             assert found is not None
             assert found["id"] == created["id"]
 
-    def test_get_user_by_username_not_found(self, mock_settings, tmp_users_file):
+    def test_get_user_by_username_not_found(self, mock_settings, tmp_database):
         """Looking up a non-existent username returns None."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             assert get_user_by_username("nobody") is None
 
-    def test_get_user_by_id_found(self, mock_settings, tmp_users_file):
+    def test_get_user_by_id_found(self, mock_settings, tmp_database):
         """Looking up an existing user by ID returns the user."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             created = create_user("idtest", "password123")
@@ -102,7 +102,7 @@ class TestUserManagement:
             assert found is not None
             assert found["username"] == "idtest"
 
-    def test_get_user_by_id_not_found(self, mock_settings, tmp_users_file):
+    def test_get_user_by_id_not_found(self, mock_settings, tmp_database):
         """Looking up a non-existent ID returns None."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             assert get_user_by_id("nonexistent-uuid") is None
@@ -149,7 +149,7 @@ class TestJWT:
 class TestAuthAPI:
     """Tests for the auth API endpoints."""
 
-    def test_register_as_admin_succeeds(self, auth_client, mock_settings, tmp_users_file):
+    def test_register_as_admin_succeeds(self, auth_client, mock_settings, tmp_database):
         """Admin can register a new user and gets back a token for that user."""
         admin_token = _create_admin_and_get_token(mock_settings)
         response = auth_client.post(
@@ -171,7 +171,7 @@ class TestAuthAPI:
         )
         assert response.status_code == 401
 
-    def test_register_as_non_admin_returns_403(self, auth_client, mock_settings, tmp_users_file):
+    def test_register_as_non_admin_returns_403(self, auth_client, mock_settings, tmp_database):
         """A non-admin user cannot register new users."""
         regular_token = _create_regular_user_and_get_token(mock_settings)
         response = auth_client.post(
@@ -182,7 +182,7 @@ class TestAuthAPI:
         assert response.status_code == 403
         assert "Admin privileges required" in response.json()["detail"]
 
-    def test_register_duplicate_returns_409(self, auth_client, mock_settings, tmp_users_file):
+    def test_register_duplicate_returns_409(self, auth_client, mock_settings, tmp_database):
         """Registering with an existing username returns 409."""
         admin_token = _create_admin_and_get_token(mock_settings)
         auth_client.post(
@@ -197,7 +197,7 @@ class TestAuthAPI:
         )
         assert response.status_code == 409
 
-    def test_register_short_username_returns_422(self, auth_client, mock_settings, tmp_users_file):
+    def test_register_short_username_returns_422(self, auth_client, mock_settings, tmp_database):
         """Registering with a username shorter than 3 chars returns 422."""
         admin_token = _create_admin_and_get_token(mock_settings)
         response = auth_client.post(
@@ -207,7 +207,7 @@ class TestAuthAPI:
         )
         assert response.status_code == 422
 
-    def test_register_admin_user(self, auth_client, mock_settings, tmp_users_file):
+    def test_register_admin_user(self, auth_client, mock_settings, tmp_database):
         """Admin can create another admin user via is_admin flag."""
         admin_token = _create_admin_and_get_token(mock_settings)
         response = auth_client.post(
@@ -217,7 +217,7 @@ class TestAuthAPI:
         )
         assert response.status_code == 201
 
-    def test_login_success(self, auth_client, mock_settings, tmp_users_file):
+    def test_login_success(self, auth_client, mock_settings, tmp_database):
         """Logging in with correct credentials returns a token."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             create_user("logintest", "password123")
@@ -231,7 +231,7 @@ class TestAuthAPI:
         assert "access_token" in data
         assert data["username"] == "logintest"
 
-    def test_login_wrong_password(self, auth_client, mock_settings, tmp_users_file):
+    def test_login_wrong_password(self, auth_client, mock_settings, tmp_database):
         """Logging in with wrong password returns 401."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             create_user("wrongpwtest", "password123")
@@ -262,7 +262,7 @@ class TestProtectedEndpoints:
         )
         assert response.status_code == 401
 
-    def test_chat_with_valid_token(self, auth_client, mock_settings, tmp_users_file):
+    def test_chat_with_valid_token(self, auth_client, mock_settings, tmp_database):
         """Accessing /chat with a valid token succeeds."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             user = create_user("chatuser", "password123")

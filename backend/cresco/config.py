@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Auth settings
     jwt_secret_key: str = ""  # Required — set JWT_SECRET_KEY in .env
     jwt_expiry_hours: int = 24
-    users_file: str = "./data/users.json"
+    database_path: str = "./data/cresco.db"
 
     # Third-party API keys
     openweather_api_key: str = ""  # Set OPENWEATHER_API_KEY in .env
