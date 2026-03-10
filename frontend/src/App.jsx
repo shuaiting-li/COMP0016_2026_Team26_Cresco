@@ -109,7 +109,7 @@ function App() {
         }
     };
 
-    const handleSendMessage = async (text) => {
+    const handleSendMessage = async (text, enableInternetSearch = true) => {
         if (!text.trim()) return;
 
         const userMsg = {
@@ -122,7 +122,7 @@ function App() {
         setIsLoading(true);
 
         try {
-            const response = await sendMessage(text, conversationId, files);
+            const response = await sendMessage(text, conversationId, files, enableInternetSearch);
 
             if (response.conversationId) {
                 setConversationId(response.conversationId);

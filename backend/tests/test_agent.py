@@ -39,6 +39,14 @@ class TestCrescoAgentInit:
         assert mock_agent_deps["vector_store"].called
         assert mock_agent_deps["create_agent"].called
 
+    def test_builds_two_agent_variants(self, mock_settings, mock_agent_deps):
+        """Test that both agent variants (with and without search) are built."""
+        agent = CrescoAgent(mock_settings)
+
+        assert agent._agent_with_search is not None
+        assert agent._agent_no_search is not None
+        assert mock_agent_deps["create_agent"].call_count == 2
+
     def test_uses_azure_openai_for_azure_provider(self, mock_settings, mock_agent_deps):
         """Test uses AzureChatOpenAI when provider is azure-openai."""
         mock_settings.azure_openai_deployment = "test-deployment"
@@ -56,7 +64,7 @@ class TestCrescoAgentInit:
         with patch("cresco.agent.agent.init_chat_model") as mock_init:
             CrescoAgent(mock_settings)
 
-            mock_init.assert_called_once()
+            assert mock_init.call_count == 2  # once per agent variant
             call_kwargs = mock_init.call_args
             assert call_kwargs[0][0] == "gpt-4o"
 
@@ -202,6 +210,45 @@ class TestCrescoAgentChat:
         else:
             config = call_args.kwargs.get("config", call_args[1])
         assert config["configurable"]["thread_id"] == "conversation-123"
+
+    @pytest.mark.asyncio
+    async def test_chat_uses_search_agent_when_enabled(self, mock_settings, mock_agent_deps):
+        """Test chat uses the agent with internet search when enabled."""
+        mock_with_search = AsyncMock()
+        mock_no_search = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.content = "Response"
+        mock_message.artifact = None
+        mock_with_search.ainvoke.return_value = {"messages": [mock_message]}
+        mock_no_search.ainvoke.return_value = {"messages": [mock_message]}
+
+        # create_agent is called twice: first for with_search, then for no_search
+        mock_agent_deps["create_agent"].side_effect = [mock_with_search, mock_no_search]
+
+        agent = CrescoAgent(mock_settings)
+        await agent.chat("Question", enable_internet_search=True)
+
+        mock_with_search.ainvoke.assert_called_once()
+        mock_no_search.ainvoke.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_chat_uses_no_search_agent_when_disabled(self, mock_settings, mock_agent_deps):
+        """Test chat uses the agent without internet search when disabled."""
+        mock_with_search = AsyncMock()
+        mock_no_search = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.content = "Response"
+        mock_message.artifact = None
+        mock_with_search.ainvoke.return_value = {"messages": [mock_message]}
+        mock_no_search.ainvoke.return_value = {"messages": [mock_message]}
+
+        mock_agent_deps["create_agent"].side_effect = [mock_with_search, mock_no_search]
+
+        agent = CrescoAgent(mock_settings)
+        await agent.chat("Question", enable_internet_search=False)
+
+        mock_no_search.ainvoke.assert_called_once()
+        mock_with_search.ainvoke.assert_not_called()
 
 
 class TestCrescoAgentClearMemory:

@@ -39,7 +39,7 @@ describe('ChatArea', () => {
         await user.type(input, 'What diseases affect wheat?');
         await user.click(screen.getByRole('button', { name: /send message/i }));
 
-        expect(onSendMessage).toHaveBeenCalledWith('What diseases affect wheat?');
+        expect(onSendMessage).toHaveBeenCalledWith('What diseases affect wheat?', true);
     });
 
     it('sends message on Enter key', async () => {
@@ -50,7 +50,7 @@ describe('ChatArea', () => {
         const input = screen.getByPlaceholderText(/message cresco/i);
         await user.type(input, 'Hello{Enter}');
 
-        expect(onSendMessage).toHaveBeenCalledWith('Hello');
+        expect(onSendMessage).toHaveBeenCalledWith('Hello', true);
     });
 
     it('clears input after sending', async () => {
@@ -254,5 +254,44 @@ describe('ChatArea', () => {
 
         const el = screen.getByText(/line one/);
         expect(el.textContent).toBe('line one\nline two');
+    });
+
+    it('renders internet search toggle button', () => {
+        /** Verifies the internet search toggle is rendered. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        expect(screen.getByRole('button', { name: /toggle internet search/i })).toBeInTheDocument();
+    });
+
+    it('internet search is enabled by default', () => {
+        /** Verifies the toggle starts in the enabled state. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        const toggle = screen.getByRole('button', { name: /toggle internet search/i });
+        expect(toggle.title).toBe('Internet search enabled');
+    });
+
+    it('toggles internet search off when clicked', async () => {
+        /** Verifies clicking the toggle disables internet search. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        const user = userEvent.setup();
+
+        const toggle = screen.getByRole('button', { name: /toggle internet search/i });
+        await user.click(toggle);
+
+        expect(toggle.title).toBe('Internet search disabled');
+    });
+
+    it('sends message with internet search disabled after toggle', async () => {
+        /** Verifies the send callback includes the internet search state. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        const user = userEvent.setup();
+
+        // Disable internet search
+        await user.click(screen.getByRole('button', { name: /toggle internet search/i }));
+
+        // Send a message
+        const input = screen.getByPlaceholderText(/message cresco/i);
+        await user.type(input, 'Hello{Enter}');
+
+        expect(onSendMessage).toHaveBeenCalledWith('Hello', false);
     });
 });

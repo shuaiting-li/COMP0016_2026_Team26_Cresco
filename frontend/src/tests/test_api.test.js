@@ -214,6 +214,34 @@ describe('sendMessage', () => {
 
         await expect(api.sendMessage('hi')).rejects.toThrow('HTTP error! status: 500');
     });
+
+    it('includes enable_internet_search in request body', async () => {
+        /** Verifies enable_internet_search flag is forwarded to the backend. */
+        fetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ answer: 'ok', sources: [], tasks: [] }),
+        });
+
+        await api.sendMessage('test', null, [], false);
+
+        const body = JSON.parse(fetch.mock.calls[0][1].body);
+        expect(body.enable_internet_search).toBe(false);
+    });
+
+    it('defaults enable_internet_search to true', async () => {
+        /** Verifies enable_internet_search defaults to true when not specified. */
+        fetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ answer: 'ok', sources: [], tasks: [] }),
+        });
+
+        await api.sendMessage('test');
+
+        const body = JSON.parse(fetch.mock.calls[0][1].body);
+        expect(body.enable_internet_search).toBe(true);
+    });
 });
 
 

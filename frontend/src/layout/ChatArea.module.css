@@ -210,6 +210,20 @@
     
 }
 
+.searchToggle {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; color: #555; cursor: pointer;
+    flex-shrink: 0; align-self: center;
+    transition: all 0.2s;
+}
+
+.searchToggle:hover { color: var(--accent); }
+
+.searchToggleActive {
+    color: var(--accent);
+}
+
 
 /* Responsive input area for small screens */
 @media (max-width: 600px) {

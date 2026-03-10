@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen, Trash2 } from 'lucide-react';
+import { ArrowUp, Sprout, Bot, ClipboardList, BookOpen, Trash2, Globe } from 'lucide-react';
 import styles from './ChatArea.module.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +15,7 @@ import 'katex/dist/katex.min.css';
 export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading, farmLocation }) {
     const [input, setInput] = useState("");
     const [activeTab, setActiveTab] = useState('chat');
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
 
@@ -32,7 +33,7 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
 
     const handleSend = () => {
         if(!input.trim() || isLoading) return;
-        onSendMessage(input);
+        onSendMessage(input, internetSearchEnabled);
         setInput("");
     };
 
@@ -236,6 +237,16 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
 
             <div className={styles.inputWrapper}>
                 <div className={styles.inputContainer}>
+                    <button
+                        className={`${styles.searchToggle} ${internetSearchEnabled ? styles.searchToggleActive : ''}`}
+                        onClick={() => setInternetSearchEnabled(prev => !prev)}
+                        aria-label="Toggle internet search"
+                        title={internetSearchEnabled ? "Internet search enabled" : "Internet search disabled"}
+                        type="button"
+                    >
+                        <Globe size={18} />
+                    </button>
+
                     <textarea
                         ref={textareaRef}
                         rows={1}

@@ -220,7 +220,12 @@ async def chat(
             request.files,
         )
         print("Full message to agent: %s", message)
-        result = await agent.chat(message, thread_id=user_id, user_id=user_id)
+        result = await agent.chat(
+            message,
+            thread_id=user_id,
+            user_id=user_id,
+            enable_internet_search=request.enable_internet_search,
+        )
         logger.info(
             "Chat response: answer length=%d, sources=%d, tasks=%d, charts=%d",
             len(result["answer"]),
