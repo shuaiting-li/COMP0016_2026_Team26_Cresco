@@ -14,7 +14,7 @@ from cresco.config import Settings, get_settings
 from cresco.rag.document_loader import SHARED_USER_ID
 from cresco.rag.retriever import get_vector_store
 
-from .prompts import SYSTEM_PROMPT
+from .prompts import INTERNET_SEARCH_DISABLED_ADDENDUM, SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -178,10 +178,13 @@ class CrescoAgent:
             tools.append(internet_search)
 
         # Create agent with retrieval, weather, and optionally search tools
+        prompt = SYSTEM_PROMPT
+        if not include_internet_search:
+            prompt += INTERNET_SEARCH_DISABLED_ADDENDUM
         agent = create_agent(
             model=model,
             tools=tools,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=prompt,
             checkpointer=self.checkpointer,
         )
 
