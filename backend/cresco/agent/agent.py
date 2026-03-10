@@ -167,16 +167,67 @@ class CrescoAgent:
 
             return "\n".join(parts)
 
+        # Farm location tool — returns the user's saved farm location.
+        @tool
+        def get_farm_location(config: RunnableConfig) -> str:
+            """Retrieve the user's saved farm location, coordinates, and area.
+
+            Call this tool when the user asks about their farm location,
+            farm size, farm coordinates, or any question that requires
+            knowing where their farm is situated.  The data is available
+            once the user has selected their farm on the satellite map.
+            """
+            from cresco import db
+            from cresco.config import get_settings as _get_settings
+
+            user_id = config["configurable"].get("user_id", "")
+            user_data = db.get_farm_data(_get_settings().database_path, user_id) or {}
+
+            if not user_data:
+                return (
+                    "No farm location has been set yet. Please ask the user to "
+                    "open the satellite map (via the sidebar) and select their "
+                    "farm location."
+                )
+
+            parts = []
+            location = user_data.get("location")
+            if location:
+                parts.append(f"Farm location: {location}")
+
+            lat = user_data.get("lat")
+            lon = user_data.get("lon")
+            if lat is not None and lon is not None:
+                parts.append(f"Coordinates: {lat}, {lon}")
+
+            area = user_data.get("area")
+            if area is not None:
+                parts.append(f"Farm area: {area} km²")
+
+            if not parts:
+                return (
+                    "Farm data exists but no location details are available. "
+                    "Please ask the user to re-select their farm on the "
+                    "satellite map."
+                )
+
+            return "\n".join(parts)
+
         # Internet search tool for real-time information
         internet_search = TavilySearch(
             max_results=5,
             topic="general",
         )
 
-        # Create agent with retrieval, weather, and search tools
+        # Create agent with retrieval, weather, location, and search tools
         agent = create_agent(
             model=model,
-            tools=[retrieve_agricultural_info, get_weather_data, internet_search],
+            tools=[
+                retrieve_agricultural_info,
+                get_weather_data,
+                get_farm_location,
+                internet_search,
+            ],
             system_prompt=SYSTEM_PROMPT,
             checkpointer=self.checkpointer,
         )

@@ -20,7 +20,12 @@ You have access to the following tools:
    in a [user_id: ...] tag) as the argument.  If the tool reports that no farm or weather
    data is available, let the user know they need to set up their farm location via the
    satellite map in the sidebar.
-3. `tavily_search` — searches the internet for real-time information. Use this tool to
+3. `get_farm_location` — returns the user's saved farm location, coordinates, and area.
+   Call this tool when the user asks about their farm location, farm size, coordinates, or
+   any question requiring knowledge of where their farm is.  If the tool reports that no
+   farm location is set, let the user know they need to select their farm on the satellite
+   map in the sidebar.
+4. `tavily_search` — searches the internet for real-time information. Use this tool to
    supplement your answer when the knowledge base does not cover the topic satisfactorily
    (e.g. breaking news, regulation, niche subjects, further climate data).
 
