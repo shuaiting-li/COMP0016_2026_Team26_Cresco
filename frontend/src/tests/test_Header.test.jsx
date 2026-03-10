@@ -11,32 +11,34 @@ describe('Header', () => {
     /** Tests for the top navigation header. */
 
     let onLogout;
+    let onDeleteAccount;
 
     beforeEach(() => {
         onLogout = vi.fn();
+        onDeleteAccount = vi.fn();
     });
 
     it('renders Cresco branding', () => {
         /** Verifies the app title is shown in the header. */
-        render(<Header onLogout={onLogout} username="farmer" />);
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="farmer" />);
         expect(screen.getByText('Cresco')).toBeInTheDocument();
     });
 
     it('displays user initials in avatar', () => {
         /** Verifies the avatar shows the first two characters upper-cased. */
-        render(<Header onLogout={onLogout} username="farmer" />);
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="farmer" />);
         expect(screen.getByText('FA')).toBeInTheDocument();
     });
 
     it('displays default initials when no username', () => {
         /** Verifies fallback initials when username is falsy. */
-        render(<Header onLogout={onLogout} username="" />);
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="" />);
         expect(screen.getByText('CR')).toBeInTheDocument();
     });
 
     it('opens dropdown on profile button click', async () => {
         /** Verifies the dropdown menu appears on click. */
-        render(<Header onLogout={onLogout} username="farmer" />);
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="farmer" />);
         const user = userEvent.setup();
 
         // Click the profile button (the one with initials)
@@ -45,11 +47,12 @@ describe('Header', () => {
 
         expect(screen.getByText('farmer')).toBeInTheDocument();
         expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+        expect(screen.getByText(/delete account/i)).toBeInTheDocument();
     });
 
     it('calls onLogout when sign out is clicked', async () => {
         /** Verifies the logout callback fires. */
-        render(<Header onLogout={onLogout} username="farmer" />);
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="farmer" />);
         const user = userEvent.setup();
 
         // Open dropdown
@@ -61,9 +64,21 @@ describe('Header', () => {
         expect(onLogout).toHaveBeenCalledTimes(1);
     });
 
+    it('calls onDeleteAccount when delete account is clicked', async () => {
+        /** Verifies the delete-account callback fires. */
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="farmer" />);
+        const user = userEvent.setup();
+
+        const profileBtn = screen.getByText('FA').closest('button');
+        await user.click(profileBtn);
+        await user.click(screen.getByText(/delete account/i));
+
+        expect(onDeleteAccount).toHaveBeenCalledTimes(1);
+    });
+
     it('closes dropdown when clicking outside', async () => {
         /** Verifies the dropdown dismisses on outside click. */
-        render(<Header onLogout={onLogout} username="farmer" />);
+        render(<Header onLogout={onLogout} onDeleteAccount={onDeleteAccount} username="farmer" />);
         const user = userEvent.setup();
 
         // Open dropdown

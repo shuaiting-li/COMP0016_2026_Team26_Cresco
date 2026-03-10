@@ -80,7 +80,7 @@ class CrescoAgent:
             """
             from cresco.api.routes import farm_data
 
-            user_id = config["configurable"].get("user_id", "")
+            user_id = config.get("configurable", {}).get("user_id", "")
             user_data = farm_data.get(user_id, {})
 
             if not user_data:

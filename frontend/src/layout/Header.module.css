@@ -107,3 +107,24 @@
     background: var(--bg-hover);
     color: #f87171;
 }
+
+.deleteAccountBtn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 4px;
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.deleteAccountBtn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+}

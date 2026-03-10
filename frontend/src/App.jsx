@@ -4,7 +4,14 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, isLoggedIn, logout, getUsername } from './services/api';
+import {
+    sendMessage,
+    uploadAndIndexFile,
+    isLoggedIn,
+    logout,
+    getUsername,
+    deleteAccount,
+} from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
@@ -35,6 +42,18 @@ function App() {
         setMessages([]);
         setConversationId(null);
         setFiles([]);
+    };
+
+    const handleDeleteAccount = async () => {
+        try {
+            await deleteAccount();
+            setAuthenticated(false);
+            setMessages([]);
+            setConversationId(null);
+            setFiles([]);
+        } catch (error) {
+            console.error('Delete account error:', error);
+        }
     };
 
     if (!authenticated) {
@@ -131,7 +150,11 @@ function App() {
 
     return (
         <div className="app-container">
-            <Header onLogout={handleLogout} username={getUsername()} />
+            <Header
+                onLogout={handleLogout}
+                onDeleteAccount={handleDeleteAccount}
+                username={getUsername()}
+            />
             <div style={layoutStyle}>
                 <SidebarLeft
                     files={files}

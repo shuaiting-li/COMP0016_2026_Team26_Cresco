@@ -94,6 +94,31 @@ export async function login(username, password) {
 }
 
 /**
+ * Delete the currently authenticated user account.
+ * @returns {Promise<{message: string, username: string}>}
+ */
+export async function deleteAccount() {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Account deletion failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    logout();
+    return data;
+}
+
+/**
  * Send a message to the chatbot and get a response
  * @param {string} message - The user's message
  * @param {string} conversationId - Optional conversation ID for context

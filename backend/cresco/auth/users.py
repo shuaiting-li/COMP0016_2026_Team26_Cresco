@@ -96,3 +96,18 @@ def create_user(username: str, password: str, *, is_admin: bool = False) -> dict
     _save_users(data)
 
     return {"id": user_id, "username": username, "is_admin": is_admin}
+
+
+def delete_user_by_id(user_id: str) -> bool:
+    """Delete a user by ID.
+
+    Returns:
+        True if the user existed and was deleted, otherwise False.
+    """
+    data = _load_users()
+    if user_id not in data["users"]:
+        return False
+
+    del data["users"][user_id]
+    _save_users(data)
+    return True
