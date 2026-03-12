@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import Header from './layout/Header';
 import SidebarLeft from './layout/SidebarLeft';
@@ -313,16 +314,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         <SatelliteMap
                             farmLocation={farmLocation}
@@ -360,16 +365,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         <DroneImagery />
                     </div>
@@ -404,16 +413,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         {farmLocation ? (
                             <SatelliteImagery />
@@ -460,16 +473,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         {farmLocation ? (
                             <Weather lat={farmLocation.lat} lon={farmLocation.lng} />
