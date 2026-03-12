@@ -274,14 +274,21 @@ class TestWeatherEndpoint:
 
     def test_weather_returns_current_and_forecast(self, client):
         """Test weather endpoint returns both current weather and forecast data."""
+        weather_json = {
+            "name": "London",
+            "main": {"temp": 15},
+            "weather": [{"description": "clear"}],
+        }
+        forecast_json = {"list": [{"dt": 1700000000, "main": {"temp": 14}}]}
+
         mock_weather = httpx.Response(
             200,
-            json={"name": "London", "main": {"temp": 15}, "weather": [{"description": "clear"}]},
+            json=weather_json,
             request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/weather"),
         )
         mock_forecast = httpx.Response(
             200,
-            json={"list": [{"dt": 1700000000, "main": {"temp": 14}}]},
+            json=forecast_json,
             request=httpx.Request("GET", "https://api.openweathermap.org/data/2.5/forecast"),
         )
 
@@ -290,15 +297,21 @@ class TestWeatherEndpoint:
                 return mock_forecast
             return mock_weather
 
-        with patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls:
+        with (
+            patch("cresco.api.routes.httpx.AsyncClient") as mock_client_cls,
+            patch("cresco.api.routes.db") as mock_db,
+        ):
             mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=fake_get
             )
-            with patch("cresco.api.routes.get_settings") as mock_gs:
-                mock_s = MagicMock()
-                mock_s.openweather_api_key = "test-key"
-                mock_gs.return_value = mock_s
-                response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+            mock_db.get_farm_data.return_value = {
+                "weather": {
+                    "location": "London",
+                    "current_weather": weather_json,
+                    "forecast": forecast_json,
+                }
+            }
+            response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 200
         data = response.json()
@@ -317,11 +330,7 @@ class TestWeatherEndpoint:
             mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=httpx.HTTPError("Connection refused")
             )
-            with patch("cresco.api.routes.get_settings") as mock_gs:
-                mock_s = MagicMock()
-                mock_s.openweather_api_key = "test-key"
-                mock_gs.return_value = mock_s
-                response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
+            response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 502
 
@@ -338,6 +347,104 @@ class TestWeatherEndpoint:
         response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 500
+
+
+class TestUploadFileEndpoint:
+    """Tests for the POST /upload endpoint."""
+
+    def test_upload_and_index_success(self, client):
+        """Test successful upload indexes the file and returns status='indexed'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload", new_callable=AsyncMock, return_value=5
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("report.md", b"# Report\nContent", "text/markdown")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["filename"] == "report.md"
+            assert data["status"] == "indexed"
+            assert data["chunks_indexed"] == 5
+
+    def test_upload_index_failure_returns_uploaded(self, client):
+        """Test that indexing failure still saves the file with status='uploaded'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with (
+                patch(
+                    "cresco.api.routes.index_user_upload",
+                    new_callable=AsyncMock,
+                    side_effect=Exception("PDF parse error"),
+                ),
+                patch(
+                    "cresco.api.routes.delete_user_upload",
+                    new_callable=AsyncMock,
+                ),
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("bad.pdf", b"%PDF-corrupt", "application/pdf")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "uploaded"
+            assert data["chunks_indexed"] == 0
+            # File should still be saved to disk
+            user_dir = mock_settings.uploads_dir / "test-user-id"
+            assert (user_dir / "bad.pdf").exists()
+
+    def test_upload_zero_chunks_returns_uploaded(self, client):
+        """Test that zero indexed chunks returns status='uploaded'."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            with patch(
+                "cresco.api.routes.index_user_upload", new_callable=AsyncMock, return_value=0
+            ):
+                response = client.post(
+                    "/api/v1/upload",
+                    files={"file": ("empty.txt", b"", "text/plain")},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "uploaded"
+            assert data["chunks_indexed"] == 0
+
+    def test_upload_unsupported_extension_rejected(self, client):
+        """Test that unsupported file extensions are rejected with 400."""
+        response = client.post(
+            "/api/v1/upload",
+            files={"file": ("malware.exe", b"binary", "application/octet-stream")},
+        )
+
+        assert response.status_code == 400
+        assert "unsupported" in response.json()["detail"].lower()
 
 
 class TestDeleteFileEndpoint:
@@ -453,80 +560,73 @@ class TestDeleteLastExchangeEndpoint:
         assert "no exchange" in response.json()["detail"].lower()
 
 
-class TestFarmDataEndpoints:
-    """Tests for the farm data CRUD endpoints."""
+class TestListUploadsEndpoint:
+    """Tests for the GET /uploads endpoint."""
 
-    def test_save_farm_data_success(self, client):
-        """Test saving farm data returns the stored data."""
-        farm = {"location": "Cambridge", "area": 2.5, "lat": 52.2, "lon": 0.12}
-        with patch("cresco.api.routes.fetch_weather", new_callable=AsyncMock) as mock_fw:
-            mock_fw.return_value = True
-            response = client.post("/api/v1/farm-data", json=farm)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["data"]["location"] == "Cambridge"
-        assert data["data"]["area"] == 2.5
-
-    def test_save_farm_data_without_coords_skips_weather(self, client):
-        """Test saving farm data without lat/lon does not fetch weather."""
-        farm = {"location": "Somewhere", "area": 1.0}
-        with patch("cresco.api.routes.fetch_weather", new_callable=AsyncMock) as mock_fw:
-            response = client.post("/api/v1/farm-data", json=farm)
-        assert response.status_code == 200
-        mock_fw.assert_not_called()
-
-    def test_get_farm_data_success(self, client):
-        """Test retrieving saved farm data."""
-        data_with_user = {"test-user-id": {"location": "Oxford", "area": 3.0}}
-        with patch("cresco.api.routes.farm_data", data_with_user):
-            response = client.get("/api/v1/farm-data")
-        assert response.status_code == 200
-        assert response.json()["data"]["location"] == "Oxford"
-
-    def test_get_farm_data_not_found(self, client):
-        """Test 404 when no farm data exists for user."""
-        with patch("cresco.api.routes.farm_data", {}):
-            response = client.get("/api/v1/farm-data")
-        assert response.status_code == 404
-
-
-class TestUploadEndpoint:
-    """Tests for the POST /upload endpoint."""
-
-    def test_upload_supported_file(self, client):
-        """Test uploading a supported file type succeeds."""
+    def test_list_uploads_returns_files(self, client):
+        """Test listing uploaded files returns correct file names."""
         from cresco.config import get_settings
         from cresco.main import app
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_settings = MagicMock()
-            mock_settings.uploads_dir = Path(tmpdir) / "uploads"
+            uploads_dir = Path(tmpdir) / "uploads"
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            (user_dir / "file_a.md").write_text("content a")
+            (user_dir / "file_b.txt").write_text("content b")
+            mock_settings.uploads_dir = uploads_dir
+
             app.dependency_overrides[get_settings] = lambda: mock_settings
 
-            response = client.post(
-                "/api/v1/upload",
-                files={"file": ("report.md", io.BytesIO(b"# Report"), "text/markdown")},
-            )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["filename"] == "report.md"
-        assert data["status"] == "indexed"
+            response = client.get("/api/v1/uploads")
 
-    def test_upload_unsupported_file_type(self, client):
-        """Test uploading an unsupported file type returns 400."""
+        assert response.status_code == 200
+        names = [f["name"] for f in response.json()["files"]]
+        assert "file_a.md" in names
+        assert "file_b.txt" in names
+
+    def test_list_uploads_empty_when_no_directory(self, client):
+        """Test listing uploads when no user directory exists returns empty list."""
         from cresco.config import get_settings
         from cresco.main import app
 
-        mock_settings = MagicMock()
-        mock_settings.uploads_dir = Path(tempfile.mkdtemp()) / "uploads"
-        app.dependency_overrides[get_settings] = lambda: mock_settings
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            mock_settings.uploads_dir = Path(tmpdir) / "nonexistent"
+            app.dependency_overrides[get_settings] = lambda: mock_settings
 
-        response = client.post(
-            "/api/v1/upload",
-            files={"file": ("script.exe", io.BytesIO(b"\x00"), "application/octet-stream")},
-        )
-        assert response.status_code == 400
-        assert "unsupported" in response.json()["detail"].lower()
+            response = client.get("/api/v1/uploads")
+
+        assert response.status_code == 200
+        assert response.json() == {"files": []}
+
+    def test_list_uploads_scoped_to_user(self, client):
+        """Test listing uploads returns only the current user's files."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_settings = MagicMock()
+            uploads_dir = Path(tmpdir) / "uploads"
+            # Current user has one file
+            user_dir = uploads_dir / "test-user-id"
+            user_dir.mkdir(parents=True)
+            (user_dir / "my_file.md").write_text("mine")
+            # Other user also has a file
+            other_dir = uploads_dir / "other-user"
+            other_dir.mkdir(parents=True)
+            (other_dir / "other_file.md").write_text("theirs")
+            mock_settings.uploads_dir = uploads_dir
+
+            app.dependency_overrides[get_settings] = lambda: mock_settings
+
+            response = client.get("/api/v1/uploads")
+
+        assert response.status_code == 200
+        names = [f["name"] for f in response.json()["files"]]
+        assert "my_file.md" in names
+        assert "other_file.md" not in names
 
 
 class TestDroneImageEndpoint:
@@ -591,15 +691,16 @@ class TestSatelliteImageEndpoint:
 
     def test_satellite_image_no_farm_data(self, client):
         """Test 404 when user has no farm data set."""
-        with patch("cresco.api.routes.farm_data", {}):
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data.return_value = None
             response = client.post("/api/v1/satellite-image")
-        assert response.status_code == 500
+        assert response.status_code == 404
         assert "farm data" in response.json()["detail"].lower()
 
     def test_satellite_image_success(self, client):
         """Test successful satellite image retrieval returns PNG."""
-        data_with_user = {"test-user-id": {"lat": 51.5, "lon": -0.1}}
-        with patch("cresco.api.routes.farm_data", data_with_user):
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data.return_value = {"lat": 51.5, "lon": -0.1}
             with patch(
                 "cresco.api.routes.satellite_images_main",
                 new_callable=AsyncMock,
@@ -610,13 +711,53 @@ class TestSatelliteImageEndpoint:
         assert response.headers["content-type"] == "image/png"
 
     def test_satellite_image_upstream_failure(self, client):
-        """Test 500 when satellite service returns None."""
-        data_with_user = {"test-user-id": {"lat": 51.5, "lon": -0.1}}
-        with patch("cresco.api.routes.farm_data", data_with_user):
+        """Test 502 when satellite service returns None."""
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data.return_value = {"lat": 51.5, "lon": -0.1}
             with patch(
                 "cresco.api.routes.satellite_images_main",
                 new_callable=AsyncMock,
                 return_value=None,
             ):
                 response = client.post("/api/v1/satellite-image")
-        assert response.status_code == 500
+        assert response.status_code == 502
+
+
+class TestFarmDataPersistence:
+    """Tests for farm data persistence via SQLite."""
+
+    def test_save_and_get_farm_data(self, client):
+        """Test POST then GET round-trips farm data through the database."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_s = MagicMock()
+            mock_s.database_path = str(Path(tmpdir) / "test.db")
+            mock_s.openweather_api_key = ""
+            app.dependency_overrides[get_settings] = lambda: mock_s
+
+            response = client.post(
+                "/api/v1/farm-data",
+                json={"location": "Kent, UK", "area": 50.0, "lat": 51.27, "lon": 0.52},
+            )
+            assert response.status_code == 200
+
+            response = client.get("/api/v1/farm-data")
+            assert response.status_code == 200
+            data = response.json()["data"]
+            assert data["location"] == "Kent, UK"
+            assert data["area"] == 50.0
+
+    def test_get_farm_data_404_when_empty(self, client):
+        """Test GET /farm-data returns 404 when no data has been saved."""
+        from cresco.config import get_settings
+        from cresco.main import app
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_s = MagicMock()
+            mock_s.database_path = str(Path(tmpdir) / "test.db")
+            app.dependency_overrides[get_settings] = lambda: mock_s
+
+            response = client.get("/api/v1/farm-data")
+            assert response.status_code == 404

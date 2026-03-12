@@ -1,120 +1,123 @@
-# Cresco 🌱
+# Cresco
 
 RAG-powered agricultural chatbot for UK farmers — **Python/FastAPI backend** and **React/Vite frontend**.
 
 ## Features
 
-- 🤖 LangGraph agent with RAG retrieval and internet search (Tavily)
-- 📚 ChromaDB vector store over agricultural markdown documents
-- 🔐 JWT Bearer authentication (HS256) with admin-managed user registration
-- 🌐 FastAPI backend with Swagger docs, Pydantic v2 schemas
-- 💻 React 19 frontend with chat, satellite mapping (Leaflet), and weather (OpenWeatherMap)
-- 🧪 Comprehensive test suite with 80 % minimum coverage enforced
+- **AI Chat Agent** — LangGraph agent with RAG retrieval, weather context, and internet search (Tavily)
+- **Knowledge Base** — ChromaDB vector store over agricultural documents (.md, .pdf, .txt, .csv, .json)
+- **Farm Management** — Interactive Leaflet map for farm location selection with polygon area calculation
+- **Weather Integration** — Current conditions and 5-day forecast via OpenWeatherMap
+- **Drone Imagery** — Upload RGB + NIR images for NDVI vegetation analysis
+- **Satellite Imagery** — Fetch satellite images from Copernicus for farm locations
+- **Data Visualization** — Auto-generated Recharts charts (bar, line, pie) from agent responses
+- **Task Suggestions** — Agent generates actionable farming tasks with priorities
+- **Authentication** — JWT Bearer auth (HS256) with admin-managed user registration
+- **Multi-provider LLM** — Supports Azure OpenAI, OpenAI, Google Gemini, Anthropic, and Ollama
 
 ## Prerequisites
 
-- Python 3.12 or higher
+- Python 3.12+
 - Node.js 18+ and npm
-- [uv](https://github.com/astral-sh/uv) package manager (not pip)
+- [uv](https://github.com/astral-sh/uv) package manager
+
+## Quick Start
+
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env — set your LLM provider, API keys, and JWT secret
+```
+
+The `.env` file lives at the **project root**. Both backend and frontend read from it.
+
+### 2. Backend setup
+
+```bash
+cd backend
+uv sync                                          # Install dependencies
+uv run python scripts/create_admin.py <user> <pass>  # Create first admin
+uv run python scripts/index_documents.py         # Index knowledge base
+uv run uvicorn cresco.main:app --reload --port 8000  # Start server
+```
+
+API docs available at http://localhost:8000/docs
+
+### 3. Frontend setup
+
+```bash
+cd frontend
+npm install
+npm run dev    # Starts on http://localhost:3000
+```
 
 ## Project Structure
 
 ```
-├── backend/                     # Python FastAPI backend
-│   ├── cresco/                  # Main application package
-│   │   ├── agent/               # LangGraph agent (agent.py, prompts.py)
-│   │   ├── api/                 # FastAPI routes and Pydantic v2 schemas
-│   │   ├── auth/                # JWT auth, user management, dependencies
-│   │   ├── rag/                 # Retriever, indexer, embeddings, document loader
-│   │   ├── config.py            # pydantic-settings config (reads ../.env)
-│   │   └── main.py              # App factory (create_app)
+├── backend/
+│   ├── cresco/
+│   │   ├── agent/          # LangGraph agent, system prompt, tools
+│   │   ├── api/            # FastAPI routes and Pydantic v2 schemas
+│   │   ├── auth/           # JWT auth, user management
+│   │   ├── rag/            # ChromaDB retriever, indexer, embeddings, document loader
+│   │   ├── config.py       # pydantic-settings (reads ../.env)
+│   │   └── main.py         # App factory
 │   ├── data/
-│   │   ├── knowledge_base/      # Markdown documents for RAG
-│   │   ├── chroma_db/           # ChromaDB vector database storage
-│   │   └── users.json           # User store (JSON file)
-│   ├── scripts/
-│   │   ├── index_documents.py   # Index knowledge base into ChromaDB
-│   │   └── create_admin.py      # Bootstrap first admin user
-│   ├── tests/                   # Test suite
-│   └── pyproject.toml           # Python project config (hatchling)
+│   │   ├── knowledge_base/ # Documents for RAG indexing
+│   │   └── uploads/        # Per-user uploaded files
+│   ├── scripts/            # Admin and indexing CLI scripts
+│   └── tests/
 │
-├── frontend/                    # React 19 + Vite (plain JSX, no TypeScript)
+├── frontend/
 │   ├── src/
-│   │   ├── layout/              # UI layout components (CSS Modules)
-│   │   ├── services/            # API services (native fetch)
-│   │   ├── tests/               # Vitest + React Testing Library tests
-│   │   ├── tools/               # Utility modules
-│   │   ├── App.jsx              # Main React component (state)
-│   │   ├── satellite.jsx        # Leaflet map + @turf/area
-│   │   └── weather.jsx          # OpenWeatherMap integration
-│   ├── package.json
+│   │   ├── layout/         # UI components (CSS Modules)
+│   │   ├── services/       # Centralized API layer (api.js)
+│   │   ├── tests/          # Vitest + React Testing Library
+│   │   ├── App.jsx         # Root component and state
+│   │   ├── satellite.jsx   # Leaflet map + @turf/area
+│   │   └── weather.jsx     # Weather display
 │   └── vite.config.js
 │
-├── .env                         # Environment variables (project root)
-└── README.md
+├── .env                    # Environment variables (project root)
+└── .env.example            # Template
 ```
 
 ## Architecture
 
 ### Backend
 
-| Layer      | Key files                                                                           | Purpose                                                                                                                                                                                                               |
-| ---------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **API**    | `api/routes.py`, `api/schemas.py`                                                   | FastAPI router mounted at `/api/v1`. Pydantic v2 request/response models.                                                                                                                                             |
-| **Auth**   | `auth/routes.py`, `auth/dependencies.py`, `auth/jwt.py`, `auth/users.py`            | JWT Bearer auth (HS256 via `pyjwt`). Passwords hashed with `bcrypt`. Users stored in `data/users.json`. Registration is admin-only; login is public.                                                                  |
-| **Agent**  | `agent/agent.py`, `agent/prompts.py`                                                | LangGraph agent with two tools: `retrieve_agricultural_info` (RAG) and `TavilySearch` (internet). `InMemorySaver` checkpointer keyed by `user_id`. Azure OpenAI (primary) or generic providers via `init_chat_model`. |
-| **RAG**    | `rag/retriever.py`, `rag/indexer.py`, `rag/embeddings.py`, `rag/document_loader.py` | ChromaDB vector store, Azure OpenAI embeddings, markdown loading with filename-based category metadata. Chunks: 1 500 chars / 200 overlap.                                                                            |
-| **Config** | `config.py`                                                                         | `pydantic-settings`; reads `.env` from **project root**.                                                                                                                                                              |
-
-**Data flow:** User message → `POST /api/v1/chat` (Bearer token required) → farm/weather context appended → `CrescoAgent.chat()` → LangGraph agent invokes RAG tool → ChromaDB similarity search (k = 5) → LLM generates answer with optional `---TASKS---` JSON block.
-
-**Auth flow:** `POST /api/v1/auth/login` → JWT → all endpoints except `/health` require `Authorization: Bearer <token>`.
+| Layer | Purpose |
+|-------|---------|
+| **API** (`api/`) | FastAPI router at `/api/v1`. Endpoints for chat, file upload/delete, farm data, weather, geocoding, drone/satellite imagery, and health. Third-party APIs proxied server-side via `httpx`. |
+| **Agent** (`agent/`) | LangGraph agent with three tools: RAG retrieval (ChromaDB, k=5), weather data (cached farm context), and TavilySearch (internet). Parses structured `---TASKS---` and `---CHART---` blocks from LLM output. Per-user conversation memory via `InMemorySaver`. |
+| **RAG** (`rag/`) | ChromaDB vector store with Azure OpenAI embeddings. Supports multiple file formats. Chunks at 1500 chars / 200 overlap. Documents scoped by user ID for multi-tenant retrieval. |
+| **Auth** (`auth/`) | JWT Bearer tokens (HS256, 24h expiry). Passwords hashed with bcrypt. Admin-only registration. |
+| **Config** (`config.py`) | `pydantic-settings` singleton reading `.env` from project root. |
 
 ### Frontend
 
-React 19 + Vite. Plain JSX (no TypeScript). CSS Modules for layout. API calls via native `fetch` in `services/api.js`.
+React 19 + Vite. Plain JSX (no TypeScript). CSS Modules for scoped styles.
 
-- **Auth**: JWT in `localStorage` (`cresco_token` / `cresco_username`). Auto-logout on 401/403.
-- **Response mapping**: Backend `{answer, sources, tasks}` → frontend `{reply, citations, tasks}`.
-- **Rendering**: `react-markdown` + `remark-gfm` + `remark-math` + `rehype-katex`.
-- **Env vars**: `VITE_API_URL` (default `http://localhost:8000/api/v1`), `OPENWEATHER_API_KEY`.
+- All backend calls go through `services/api.js` (Bearer token injection, auto-logout on 401/403)
+- Backend `{answer, sources, tasks, charts}` mapped to `{reply, citations, tasks, charts}`
+- Markdown rendering via `react-markdown` + `remark-gfm` + `remark-math` + `rehype-katex`
+- Charts rendered with Recharts from agent-generated data
 
-## Quick Start
+## Environment Variables
 
-### Backend Setup
+See [`.env.example`](.env.example) for the full template. Key variables:
 
-```bash
-cd backend
-
-# Install dependencies
-uv sync
-
-# Configure environment (create .env in project root)
-cp ../.env.example ../.env
-# Edit ../.env — configure your LLM provider, JWT secret, etc.
-
-# Bootstrap the first admin user
-uv run python scripts/create_admin.py <username> <password>
-
-# Index the knowledge base
-uv run python scripts/index_documents.py
-
-# Start the server
-uv run uvicorn cresco.main:app --reload --port 8000
-```
-
-API docs: http://localhost:8000/docs
-
-### Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies and start dev server
-npm install && npm run dev
-```
-
-Frontend: http://localhost:5173 (CORS allows ports 5173 and 3000)
+| Variable | Description |
+|----------|-------------|
+| `MODEL_PROVIDER` | LLM provider: `azure-openai`, `openai`, `google-genai`, `anthropic`, `ollama` |
+| `MODEL_NAME` | Model identifier (e.g., `gpt-4o-mini`, `gemini-2.0-flash`) |
+| `OPENWEATHER_API_KEY` | OpenWeatherMap API key (backend) |
+| `VITE_OPENWEATHER_API_KEY` | Same key exposed to frontend via Vite |
+| `TAVILY_API_KEY` | Tavily search API key |
+| `JWT_SECRET_KEY` | Secret for signing JWT tokens |
+| `COPERNICUS_CLIENT_ID` | Copernicus Data Space client ID (satellite imagery) |
+| `COPERNICUS_CLIENT_SECRET` | Copernicus Data Space client secret |
 
 ## Development
 
@@ -122,57 +125,24 @@ Frontend: http://localhost:5173 (CORS allows ports 5173 and 3000)
 
 ```bash
 cd backend
-
-# Install with dev dependencies
-uv sync --extra dev
-
-# Run tests
-uv run pytest
-
-# Tests + coverage (80 % minimum enforced)
-uv run pytest --cov --cov-report=term-missing
-
-# Lint + format
-uv run ruff check . && uv run ruff format .
+uv sync --extra dev                              # Install with dev deps
+uv run pytest                                    # Run tests
+uv run pytest --cov --cov-report=term-missing    # Coverage (80% min enforced)
+uv run pytest tests/test_api.py::TestName::test_method  # Single test
+uv run ruff check . && uv run ruff format .      # Lint + format
 ```
 
 ### Frontend
 
 ```bash
 cd frontend
-
-npm test          # Run tests (Vitest)
+npm test              # Run tests (Vitest)
 npm run test:watch    # Watch mode
 npm run test:coverage # Coverage report
-npm run lint      # ESLint
-npm run build     # Production build
+npm run lint          # ESLint
+npm run build         # Production build
 ```
-
-## Code Style
-
-- **Python**: Ruff — 100 char lines, Python 3.12 target, rules `E, F, I, N, W`. Use `str | None` (PEP 604). Pydantic v2 models with `Field(...)`.
-- **Frontend**: ESLint, functional React components with hooks, no TypeScript.
-
-## Testing Conventions
-
-### Backend (pytest)
-
-- Always use classes: `class TestFeatureName:` — no bare test functions.
-- Docstring per test method describing what it verifies.
-- File naming: `test_<module>.py` mirrors source structure.
-- Async tests: `asyncio_mode = "auto"` — no `@pytest.mark.asyncio` needed.
-- Mock all external services; zero real API calls.
-- Reset singletons before tests (e.g., `cresco.rag.embeddings._embeddings = None`).
-
-### Frontend (Vitest + React Testing Library)
-
-- **Framework**: Vitest with jsdom environment, `@testing-library/react`, `@testing-library/user-event`.
-- **File naming**: `test_<component>.test.jsx` (or `.js` for non-component modules) in `src/tests/`.
-- **Global setup**: `src/tests/setup.js` — mocks `localStorage`, `fetch`, `scrollIntoView`, canvas `getContext`, and `import.meta.env`.
-- **Test behaviour, not copy**: assert on structure, element roles, and callbacks — avoid hardcoding UI labels that may change with design updates.
-- **Mock all external calls**: use `vi.fn()` / `vi.mock()` for `fetch`, Leaflet, and third-party libraries.
 
 ## License
 
 MIT
-

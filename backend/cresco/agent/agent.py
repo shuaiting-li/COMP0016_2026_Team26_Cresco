@@ -88,7 +88,7 @@ class CrescoAgent:
             )
             return serialized, retrieved_docs
 
-        # Weather tool — reads from the in-memory farm_data store.
+        # Weather tool — reads from the persisted farm_data store.
         @tool
         def get_weather_data(config: RunnableConfig) -> str:
             """Retrieve the current weather and 5-day forecast for the user's farm.
@@ -99,10 +99,11 @@ class CrescoAgent:
             windows, frost risk, harvest scheduling, or any weather-dependent
             farming decision.
             """
-            from cresco.api.routes import farm_data
+            from cresco import db
+            from cresco.config import get_settings as _get_settings
 
             user_id = config["configurable"].get("user_id", "")
-            user_data = farm_data.get(user_id, {})
+            user_data = db.get_farm_data(_get_settings().database_path, user_id) or {}
 
             if not user_data:
                 return (

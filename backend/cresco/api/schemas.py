@@ -56,6 +56,7 @@ class FileUploadResponse(BaseModel):
 
     filename: str = Field(..., description="Name of the uploaded file")
     status: str = Field(..., description="Upload status")
+    chunks_indexed: int = Field(0, description="Number of vector store chunks indexed")
 
 
 class FileDeleteResponse(BaseModel):
@@ -64,3 +65,15 @@ class FileDeleteResponse(BaseModel):
     filename: str = Field(..., description="Name of the deleted file")
     status: str = Field(..., description="Deletion status")
     chunks_removed: int = Field(..., description="Number of vector store chunks removed")
+
+
+class UploadedFileInfo(BaseModel):
+    """Single uploaded file entry."""
+
+    name: str = Field(..., description="File name")
+
+
+class UploadedFilesResponse(BaseModel):
+    """Response model for listing uploaded files."""
+
+    files: list[UploadedFileInfo] = Field(default_factory=list, description="Uploaded files")
