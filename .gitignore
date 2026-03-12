@@ -48,6 +48,7 @@ backend/data/chroma_db/
 
 # Coverage
 .coverage
+frontend/coverage/
 
 # Sensitive files
 backend/data/users.json
