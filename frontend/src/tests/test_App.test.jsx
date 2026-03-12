@@ -145,8 +145,8 @@ describe('App', () => {
         await user.click(screen.getByText('Add Farm'));
         expect(screen.getByTestId('satellite-map')).toBeInTheDocument();
 
-        // Close via X button (find close button within the displayed modal)
-        const closeBtn = screen.getAllByRole('button').find(btn => btn.textContent === 'X');
+        // Close via icon button
+        const closeBtn = screen.getByRole('button', { name: /close/i });
         await user.click(closeBtn);
         expect(screen.queryByTestId('satellite-map')).not.toBeInTheDocument();
     });
@@ -165,8 +165,8 @@ describe('App', () => {
             expect(screen.getByText(/please select a farm location first/i)).toBeInTheDocument();
         });
 
-        // Close via X button
-        const closeBtn = screen.getAllByRole('button').find(btn => btn.textContent === 'X');
+        // Close via icon button
+        const closeBtn = screen.getByRole('button', { name: /close/i });
         await user.click(closeBtn);
 
         expect(screen.queryByText(/please select a farm location first/i)).not.toBeInTheDocument();
