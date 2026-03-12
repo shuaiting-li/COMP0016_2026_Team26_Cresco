@@ -160,6 +160,10 @@
     gap: 16px;
 }
 
+.fieldHealthPanel {
+    grid-column: span 2;
+}
+
 .bottomGrid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -430,4 +434,5 @@
     .statsGrid { grid-template-columns: 1fr 1fr; }
     .contentGrid, .bottomGrid { grid-template-columns: 1fr; }
     .contentGrid > .panel:first-child { grid-column: unset; }
+    .fieldHealthPanel { grid-column: unset; }
 }

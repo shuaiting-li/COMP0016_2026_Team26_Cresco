@@ -1,99 +1,71 @@
-import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { PanelRightClose } from 'lucide-react';
 import styles from './SidebarRight.module.css';
 import { STUDIO_ITEMS } from '../tools/toolMenu';
-import Weather from '../weather';
 
-export default function SidebarRight({ handleOpenSatellite, handleOpenWeather, handleOpenDroneImagery, handleOpenSatelliteImagery, onCollapse }) {
-    const [isWeatherOpen, setIsWeatherOpen] = useState(false);
+export default function SidebarRight({
+    handleOpenSatellite,
+    handleOpenWeather,
+    handleOpenDroneImagery,
+    handleOpenSatelliteImagery,
+    onCollapse,
+    internetSearchEnabled,
+    toggleWebSearch,
+}) {
+    const getCardTitle = (item) => {
+        if (item.id === 'web-search') {
+            return internetSearchEnabled ? 'Disable Web Search' : 'Enable Web Search';
+        }
 
-    const handleCloseWeather = () => {
-        setIsWeatherOpen(false);
+        return item.title;
+    };
+
+    const handleCardClick = (itemId) => {
+        switch (itemId) {
+            case 'farm':
+                handleOpenSatellite?.();
+                break;
+            case 'weather':
+                handleOpenWeather?.();
+                break;
+            case 'satellite':
+                handleOpenSatelliteImagery?.();
+                break;
+            case 'drone':
+                handleOpenDroneImagery?.();
+                break;
+            case 'web-search':
+                toggleWebSearch?.();
+                break;
+            default:
+                break;
+        }
     };
 
     return (
-        <>
-            <aside className={styles.sidebar}>
-                <button
-                    className={styles.collapseBtn}
-                    onClick={onCollapse}
-                    aria-label="Collapse right sidebar"
-                >
-                    <ChevronRight size={20} />
-                </button>
-                <h3>Toolbox</h3>
-                <div className={styles.grid}>
-                    {STUDIO_ITEMS.map((item, index) => (
-                        <button
-                            key={index}
-                            className={styles.card}
-                            data-testid="studio-item"
-                            onClick={
-                                item.title === "Add Farm"
-                                    ? handleOpenSatellite
-                                    : item.title === "Weather Data"
-                                    ? handleOpenWeather
-                                    : item.title === "Satellite Imagery"
-                                    ? handleOpenSatelliteImagery
-                                    : item.title === "Drone Monitoring"
-                                    ? handleOpenDroneImagery
-                                    : undefined
-                            }
-                        >
-                            <div className={styles.iconBox}>
-                                <item.icon size={20} />
-                            </div>
-                            <span>{item.title}</span>
-                        </button>
-                    ))}
-                </div>
-            </aside>
-            {isWeatherOpen && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100vw',
-                        height: '100vh',
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 1000,
-                    }}
-                >
-                    <div
-                        style={{
-                            position: 'relative',
-                            width: '80%',
-                            height: '80%',
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            overflow: 'hidden',
-                        }}
+        <aside className={styles.sidebar}>
+            <button
+                className={styles.collapseBtn}
+                onClick={onCollapse}
+                aria-label="Collapse right sidebar"
+            >
+                <PanelRightClose size={18} />
+            </button>
+            <h3>Toolbox</h3>
+            <div className={styles.grid}>
+                {STUDIO_ITEMS.map((item) => (
+                    <button
+                        key={item.id}
+                        className={styles.card}
+                        data-testid="studio-item"
+                        onClick={() => handleCardClick(item.id)}
                     >
-                        <button
-                            onClick={handleCloseWeather}
-                            style={{
-                                position: 'absolute',
-                                top: '10px',
-                                right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '30px',
-                                height: '30px',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            X
-                        </button>
-                        <Weather lat={40.785091} lon={-73.968285} />
-                    </div>
-                </div>
-            )}
-        </>
+                        <div className={styles.iconBox}>
+                            <item.icon size={20} />
+                        </div>
+                        <span>{getCardTitle(item)}</span>
+                    </button>
+                ))}
+            </div>
+        </aside>
     );
 }

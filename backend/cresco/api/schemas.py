@@ -17,6 +17,9 @@ class ChatRequest(BaseModel):
     files: list[dict] | None = Field(
         None, description="Optional uploaded files with name and content"
     )
+    enable_internet_search: bool = Field(
+        True, description="Whether the agent can use internet search"
+    )
 
 
 class ChatResponse(BaseModel):

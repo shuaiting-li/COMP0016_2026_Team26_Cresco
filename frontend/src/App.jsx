@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import Header from './layout/Header';
 import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
@@ -29,6 +31,7 @@ function App() {
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
 
@@ -109,7 +112,7 @@ function App() {
         }
     };
 
-    const handleSendMessage = async (text) => {
+    const handleSendMessage = async (text, enableInternetSearch = true) => {
         if (!text.trim()) return;
 
         const userMsg = {
@@ -122,7 +125,7 @@ function App() {
         setIsLoading(true);
 
         try {
-            const response = await sendMessage(text, conversationId, files);
+            const response = await sendMessage(text, conversationId, files, enableInternetSearch);
 
             if (response.conversationId) {
                 setConversationId(response.conversationId);
@@ -212,53 +215,61 @@ function App() {
                         onDeleteLastExchange={handleDeleteLastExchange}
                         isLoading={isLoading}
                         farmLocation={farmLocation}
+                        internetSearchEnabled={internetSearchEnabled}
+                        setInternetSearchEnabled={setInternetSearchEnabled}
                     />
                     {leftCollapsed && (
                         <button
                             style={{
                                 position: 'absolute',
-                                top: '10%',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 left: 0,
                                 zIndex: 100,
-                                background: 'var(--bg-app)',
+                                background: 'var(--bg-panel)',
                                 border: '1px solid var(--border)',
-                                borderRadius: '50%',
+                                borderLeft: 'none',
+                                borderRadius: '0 8px 8px 0',
                                 width: 32,
-                                height: 32,
+                                height: 48,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                color: 'var(--accent)'
+                                color: 'var(--accent)',
+                                boxShadow: '2px 0 8px rgba(0,0,0,0.1)'
                             }}
                             onClick={() => setLeftCollapsed(false)}
                             aria-label="Show left sidebar"
                         >
-                            <span style={{ fontSize: 18 }}>&#x25B6;</span>
+                            <PanelLeftOpen size={20} />
                         </button>
                     )}
                     {rightCollapsed && (
                         <button
                             style={{
                                 position: 'absolute',
-                                top: '10%',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 right: 0,
                                 zIndex: 100,
-                                background: 'var(--bg-app)',
+                                background: 'var(--bg-panel)',
                                 border: '1px solid var(--border)',
-                                borderRadius: '50%',
+                                borderRight: 'none',
+                                borderRadius: '8px 0 0 8px',
                                 width: 32,
-                                height: 32,
+                                height: 48,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                color: 'var(--accent)'
+                                color: 'var(--accent)',
+                                boxShadow: '-2px 0 8px rgba(0,0,0,0.1)'
                             }}
                             onClick={() => setRightCollapsed(false)}
                             aria-label="Show right sidebar"
                         >
-                            <span style={{ fontSize: 18 }}>&#x25C0;</span>
+                            <PanelRightOpen size={20} />
                         </button>
                     )}
                 </div>
@@ -270,6 +281,8 @@ function App() {
                         handleOpenSatelliteImagery={handleOpenSatelliteImagery}
                         collapsed={rightCollapsed}
                         onCollapse={() => setRightCollapsed(true)}
+                        internetSearchEnabled={internetSearchEnabled}
+                        toggleWebSearch={() => setInternetSearchEnabled(prev => !prev)}
                     />
                 )}
             </div>
@@ -301,16 +314,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         <SatelliteMap
                             farmLocation={farmLocation}
@@ -348,16 +365,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         <DroneImagery />
                     </div>
@@ -392,16 +413,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         {farmLocation ? (
                             <SatelliteImagery />
@@ -448,16 +473,20 @@ function App() {
                                 position: 'absolute',
                                 top: '10px',
                                 right: '10px',
-                                backgroundColor: 'red',
-                                color: 'white',
-                                border: 'none',
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                color: '#fca5a5',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
                                 borderRadius: '50%',
                                 width: '30px',
                                 height: '30px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
+                            aria-label="Close"
                         >
-                            X
+                            <X size={16} strokeWidth={2.5} />
                         </button>
                         {farmLocation ? (
                             <Weather lat={farmLocation.lat} lon={farmLocation.lng} />

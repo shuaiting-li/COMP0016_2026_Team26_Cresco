@@ -76,6 +76,16 @@ class TestChatRequest:
         )
         assert len(request.files) == 2
 
+    def test_enable_internet_search_defaults_to_true(self):
+        """Test enable_internet_search defaults to True."""
+        request = ChatRequest(message="Test message")
+        assert request.enable_internet_search is True
+
+    def test_enable_internet_search_can_be_false(self):
+        """Test enable_internet_search can be set to False."""
+        request = ChatRequest(message="Test message", enable_internet_search=False)
+        assert request.enable_internet_search is False
+
 
 class TestChatResponse:
     """Tests for ChatResponse schema."""

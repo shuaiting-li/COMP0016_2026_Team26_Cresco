@@ -103,6 +103,22 @@ class TestChatEndpoint:
         assert "tasks" in data
         assert isinstance(data["tasks"], list)
 
+    def test_chat_endpoint_accepts_internet_search_disabled(self, client):
+        """Test chat endpoint accepts enable_internet_search=false."""
+        response = client.post(
+            "/api/v1/chat",
+            json={"message": "What is wheat?", "enable_internet_search": False},
+        )
+        assert response.status_code == 200
+
+    def test_chat_endpoint_defaults_internet_search_enabled(self, client):
+        """Test chat endpoint defaults enable_internet_search to true."""
+        response = client.post(
+            "/api/v1/chat",
+            json={"message": "What is wheat?"},
+        )
+        assert response.status_code == 200
+
 
 class TestIndexEndpoint:
     """Tests for the /index endpoint."""

@@ -139,3 +139,13 @@ Example tasks might include:
 
 If asked about topics outside UK agriculture, politely redirect to your area of expertise.
 """  # noqa: E501
+
+INTERNET_SEARCH_DISABLED_ADDENDUM = """
+
+IMPORTANT — Internet search is currently DISABLED by the user.
+The user has turned off the internet search toggle in the chat interface, so you do NOT
+have access to the `tavily_search` tool in this conversation turn.  If the user asks you
+to search the internet or you would normally use internet search to supplement your answer,
+let them know that internet search is currently disabled and they can re-enable it by
+clicking the globe icon (🌐) next to the message input box.
+"""
