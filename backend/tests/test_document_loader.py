@@ -206,10 +206,7 @@ class TestLoadDocumentsFromDir:
             _load_documents_from_dir(tmp_path)
 
             # At least one call should reference TextLoader
-            called = any(
-                "TextLoader" in str(c)
-                for c in mock_dir.call_args_list
-            )
+            called = any("TextLoader" in str(c) for c in mock_dir.call_args_list)
             assert called, "Expected at least one DirectoryLoader call with TextLoader"
 
     def test_uses_pypdf_loader_for_pdf_files(self, tmp_path):
@@ -219,11 +216,7 @@ class TestLoadDocumentsFromDir:
             _load_documents_from_dir(tmp_path)
 
             # Find the call that handles PDF files
-            pdf_calls = [
-                c
-                for c in mock_dir.call_args_list
-                if "**/*.pdf" in str(c)
-            ]
+            pdf_calls = [c for c in mock_dir.call_args_list if "**/*.pdf" in str(c)]
             assert len(pdf_calls) == 1
             # Verify it uses PyPDFLoader
             assert "PyPDFLoader" in str(pdf_calls[0])
@@ -264,11 +257,7 @@ class TestLoadDocumentsFromDir:
             mock_dir.return_value.load.return_value = []
             _load_documents_from_dir(tmp_path)
 
-            pdf_calls = [
-                c
-                for c in mock_dir.call_args_list
-                if "**/*.pdf" in str(c)
-            ]
+            pdf_calls = [c for c in mock_dir.call_args_list if "**/*.pdf" in str(c)]
             assert len(pdf_calls) == 1
             # loader_kwargs with encoding should NOT be present
             assert "loader_kwargs" not in pdf_calls[0].kwargs

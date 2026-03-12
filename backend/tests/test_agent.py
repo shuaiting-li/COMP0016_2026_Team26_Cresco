@@ -298,17 +298,16 @@ class TestCrescoAgentChartParsing:
     @pytest.mark.asyncio
     async def test_chat_parses_single_chart(self, mock_settings, mock_agent_deps):
         """Test chat parses a chart block from the response."""
-        chart_json = json.dumps({
-            "type": "bar",
-            "data": [{"name": "Wheat", "value": 50}],
-            "xKey": "name",
-            "yKey": "value",
-            "title": "Yields",
-        })
-        content = (
-            f"Here are the results.\n---CHART---\n{chart_json}"
-            f"\n---END_CHART---\nDone."
+        chart_json = json.dumps(
+            {
+                "type": "bar",
+                "data": [{"name": "Wheat", "value": 50}],
+                "xKey": "name",
+                "yKey": "value",
+                "title": "Yields",
+            }
         )
+        content = f"Here are the results.\n---CHART---\n{chart_json}\n---END_CHART---\nDone."
 
         mock_message = MagicMock()
         mock_message.content = content
@@ -328,12 +327,8 @@ class TestCrescoAgentChartParsing:
     @pytest.mark.asyncio
     async def test_chat_parses_multiple_charts(self, mock_settings, mock_agent_deps):
         """Test chat parses multiple chart blocks."""
-        chart1 = json.dumps(
-            {"type": "bar", "data": [], "title": "Chart 1"}
-        )
-        chart2 = json.dumps(
-            {"type": "pie", "data": [], "title": "Chart 2"}
-        )
+        chart1 = json.dumps({"type": "bar", "data": [], "title": "Chart 1"})
+        chart2 = json.dumps({"type": "pie", "data": [], "title": "Chart 2"})
         content = (
             f"Text\n---CHART---\n{chart1}\n---END_CHART---\n"
             f"Middle\n---CHART---\n{chart2}\n---END_CHART---\nEnd."
