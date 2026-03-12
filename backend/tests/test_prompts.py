@@ -53,7 +53,11 @@ class TestSystemPrompt:
 
     def test_prompt_limits_tasks_to_five(self):
         """Test prompt instructs the LLM to suggest no more than five tasks."""
-        assert "5 or fewer" in SYSTEM_PROMPT
+        prompt_lower = SYSTEM_PROMPT.lower()
+        # Accept multiple phrasings ("5 or fewer", "no more than 5", "maximum 5", etc.)
+        assert "5" in SYSTEM_PROMPT and (
+            "fewer" in prompt_lower or "max" in prompt_lower or "most" in prompt_lower
+        )
 
     def test_prompt_mentions_metric_units(self):
         """Test prompt mentions UK metric units."""

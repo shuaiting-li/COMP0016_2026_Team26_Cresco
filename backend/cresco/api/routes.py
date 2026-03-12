@@ -447,5 +447,7 @@ async def satellite_image(
 
         return StreamingResponse(io.BytesIO(result), media_type="image/png")
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"satellite image error: {str(e)}")
