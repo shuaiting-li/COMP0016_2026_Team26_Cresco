@@ -306,6 +306,8 @@ describe('ChatArea', () => {
         await user.type(input, 'Hello{Enter}');
 
         expect(onSendMessage).toHaveBeenCalledWith('Hello', false);
+    });
+
     it('switches to dashboard tab', async () => {
         /** Verifies clicking the Dashboard tab shows the dashboard view. */
         const user = userEvent.setup();
