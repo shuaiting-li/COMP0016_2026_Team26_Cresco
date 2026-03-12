@@ -306,5 +306,40 @@ describe('ChatArea', () => {
         await user.type(input, 'Hello{Enter}');
 
         expect(onSendMessage).toHaveBeenCalledWith('Hello', false);
+    it('switches to dashboard tab', async () => {
+        /** Verifies clicking the Dashboard tab shows the dashboard view. */
+        const user = userEvent.setup();
+        // Stub the NDVI fetch that Dashboard triggers
+        fetch.mockResolvedValue({ ok: true, json: async () => ({ images: [] }) });
+
+        render(
+            <ChatArea messages={[]} onSendMessage={onSendMessage}
+                onDeleteLastExchange={onDeleteLastExchange} isLoading={false}
+                farmLocation={null} />,
+        );
+
+        await user.click(screen.getByText('Dashboard'));
+        expect(screen.getByText('Farm Overview')).toBeInTheDocument();
+    });
+
+    it('renders charts when present in assistant message', () => {
+        /** Verifies inline chart rendering for messages with chart data. */
+        const messages = [{
+            id: 2,
+            role: 'assistant',
+            content: 'Here are the yields.',
+            charts: [{
+                type: 'bar',
+                data: [{ name: 'Wheat', value: 50 }],
+                xKey: 'name',
+                yKey: 'value',
+                title: 'Yield Chart',
+                position: 0,
+            }],
+        }];
+        render(<ChatArea messages={messages} onSendMessage={onSendMessage} isLoading={false} />);
+        // Chart title appears in both inline rendering and the charts list
+        const titles = screen.getAllByText('Yield Chart');
+        expect(titles.length).toBeGreaterThanOrEqual(1);
     });
 });
