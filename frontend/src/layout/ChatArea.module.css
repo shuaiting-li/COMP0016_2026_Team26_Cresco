@@ -215,6 +215,7 @@
     display: flex; align-items: center; justify-content: center;
     background: transparent; color: #555; cursor: pointer;
     flex-shrink: 0; align-self: center;
+    transform: translateY(-3px);
     transition: all 0.2s;
 }
 

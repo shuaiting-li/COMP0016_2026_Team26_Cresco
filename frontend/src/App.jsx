@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import Header from './layout/Header';
 import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
@@ -220,48 +221,54 @@ function App() {
                         <button
                             style={{
                                 position: 'absolute',
-                                top: '10%',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 left: 0,
                                 zIndex: 100,
-                                background: 'var(--bg-app)',
+                                background: 'var(--bg-panel)',
                                 border: '1px solid var(--border)',
-                                borderRadius: '50%',
+                                borderLeft: 'none',
+                                borderRadius: '0 8px 8px 0',
                                 width: 32,
-                                height: 32,
+                                height: 48,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                color: 'var(--accent)'
+                                color: 'var(--accent)',
+                                boxShadow: '2px 0 8px rgba(0,0,0,0.1)'
                             }}
                             onClick={() => setLeftCollapsed(false)}
                             aria-label="Show left sidebar"
                         >
-                            <span style={{ fontSize: 18 }}>&#x25B6;</span>
+                            <PanelLeftOpen size={20} />
                         </button>
                     )}
                     {rightCollapsed && (
                         <button
                             style={{
                                 position: 'absolute',
-                                top: '10%',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 right: 0,
                                 zIndex: 100,
-                                background: 'var(--bg-app)',
+                                background: 'var(--bg-panel)',
                                 border: '1px solid var(--border)',
-                                borderRadius: '50%',
+                                borderRight: 'none',
+                                borderRadius: '8px 0 0 8px',
                                 width: 32,
-                                height: 32,
+                                height: 48,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: 'pointer',
-                                color: 'var(--accent)'
+                                color: 'var(--accent)',
+                                boxShadow: '-2px 0 8px rgba(0,0,0,0.1)'
                             }}
                             onClick={() => setRightCollapsed(false)}
                             aria-label="Show right sidebar"
                         >
-                            <span style={{ fontSize: 18 }}>&#x25C0;</span>
+                            <PanelRightOpen size={20} />
                         </button>
                     )}
                 </div>

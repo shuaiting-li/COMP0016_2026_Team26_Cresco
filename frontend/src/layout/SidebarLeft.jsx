@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Plus, Trash2, FileText, Image, File, UploadCloud, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, FileText, Image, File, UploadCloud, PanelLeftClose } from 'lucide-react';
 import styles from './SidebarLeft.module.css';
 
 export default function SidebarLeft({ files, onUpload, onRemove, onCollapse }) {
@@ -61,7 +61,7 @@ export default function SidebarLeft({ files, onUpload, onRemove, onCollapse }) {
                 onClick={onCollapse}
                 aria-label="Collapse left sidebar"
             >
-                <ChevronLeft size={20} />
+                <PanelLeftClose size={18} />
             </button>
             {isDragging && (
                 <div className={styles.dragOverlay}>

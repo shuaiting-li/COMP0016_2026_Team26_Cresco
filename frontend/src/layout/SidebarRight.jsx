@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { PanelRightClose } from 'lucide-react';
 import styles from './SidebarRight.module.css';
 import { STUDIO_ITEMS } from '../tools/toolMenu';
 
@@ -48,7 +48,7 @@ export default function SidebarRight({
                 onClick={onCollapse}
                 aria-label="Collapse right sidebar"
             >
-                <ChevronRight size={20} />
+                <PanelRightClose size={18} />
             </button>
             <h3>Toolbox</h3>
             <div className={styles.grid}>
