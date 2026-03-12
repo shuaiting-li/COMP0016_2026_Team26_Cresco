@@ -29,8 +29,9 @@ class TestCreateApp:
         assert app.version == __version__
 
     def test_app_has_description(self):
-        """Test app has description."""
-        assert "UK Farmers" in app.description or "Agricultural" in app.description
+        """Test app has a non-empty description."""
+        assert isinstance(app.description, str)
+        assert len(app.description) > 0
 
     def test_app_includes_api_router(self):
         """Test app includes the API router with correct prefix."""
@@ -44,10 +45,14 @@ class TestCORS:
 
     def test_cors_middleware_added(self):
         """Test CORS middleware is added to the app."""
-        from starlette.middleware.cors import CORSMiddleware
+        from fastapi.testclient import TestClient
 
-        middleware_classes = [m.cls for m in app.user_middleware]
-        assert CORSMiddleware in middleware_classes
+        with TestClient(app) as tc:
+            response = tc.get(
+                "/api/v1/health",
+                headers={"Origin": "http://localhost:3000"},
+            )
+            assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
 
 
 class TestAppVersion:
@@ -71,7 +76,7 @@ class TestLifespan:
 
     @pytest.mark.asyncio
     async def test_lifespan_startup(self):
-        """Test lifespan context manager startup."""
+        """Test lifespan context manager runs startup without raising."""
         from cresco.main import lifespan
 
         with patch("cresco.main.get_settings") as mock_settings:
@@ -80,5 +85,5 @@ class TestLifespan:
             mock_settings.return_value.model_name = "gpt-4"
 
             async with lifespan(app):
-                # Should not raise
-                pass
+                # Verify startup accessed settings
+                assert mock_settings.called

@@ -159,6 +159,92 @@ class TestBatchSettings:
         assert BATCH_DELAY <= 10  # Not too slow
 
 
+class TestIndexKnowledgeBaseRateLimit:
+    """Tests for rate limit handling during indexing."""
+
+    @pytest.mark.asyncio
+    async def test_retries_on_rate_limit_error(self, mock_settings):
+        """Test that indexing retries after a rate limit (429) error."""
+        from langchain_core.documents import Document
+
+        docs = [Document(page_content="content", metadata={"source": "doc.md"})]
+
+        with (
+            patch("cresco.rag.indexer.is_indexed", return_value=False),
+            patch("cresco.rag.indexer.load_knowledge_base", return_value=docs),
+            patch("cresco.rag.indexer.split_documents", return_value=docs),
+            patch("cresco.rag.indexer.get_vector_store") as mock_get_vs,
+            patch("cresco.rag.indexer.asyncio.sleep") as mock_sleep,
+        ):
+            mock_vectorstore = MagicMock()
+            # First call raises rate limit, retry succeeds
+            mock_vectorstore.add_documents = MagicMock(
+                side_effect=[Exception("rate limit exceeded 429"), None]
+            )
+            mock_get_vs.return_value = mock_vectorstore
+
+            count = await index_knowledge_base(mock_settings, force=False)
+
+            assert count == 1
+            # Should have retried after rate limit (slept before retry)
+            mock_sleep.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_upload_file_filters_documents(self, mock_settings):
+        """Test that upload_file parameter filters to only the matching file."""
+        from langchain_core.documents import Document
+
+        docs = [
+            Document(page_content="A", metadata={"filename": "a.md"}),
+            Document(page_content="B", metadata={"filename": "b.md"}),
+        ]
+
+        with (
+            patch("cresco.rag.indexer.is_indexed", return_value=False),
+            patch("cresco.rag.indexer.load_knowledge_base", return_value=docs),
+            patch("cresco.rag.indexer.split_documents") as mock_split,
+            patch("cresco.rag.indexer.get_vector_store") as mock_get_vs,
+        ):
+            mock_split.return_value = [docs[0]]
+            mock_vectorstore = MagicMock()
+            mock_get_vs.return_value = mock_vectorstore
+
+            await index_knowledge_base(mock_settings, upload_file="a.md")
+
+            # split_documents should only receive the filtered doc
+            call_args = mock_split.call_args[0][0]
+            assert len(call_args) == 1
+            assert call_args[0].metadata["filename"] == "a.md"
+
+
+class TestIndexUserUploadRateLimit:
+    """Tests for rate limit handling during user upload indexing."""
+
+    @pytest.mark.asyncio
+    async def test_retries_on_rate_limit(self, mock_settings):
+        """Test that user upload indexing retries after rate limit error."""
+        from langchain_core.documents import Document
+
+        docs = [Document(page_content="report", metadata={"filename": "r.md"})]
+
+        with (
+            patch("cresco.rag.indexer.load_user_documents", return_value=docs),
+            patch("cresco.rag.indexer.split_documents", return_value=docs),
+            patch("cresco.rag.indexer.get_vector_store") as mock_get_vs,
+            patch("cresco.rag.indexer.asyncio.sleep") as mock_sleep,
+        ):
+            mock_vectorstore = MagicMock()
+            mock_vectorstore.add_documents = MagicMock(
+                side_effect=[Exception("429 rate limit"), None]
+            )
+            mock_get_vs.return_value = mock_vectorstore
+
+            count = await index_user_upload(mock_settings, user_id="u1", filename="r.md")
+
+            assert count == 1
+            mock_sleep.assert_any_call(30)
+
+
 class TestIndexUserUpload:
     """Tests for index_user_upload function."""
 

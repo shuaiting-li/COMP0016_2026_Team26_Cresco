@@ -40,4 +40,4 @@
 
 .iconBox { color: var(--text-muted); transition: 0.2s; }
 .card:hover .iconBox { color: var(--accent); }
-.card span { font-size: 0.8rem; font-weight: 500; }
+.card span { font-size: 0.8rem; font-weight: 500; } 
