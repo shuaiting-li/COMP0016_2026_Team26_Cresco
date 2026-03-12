@@ -5,7 +5,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import ChatArea from '../layout/ChatArea';
+
+function ControlledChatArea(props) {
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
+
+    return (
+        <ChatArea
+            {...props}
+            internetSearchEnabled={internetSearchEnabled}
+            setInternetSearchEnabled={setInternetSearchEnabled}
+        />
+    );
+}
 
 describe('ChatArea', () => {
     /** Tests for the main chat interface. */
@@ -20,19 +33,19 @@ describe('ChatArea', () => {
 
     it('renders empty state with Cresco Intelligence heading', () => {
         /** Verifies the hero/empty state is shown with no messages. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         expect(screen.getByText('Cresco Intelligence')).toBeInTheDocument();
     });
 
     it('renders the message input', () => {
         /** Verifies the input placeholder is present. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         expect(screen.getByPlaceholderText(/message cresco/i)).toBeInTheDocument();
     });
 
     it('sends message on button click', async () => {
         /** Verifies send callback fires with input text. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         const user = userEvent.setup();
 
         const input = screen.getByPlaceholderText(/message cresco/i);
@@ -44,7 +57,7 @@ describe('ChatArea', () => {
 
     it('sends message on Enter key', async () => {
         /** Verifies Enter key triggers send. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         const user = userEvent.setup();
 
         const input = screen.getByPlaceholderText(/message cresco/i);
@@ -55,7 +68,7 @@ describe('ChatArea', () => {
 
     it('clears input after sending', async () => {
         /** Verifies the input is emptied after a message is sent. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         const user = userEvent.setup();
 
         const input = screen.getByPlaceholderText(/message cresco/i);
@@ -66,7 +79,7 @@ describe('ChatArea', () => {
 
     it('does not send empty messages', async () => {
         /** Verifies whitespace-only messages are blocked. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         const user = userEvent.setup();
 
         const input = screen.getByPlaceholderText(/message cresco/i);
@@ -235,7 +248,7 @@ describe('ChatArea', () => {
 
     it('inserts newline on Shift+Enter without sending', async () => {
         /** Verifies Shift+Enter adds a newline to the input rather than sending. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         const user = userEvent.setup();
 
         const input = screen.getByRole('textbox');
@@ -258,20 +271,20 @@ describe('ChatArea', () => {
 
     it('renders internet search toggle button', () => {
         /** Verifies the internet search toggle is rendered. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         expect(screen.getByRole('button', { name: /toggle internet search/i })).toBeInTheDocument();
     });
 
     it('internet search is enabled by default', () => {
         /** Verifies the toggle starts in the enabled state. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
         const toggle = screen.getByRole('button', { name: /toggle internet search/i });
         expect(toggle.title).toBe('Internet search enabled');
     });
 
     it('toggles internet search off when clicked', async () => {
         /** Verifies clicking the toggle disables internet search. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ControlledChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const user = userEvent.setup();
 
         const toggle = screen.getByRole('button', { name: /toggle internet search/i });
@@ -282,7 +295,7 @@ describe('ChatArea', () => {
 
     it('sends message with internet search disabled after toggle', async () => {
         /** Verifies the send callback includes the internet search state. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
+        render(<ControlledChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const user = userEvent.setup();
 
         // Disable internet search

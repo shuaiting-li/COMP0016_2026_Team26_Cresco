@@ -29,6 +29,7 @@ function App() {
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
 
@@ -212,6 +213,8 @@ function App() {
                         onDeleteLastExchange={handleDeleteLastExchange}
                         isLoading={isLoading}
                         farmLocation={farmLocation}
+                        internetSearchEnabled={internetSearchEnabled}
+                        setInternetSearchEnabled={setInternetSearchEnabled}
                     />
                     {leftCollapsed && (
                         <button
@@ -270,6 +273,8 @@ function App() {
                         handleOpenSatelliteImagery={handleOpenSatelliteImagery}
                         collapsed={rightCollapsed}
                         onCollapse={() => setRightCollapsed(true)}
+                        internetSearchEnabled={internetSearchEnabled}
+                        toggleWebSearch={() => setInternetSearchEnabled(prev => !prev)}
                     />
                 )}
             </div>

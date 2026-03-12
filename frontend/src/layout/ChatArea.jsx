@@ -12,10 +12,17 @@ import Dashboard from './Dashboard';
 import 'katex/dist/katex.min.css';
 
 
-export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange, isLoading, farmLocation }) {
+export default function ChatArea({
+    messages,
+    onSendMessage,
+    onDeleteLastExchange,
+    isLoading,
+    farmLocation,
+    internetSearchEnabled = true,
+    setInternetSearchEnabled = () => {},
+}) {
     const [input, setInput] = useState("");
     const [activeTab, setActiveTab] = useState('chat');
-    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
 
@@ -241,6 +248,7 @@ export default function ChatArea({ messages, onSendMessage, onDeleteLastExchange
                         className={`${styles.searchToggle} ${internetSearchEnabled ? styles.searchToggleActive : ''}`}
                         onClick={() => setInternetSearchEnabled(prev => !prev)}
                         aria-label="Toggle internet search"
+                        aria-pressed={internetSearchEnabled}
                         title={internetSearchEnabled ? "Internet search enabled" : "Internet search disabled"}
                         type="button"
                     >
