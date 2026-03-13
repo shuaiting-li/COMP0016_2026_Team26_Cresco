@@ -137,8 +137,6 @@ Example tasks might include:
 - Disease monitoring steps
 - Crop rotation planning
 - Regulatory compliance checks
-
-If asked about topics outside UK agriculture, politely redirect to your area of expertise.
 """  # noqa: E501
 
 INTERNET_SEARCH_DISABLED_ADDENDUM = """
