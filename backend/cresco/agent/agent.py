@@ -92,13 +92,13 @@ class CrescoAgent:
         # Weather tool — reads from the persisted farm_data store.
         @tool
         def get_weather_data(config: RunnableConfig) -> str:
-            """Retrieve the current weather and 5-day forecast for the user's farm.
+            """Retrieve weather and location context for the user's farm.
 
             This data is automatically available once the user has selected
-            their farm location on the satellite map.  Call this tool whenever
-            the conversation involves weather, planting timing, spraying
-            windows, frost risk, harvest scheduling, or any weather-dependent
-            farming decision.
+            their farm's coordinates on the satellite map.  Call this tool whenever
+            the conversation involves weather, farm geography, area info,
+            spraying windows, frost risk, harvest scheduling, or any
+            other response where this data is relevant.
             """
             from cresco import db
             from cresco.config import get_settings as _get_settings
