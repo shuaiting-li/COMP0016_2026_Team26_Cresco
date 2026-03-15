@@ -100,16 +100,15 @@ class TestGetSettings:
         assert settings1 is settings2
 
     def test_cache_can_be_cleared(self):
-        """Test settings cache can be cleared."""
+        """Test clearing the cache produces a new instance."""
         get_settings.cache_clear()
         settings1 = get_settings()
 
         get_settings.cache_clear()
         settings2 = get_settings()
 
-        # After clearing, should be a new instance
-        # (they're equal but may or may not be the same object depending on timing)
-        assert settings1 == settings2
+        # After clearing, should be a distinct object (not the cached one)
+        assert settings1 is not settings2
 
 
 class TestSettingsValidation:

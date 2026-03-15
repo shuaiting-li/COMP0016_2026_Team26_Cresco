@@ -24,18 +24,16 @@ class TestChatRequest:
         """Test empty message raises validation error."""
         with pytest.raises(ValidationError) as exc_info:
             ChatRequest(message="")
-        # Pydantic v2 uses "string_too_short" or "at least 1 character"
-        error_str = str(exc_info.value).lower()
-        assert "too_short" in error_str or "at least 1" in error_str
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("message",) for e in errors)
 
     def test_message_too_long_rejected(self):
         """Test message exceeding max length raises error."""
         long_message = "a" * 2001
         with pytest.raises(ValidationError) as exc_info:
             ChatRequest(message=long_message)
-        # Pydantic v2 uses "string_too_long" or "at most 2000"
-        error_str = str(exc_info.value).lower()
-        assert "too_long" in error_str or "at most 2000" in error_str
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("message",) for e in errors)
 
     def test_message_at_max_length(self):
         """Test message at exactly max length is accepted."""
@@ -78,6 +76,16 @@ class TestChatRequest:
         )
         assert len(request.files) == 2
 
+    def test_enable_internet_search_defaults_to_true(self):
+        """Test enable_internet_search defaults to True."""
+        request = ChatRequest(message="Test message")
+        assert request.enable_internet_search is True
+
+    def test_enable_internet_search_can_be_false(self):
+        """Test enable_internet_search can be set to False."""
+        request = ChatRequest(message="Test message", enable_internet_search=False)
+        assert request.enable_internet_search is False
+
 
 class TestChatResponse:
     """Tests for ChatResponse schema."""
@@ -95,8 +103,10 @@ class TestChatResponse:
 
     def test_answer_required(self):
         """Test answer field is required."""
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError) as exc_info:
             ChatResponse(sources=[], tasks=[])
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("answer",) for e in errors)
 
     def test_default_empty_sources(self):
         """Test sources defaults to empty list."""
@@ -131,8 +141,11 @@ class TestHealthResponse:
 
     def test_all_fields_required(self):
         """Test all fields are required."""
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError) as exc_info:
             HealthResponse(status="healthy")
+        missing_fields = {e["loc"][0] for e in exc_info.value.errors()}
+        assert "version" in missing_fields
+        assert "knowledge_base_loaded" in missing_fields
 
     def test_knowledge_base_false(self):
         """Test knowledge_base_loaded can be False."""

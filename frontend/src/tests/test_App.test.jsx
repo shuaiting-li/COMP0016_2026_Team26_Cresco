@@ -82,8 +82,9 @@ describe('App', () => {
         render(<App />);
         const user = userEvent.setup();
 
-        // Open profile dropdown
-        const avatarBtn = screen.getByText('TE').closest('button');
+        // Open profile dropdown — initials derived from mock username
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
         await user.click(avatarBtn);
 
         // Click sign out
@@ -144,9 +145,9 @@ describe('App', () => {
         await user.click(screen.getByText('Add Farm'));
         expect(screen.getByTestId('satellite-map')).toBeInTheDocument();
 
-        // Close via X button
-        const closeButtons = screen.getAllByText('X');
-        await user.click(closeButtons[0]);
+        // Close via icon button
+        const closeBtn = screen.getByRole('button', { name: /close/i });
+        await user.click(closeBtn);
         expect(screen.queryByTestId('satellite-map')).not.toBeInTheDocument();
     });
 
@@ -164,9 +165,9 @@ describe('App', () => {
             expect(screen.getByText(/please select a farm location first/i)).toBeInTheDocument();
         });
 
-        // Close via X button
-        const closeButtons = screen.getAllByText('X');
-        await user.click(closeButtons[0]);
+        // Close via icon button
+        const closeBtn = screen.getByRole('button', { name: /close/i });
+        await user.click(closeBtn);
 
         expect(screen.queryByText(/please select a farm location first/i)).not.toBeInTheDocument();
     });

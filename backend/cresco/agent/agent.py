@@ -14,7 +14,7 @@ from cresco.config import Settings, get_settings
 from cresco.rag.document_loader import SHARED_USER_ID
 from cresco.rag.retriever import get_vector_store
 
-from .prompts import SYSTEM_PROMPT
+from .prompts import INTERNET_SEARCH_DISABLED_ADDENDUM, SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,10 @@ class CrescoAgent:
         self.settings = settings
         self.vector_store = get_vector_store()
         self.checkpointer = InMemorySaver()
-        self._agent = self._build_agent()
+        self._agent_with_search = self._build_agent(include_internet_search=True)
+        self._agent_no_search = self._build_agent(include_internet_search=False)
 
-    def _build_agent(self):
+    def _build_agent(self, include_internet_search=True):
         """Build the agent using create_agent with retrieval tool."""
         # Initialize the chat model based on provider
         if self.settings.model_provider == "azure-openai":
@@ -91,13 +92,13 @@ class CrescoAgent:
         # Weather tool — reads from the persisted farm_data store.
         @tool
         def get_weather_data(config: RunnableConfig) -> str:
-            """Retrieve the current weather and 5-day forecast for the user's farm.
+            """Retrieve weather and location context for the user's farm.
 
             This data is automatically available once the user has selected
-            their farm location on the satellite map.  Call this tool whenever
-            the conversation involves weather, planting timing, spraying
-            windows, frost risk, harvest scheduling, or any weather-dependent
-            farming decision.
+            their farm's coordinates on the satellite map.  Call this tool whenever
+            the conversation involves weather, farm geography, area info,
+            spraying windows, frost risk, harvest scheduling, or any
+            other response where this data is relevant.
             """
             from cresco import db
             from cresco.config import get_settings as _get_settings
@@ -168,35 +169,49 @@ class CrescoAgent:
             return "\n".join(parts)
 
         # Internet search tool for real-time information
-        internet_search = TavilySearch(
-            max_results=5,
-            topic="general",
-        )
+        tools = [retrieve_agricultural_info, get_weather_data]
+        if include_internet_search:
+            internet_search = TavilySearch(
+                max_results=5,
+                topic="general",
+            )
+            tools.append(internet_search)
 
-        # Create agent with retrieval, weather, and search tools
+        # Create agent with retrieval, weather, and optionally search tools
+        prompt = SYSTEM_PROMPT
+        if not include_internet_search:
+            prompt += INTERNET_SEARCH_DISABLED_ADDENDUM
         agent = create_agent(
             model=model,
-            tools=[retrieve_agricultural_info, get_weather_data, internet_search],
-            system_prompt=SYSTEM_PROMPT,
+            tools=tools,
+            system_prompt=prompt,
             checkpointer=self.checkpointer,
         )
 
         return agent
 
-    async def chat(self, message: str, thread_id: str = "default", user_id: str = "") -> dict:
+    async def chat(
+        self,
+        message: str,
+        thread_id: str = "default",
+        user_id: str = "",
+        enable_internet_search: bool = True,
+    ) -> dict:
         """Process a chat message and return response with sources.
 
         Args:
             message: User's question
             thread_id: Conversation thread ID for memory persistence
             user_id: Authenticated user's ID, injected into tools via config
+            enable_internet_search: Whether the agent can use internet search
 
         Returns:
             Dict with 'answer', 'sources', 'charts', and 'tasks' keys
         """
         config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
-        result = await self._agent.ainvoke(
+        agent = self._agent_with_search if enable_internet_search else self._agent_no_search
+        result = await agent.ainvoke(
             {"messages": [{"role": "user", "content": message}]},
             config,
         )
@@ -285,7 +300,7 @@ class CrescoAgent:
         """
         config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
 
-        state = await self._agent.aget_state(config)
+        state = await self._agent_with_search.aget_state(config)
         messages = state.values.get("messages", [])
 
         if not messages:
@@ -304,7 +319,7 @@ class CrescoAgent:
         # Remove every message from the last HumanMessage onwards
         to_remove = messages[last_human_idx:]
         removals = [RemoveMessage(id=m.id) for m in to_remove]
-        await self._agent.aupdate_state(config, {"messages": removals})
+        await self._agent_with_search.aupdate_state(config, {"messages": removals})
         return True
 
     def clear_memory(self, thread_id: str = "default") -> None:
@@ -312,7 +327,8 @@ class CrescoAgent:
         # InMemorySaver doesn't have a direct clear method per thread
         # Reinitialize checkpointer to clear all memory
         self.checkpointer = InMemorySaver()
-        self._agent = self._build_agent()
+        self._agent_with_search = self._build_agent(include_internet_search=True)
+        self._agent_no_search = self._build_agent(include_internet_search=False)
 
 
 # Module-level singleton

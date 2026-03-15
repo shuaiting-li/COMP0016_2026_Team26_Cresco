@@ -123,9 +123,10 @@ export async function deleteAccount() {
  * @param {string} message - The user's message
  * @param {string} conversationId - Optional conversation ID for context
  * @param {Array<File>} files - Optional array of uploaded files
+ * @param {boolean} enableInternetSearch - Whether the agent can use internet search
  * @returns {Promise<{reply: string, tasks: Array, citations: Array, charts: Array, conversationId: string}>}
  */
-export async function sendMessage(message, conversationId = null, files = []) {
+export async function sendMessage(message, conversationId = null, files = [], enableInternetSearch = true) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for LLM
 
@@ -142,6 +143,7 @@ export async function sendMessage(message, conversationId = null, files = []) {
                 message,
                 conversation_id: conversationId,
                 files: fileData.length > 0 ? fileData : null,
+                enable_internet_search: enableInternetSearch,
             }),
             signal: controller.signal,
         });

@@ -1,6 +1,6 @@
 /* ── Container ───────────────────────────────────────── */
 .weatherContainer {
-    background-color: black;
+    background-color: var(--bg-app);
     color: white;
     padding: 2rem;
     font-family: sans-serif;

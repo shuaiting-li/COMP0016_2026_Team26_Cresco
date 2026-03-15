@@ -299,7 +299,7 @@ export default function Dashboard({ farmLocation, messages = [] }) {
 
 
                 {/* Field health — right */}
-                <div className={styles.panel}>
+                <div className={`${styles.panel} ${styles.fieldHealthPanel}`}>
                     <div className={styles.panelHeader}>
                         <Leaf size={16} className={styles.panelIcon} />
                         <span className={styles.panelTitle}>Field Health</span>

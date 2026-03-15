@@ -357,7 +357,7 @@ const SatelliteMap = ({ farmLocation, setFarmLocation }) => {
 
         <button
           onClick={handleSelectAsFarm}
-          style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}
+          style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#1f7a45', color: 'white', border: 'none', borderRadius: '4px' }}
         >
           Select as Farm
         </button>

@@ -39,6 +39,14 @@ class TestCrescoAgentInit:
         assert mock_agent_deps["vector_store"].called
         assert mock_agent_deps["create_agent"].called
 
+    def test_builds_two_agent_variants(self, mock_settings, mock_agent_deps):
+        """Test that both agent variants (with and without search) are built."""
+        agent = CrescoAgent(mock_settings)
+
+        assert agent._agent_with_search is not None
+        assert agent._agent_no_search is not None
+        assert mock_agent_deps["create_agent"].call_count == 2
+
     def test_uses_azure_openai_for_azure_provider(self, mock_settings, mock_agent_deps):
         """Test uses AzureChatOpenAI when provider is azure-openai."""
         mock_settings.azure_openai_deployment = "test-deployment"
@@ -56,7 +64,7 @@ class TestCrescoAgentInit:
         with patch("cresco.agent.agent.init_chat_model") as mock_init:
             CrescoAgent(mock_settings)
 
-            mock_init.assert_called_once()
+            assert mock_init.call_count == 2  # once per agent variant
             call_kwargs = mock_init.call_args
             assert call_kwargs[0][0] == "gpt-4o"
 
@@ -203,6 +211,45 @@ class TestCrescoAgentChat:
             config = call_args.kwargs.get("config", call_args[1])
         assert config["configurable"]["thread_id"] == "conversation-123"
 
+    @pytest.mark.asyncio
+    async def test_chat_uses_search_agent_when_enabled(self, mock_settings, mock_agent_deps):
+        """Test chat uses the agent with internet search when enabled."""
+        mock_with_search = AsyncMock()
+        mock_no_search = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.content = "Response"
+        mock_message.artifact = None
+        mock_with_search.ainvoke.return_value = {"messages": [mock_message]}
+        mock_no_search.ainvoke.return_value = {"messages": [mock_message]}
+
+        # create_agent is called twice: first for with_search, then for no_search
+        mock_agent_deps["create_agent"].side_effect = [mock_with_search, mock_no_search]
+
+        agent = CrescoAgent(mock_settings)
+        await agent.chat("Question", enable_internet_search=True)
+
+        mock_with_search.ainvoke.assert_called_once()
+        mock_no_search.ainvoke.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_chat_uses_no_search_agent_when_disabled(self, mock_settings, mock_agent_deps):
+        """Test chat uses the agent without internet search when disabled."""
+        mock_with_search = AsyncMock()
+        mock_no_search = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.content = "Response"
+        mock_message.artifact = None
+        mock_with_search.ainvoke.return_value = {"messages": [mock_message]}
+        mock_no_search.ainvoke.return_value = {"messages": [mock_message]}
+
+        mock_agent_deps["create_agent"].side_effect = [mock_with_search, mock_no_search]
+
+        agent = CrescoAgent(mock_settings)
+        await agent.chat("Question", enable_internet_search=False)
+
+        mock_no_search.ainvoke.assert_called_once()
+        mock_with_search.ainvoke.assert_not_called()
+
 
 class TestCrescoAgentClearMemory:
     """Tests for CrescoAgent.clear_memory method."""
@@ -290,6 +337,108 @@ class TestDeleteLastExchange:
         removed_ids = {r.id for r in removals}
         assert "h2" in removed_ids
         assert "a2" in removed_ids
+
+
+class TestCrescoAgentChartParsing:
+    """Tests for chart parsing in CrescoAgent.chat."""
+
+    @pytest.mark.asyncio
+    async def test_chat_parses_single_chart(self, mock_settings, mock_agent_deps):
+        """Test chat parses a chart block from the response."""
+        chart_json = json.dumps(
+            {
+                "type": "bar",
+                "data": [{"name": "Wheat", "value": 50}],
+                "xKey": "name",
+                "yKey": "value",
+                "title": "Yields",
+            }
+        )
+        content = f"Here are the results.\n---CHART---\n{chart_json}\n---END_CHART---\nDone."
+
+        mock_message = MagicMock()
+        mock_message.content = content
+        mock_message.artifact = None
+
+        mock_agent = AsyncMock()
+        mock_agent.ainvoke.return_value = {"messages": [mock_message]}
+        mock_agent_deps["create_agent"].return_value = mock_agent
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.chat("Show me yields")
+
+        assert len(result["charts"]) == 1
+        assert result["charts"][0]["type"] == "bar"
+        assert "---CHART---" not in result["answer"]
+
+    @pytest.mark.asyncio
+    async def test_chat_parses_multiple_charts(self, mock_settings, mock_agent_deps):
+        """Test chat parses multiple chart blocks."""
+        chart1 = json.dumps({"type": "bar", "data": [], "title": "Chart 1"})
+        chart2 = json.dumps({"type": "pie", "data": [], "title": "Chart 2"})
+        content = (
+            f"Text\n---CHART---\n{chart1}\n---END_CHART---\n"
+            f"Middle\n---CHART---\n{chart2}\n---END_CHART---\nEnd."
+        )
+
+        mock_message = MagicMock()
+        mock_message.content = content
+        mock_message.artifact = None
+
+        mock_agent = AsyncMock()
+        mock_agent.ainvoke.return_value = {"messages": [mock_message]}
+        mock_agent_deps["create_agent"].return_value = mock_agent
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.chat("Compare data")
+
+        assert len(result["charts"]) == 2
+        assert result["charts"][0]["type"] == "bar"
+        assert result["charts"][1]["type"] == "pie"
+
+
+class TestCrescoAgentSourceExtraction:
+    """Tests for source extraction edge cases in CrescoAgent.chat."""
+
+    @pytest.mark.asyncio
+    async def test_chat_extracts_sources_from_dict_artifacts(self, mock_settings, mock_agent_deps):
+        """Test source extraction handles dict-based artifacts (from JSON conversion)."""
+        mock_tool_msg = MagicMock()
+        mock_tool_msg.artifact = [
+            {"metadata": {"filename": "report.md"}},
+            {"metadata": {"filename": "guide.pdf"}},
+        ]
+        mock_tool_msg.content = ""
+
+        mock_final_msg = MagicMock()
+        mock_final_msg.content = "Answer"
+        mock_final_msg.artifact = None
+
+        mock_agent = AsyncMock()
+        mock_agent.ainvoke.return_value = {"messages": [mock_tool_msg, mock_final_msg]}
+        mock_agent_deps["create_agent"].return_value = mock_agent
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.chat("question")
+
+        assert "report.md" in result["sources"]
+        assert "guide.pdf" in result["sources"]
+
+    @pytest.mark.asyncio
+    async def test_delete_last_exchange_no_human_messages(self, mock_settings, mock_agent_deps):
+        """Test delete_last_exchange returns False when no HumanMessage exists."""
+        from langchain_core.messages import AIMessage
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": [AIMessage(content="orphan", id="a1")]}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.delete_last_exchange(thread_id="u1", user_id="u1")
+
+        assert result is False
 
 
 class TestGetAgent:

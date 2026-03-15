@@ -17,10 +17,18 @@ describe('SidebarRight', () => {
 
     let handleOpenSatellite;
     let handleOpenWeather;
+    let handleOpenDroneImagery;
+    let handleOpenSatelliteImagery;
+    let toggleWebSearch;
+    let onCollapse;
 
     beforeEach(() => {
         handleOpenSatellite = vi.fn();
         handleOpenWeather = vi.fn();
+        handleOpenDroneImagery = vi.fn();
+        handleOpenSatelliteImagery = vi.fn();
+        toggleWebSearch = vi.fn();
+        onCollapse = vi.fn();
     });
 
     it('renders the Toolbox heading', () => {
@@ -29,6 +37,11 @@ describe('SidebarRight', () => {
             <SidebarRight
                 handleOpenSatellite={handleOpenSatellite}
                 handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={true}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
             />,
         );
         expect(screen.getByText('Toolbox')).toBeInTheDocument();
@@ -41,6 +54,11 @@ describe('SidebarRight', () => {
             <SidebarRight
                 handleOpenSatellite={handleOpenSatellite}
                 handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={true}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
             />,
         );
 
@@ -54,6 +72,11 @@ describe('SidebarRight', () => {
             <SidebarRight
                 handleOpenSatellite={handleOpenSatellite}
                 handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={true}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
             />,
         );
         const user = userEvent.setup();
@@ -68,11 +91,67 @@ describe('SidebarRight', () => {
             <SidebarRight
                 handleOpenSatellite={handleOpenSatellite}
                 handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={true}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
             />,
         );
         const user = userEvent.setup();
 
         await user.click(screen.getByText('Weather Data'));
         expect(handleOpenWeather).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows Disable Web Search when internet search is enabled', () => {
+        /** Verifies the Web Search card displays the enabled label. */
+        render(
+            <SidebarRight
+                handleOpenSatellite={handleOpenSatellite}
+                handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={true}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
+            />,
+        );
+        expect(screen.getByText('Disable Web Search')).toBeInTheDocument();
+    });
+
+    it('shows Enable Web Search when internet search is disabled', () => {
+        /** Verifies the Web Search card displays the disabled label. */
+        render(
+            <SidebarRight
+                handleOpenSatellite={handleOpenSatellite}
+                handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={false}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
+            />,
+        );
+        expect(screen.getByText('Enable Web Search')).toBeInTheDocument();
+    });
+
+    it('calls toggleWebSearch when Web Search card is clicked', async () => {
+        /** Verifies the toggle callback fires when the Web Search card is clicked. */
+        render(
+            <SidebarRight
+                handleOpenSatellite={handleOpenSatellite}
+                handleOpenWeather={handleOpenWeather}
+                handleOpenDroneImagery={handleOpenDroneImagery}
+                handleOpenSatelliteImagery={handleOpenSatelliteImagery}
+                internetSearchEnabled={true}
+                toggleWebSearch={toggleWebSearch}
+                onCollapse={onCollapse}
+            />,
+        );
+        const user = userEvent.setup();
+
+        await user.click(screen.getByText('Disable Web Search'));
+        expect(toggleWebSearch).toHaveBeenCalledTimes(1);
     });
 });

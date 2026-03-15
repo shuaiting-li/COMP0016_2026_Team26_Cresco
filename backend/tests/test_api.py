@@ -1,5 +1,6 @@
 """Tests for API endpoints."""
 
+import io
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -101,6 +102,22 @@ class TestChatEndpoint:
 
         assert "tasks" in data
         assert isinstance(data["tasks"], list)
+
+    def test_chat_endpoint_accepts_internet_search_disabled(self, client):
+        """Test chat endpoint accepts enable_internet_search=false."""
+        response = client.post(
+            "/api/v1/chat",
+            json={"message": "What is wheat?", "enable_internet_search": False},
+        )
+        assert response.status_code == 200
+
+    def test_chat_endpoint_defaults_internet_search_enabled(self, client):
+        """Test chat endpoint defaults enable_internet_search to true."""
+        response = client.post(
+            "/api/v1/chat",
+            json={"message": "What is wheat?"},
+        )
+        assert response.status_code == 200
 
 
 class TestIndexEndpoint:
@@ -626,6 +643,100 @@ class TestListUploadsEndpoint:
         names = [f["name"] for f in response.json()["files"]]
         assert "my_file.md" in names
         assert "other_file.md" not in names
+
+
+class TestDroneImageEndpoint:
+    """Tests for the POST /droneimage endpoint."""
+
+    def test_droneimage_requires_two_files(self, client):
+        """Test uploading fewer than 2 files returns an error."""
+        response = client.post(
+            "/api/v1/droneimage",
+            files={"files": ("single.png", io.BytesIO(b"\x89PNG"), "image/png")},
+        )
+        assert response.status_code == 500
+        assert "2 files" in response.json()["detail"]
+
+    def test_droneimage_success(self, client):
+        """Test successful drone image processing returns PNG stream."""
+        ndvi_bytes = b"\x89PNG_NDVI_DATA"
+        with patch(
+            "cresco.api.routes.compute_ndvi_image",
+            return_value={"image_bytes": ndvi_bytes},
+        ):
+            response = client.post(
+                "/api/v1/droneimage",
+                files=[
+                    ("files", ("rgb.png", io.BytesIO(b"\x89PNG_RGB"), "image/png")),
+                    ("files", ("nir.png", io.BytesIO(b"\x89PNG_NIR"), "image/png")),
+                ],
+            )
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+
+
+class TestNDVIImagesEndpoint:
+    """Tests for the NDVI image listing and retrieval endpoints."""
+
+    def test_get_ndvi_images_returns_metadata(self, client):
+        """Test listing NDVI images returns metadata."""
+        mock_metadata = {"images": [{"id": "abc", "filename": "ndvi_001.png"}]}
+        with patch("cresco.api.routes.load_metadata", return_value=mock_metadata):
+            response = client.get("/api/v1/ndvi-images")
+        assert response.status_code == 200
+        assert response.json()["images"][0]["id"] == "abc"
+
+    def test_get_ndvi_image_file_not_found(self, client):
+        """Test getting a non-existent NDVI image returns 404."""
+        with patch("cresco.api.routes.NDVI_IMAGES_DIR", Path("/nonexistent")):
+            response = client.get("/api/v1/ndvi-images/missing.png")
+        assert response.status_code == 404
+
+    def test_get_ndvi_image_success(self, client):
+        """Test serving an existing NDVI image file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = Path(tmpdir) / "result.png"
+            img_path.write_bytes(b"\x89PNG_FAKE")
+            with patch("cresco.api.routes.NDVI_IMAGES_DIR", Path(tmpdir)):
+                response = client.get("/api/v1/ndvi-images/result.png")
+            assert response.status_code == 200
+
+
+class TestSatelliteImageEndpoint:
+    """Tests for the POST /satellite-image endpoint."""
+
+    def test_satellite_image_no_farm_data(self, client):
+        """Test 404 when user has no farm data set."""
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data.return_value = None
+            response = client.post("/api/v1/satellite-image")
+        assert response.status_code == 404
+        assert "farm data" in response.json()["detail"].lower()
+
+    def test_satellite_image_success(self, client):
+        """Test successful satellite image retrieval returns PNG."""
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data.return_value = {"lat": 51.5, "lon": -0.1}
+            with patch(
+                "cresco.api.routes.satellite_images_main",
+                new_callable=AsyncMock,
+                return_value=b"\x89PNG_SAT",
+            ):
+                response = client.post("/api/v1/satellite-image")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+
+    def test_satellite_image_upstream_failure(self, client):
+        """Test 502 when satellite service returns None."""
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data.return_value = {"lat": 51.5, "lon": -0.1}
+            with patch(
+                "cresco.api.routes.satellite_images_main",
+                new_callable=AsyncMock,
+                return_value=None,
+            ):
+                response = client.post("/api/v1/satellite-image")
+        assert response.status_code == 502
 
 
 class TestFarmDataPersistence:

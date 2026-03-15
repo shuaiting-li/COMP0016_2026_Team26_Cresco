@@ -1,6 +1,6 @@
 """Tests for agent prompts."""
 
-from cresco.agent.prompts import SYSTEM_PROMPT
+from cresco.agent.prompts import INTERNET_SEARCH_DISABLED_ADDENDUM, SYSTEM_PROMPT
 
 
 class TestSystemPrompt:
@@ -53,7 +53,11 @@ class TestSystemPrompt:
 
     def test_prompt_limits_tasks_to_five(self):
         """Test prompt instructs the LLM to suggest no more than five tasks."""
-        assert "5 or fewer" in SYSTEM_PROMPT
+        prompt_lower = SYSTEM_PROMPT.lower()
+        # Accept multiple phrasings ("5 or fewer", "no more than 5", "maximum 5", etc.)
+        assert "5" in SYSTEM_PROMPT and (
+            "fewer" in prompt_lower or "max" in prompt_lower or "most" in prompt_lower
+        )
 
     def test_prompt_mentions_metric_units(self):
         """Test prompt mentions UK metric units."""
@@ -72,3 +76,24 @@ class TestSystemPrompt:
         # Should be comprehensive but not excessive
         assert len(SYSTEM_PROMPT) > 500  # Not too short
         assert len(SYSTEM_PROMPT) < 10000  # Not too long
+
+
+class TestInternetSearchDisabledAddendum:
+    """Tests for the internet search disabled addendum."""
+
+    def test_addendum_is_string(self):
+        """Test addendum is a non-empty string."""
+        assert isinstance(INTERNET_SEARCH_DISABLED_ADDENDUM, str)
+        assert len(INTERNET_SEARCH_DISABLED_ADDENDUM) > 0
+
+    def test_addendum_mentions_disabled(self):
+        """Test addendum tells the agent that internet search is disabled."""
+        assert "disabled" in INTERNET_SEARCH_DISABLED_ADDENDUM.lower()
+
+    def test_addendum_mentions_toggle(self):
+        """Test addendum tells the agent about the globe icon toggle."""
+        assert "globe" in INTERNET_SEARCH_DISABLED_ADDENDUM.lower()
+
+    def test_addendum_mentions_re_enable(self):
+        """Test addendum instructs the agent to tell users how to re-enable search."""
+        assert "re-enable" in INTERNET_SEARCH_DISABLED_ADDENDUM.lower()

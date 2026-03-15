@@ -215,7 +215,12 @@ async def chat(
             request.files,
         )
         print("Full message to agent: %s", message)
-        result = await agent.chat(message, thread_id=user_id, user_id=user_id)
+        result = await agent.chat(
+            message,
+            thread_id=user_id,
+            user_id=user_id,
+            enable_internet_search=request.enable_internet_search,
+        )
         logger.info(
             "Chat response: answer length=%d, sources=%d, tasks=%d, charts=%d",
             len(result["answer"]),
@@ -440,5 +445,7 @@ async def satellite_image(
 
         return StreamingResponse(io.BytesIO(result), media_type="image/png")
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"satellite image error: {str(e)}")
