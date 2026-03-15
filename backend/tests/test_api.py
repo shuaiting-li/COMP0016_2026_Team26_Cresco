@@ -679,16 +679,41 @@ class TestNDVIImagesEndpoint:
     """Tests for the NDVI image listing and retrieval endpoints."""
 
     def test_get_ndvi_images_returns_metadata(self, client):
-        """Test listing NDVI images returns metadata."""
-        mock_metadata = {"images": [{"id": "abc", "filename": "ndvi_001.png"}]}
+        """Test listing NDVI images returns only current user's metadata."""
+        mock_metadata = {
+            "images": [
+                {
+                    "id": "abc",
+                    "filename": "ndvi_001.png",
+                    "user_id": "test-user-id",
+                },
+                {
+                    "id": "other",
+                    "filename": "ndvi_002.png",
+                    "user_id": "someone-else",
+                },
+            ]
+        }
         with patch("cresco.api.routes.load_metadata", return_value=mock_metadata):
             response = client.get("/api/v1/ndvi-images")
         assert response.status_code == 200
-        assert response.json()["images"][0]["id"] == "abc"
+        images = response.json()["images"]
+        assert len(images) == 1
+        assert images[0]["id"] == "abc"
 
     def test_get_ndvi_image_file_not_found(self, client):
         """Test getting a non-existent NDVI image returns 404."""
-        with patch("cresco.api.routes.NDVI_IMAGES_DIR", Path("/nonexistent")):
+        with patch(
+            "cresco.api.routes.load_metadata",
+            return_value={
+                "images": [
+                    {
+                        "filename": "missing.png",
+                        "user_id": "test-user-id",
+                    }
+                ]
+            },
+        ), patch("cresco.api.routes.NDVI_IMAGES_DIR", Path("/nonexistent")):
             response = client.get("/api/v1/ndvi-images/missing.png")
         assert response.status_code == 404
 
@@ -697,9 +722,35 @@ class TestNDVIImagesEndpoint:
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "result.png"
             img_path.write_bytes(b"\x89PNG_FAKE")
-            with patch("cresco.api.routes.NDVI_IMAGES_DIR", Path(tmpdir)):
+            with patch(
+                "cresco.api.routes.load_metadata",
+                return_value={
+                    "images": [
+                        {
+                            "filename": "result.png",
+                            "user_id": "test-user-id",
+                        }
+                    ]
+                },
+            ), patch("cresco.api.routes.NDVI_IMAGES_DIR", Path(tmpdir)):
                 response = client.get("/api/v1/ndvi-images/result.png")
             assert response.status_code == 200
+
+    def test_get_ndvi_image_forbidden_for_other_user(self, client):
+        """Test current user cannot retrieve another user's NDVI image."""
+        with patch(
+            "cresco.api.routes.load_metadata",
+            return_value={
+                "images": [
+                    {
+                        "filename": "result.png",
+                        "user_id": "someone-else",
+                    }
+                ]
+            },
+        ):
+            response = client.get("/api/v1/ndvi-images/result.png")
+        assert response.status_code == 404
 
 
 class TestSatelliteImageEndpoint:

@@ -1,23 +1,21 @@
 """API routes for Cresco chatbot."""
 
 import asyncio
+import io
+import logging
 import shutil
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, FastAPI
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 
 from cresco import __version__, db
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import index_knowledge_base, is_indexed
-from scripts.drone_image import compute_ndvi_image, load_metadata, NDVI_IMAGES_DIR
-import shutil
-from pathlib import Path
-from fastapi import UploadFile, File
-from fastapi.responses import StreamingResponse, FileResponse
-from cresco.rag.indexer import index_knowledge_base
+from cresco.rag.indexer import delete_user_upload, index_knowledge_base, index_user_upload, is_indexed
+from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
+from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
     ChatRequest,
@@ -262,8 +260,10 @@ async def upload_file(
     from cresco.rag.document_loader import SUPPORTED_EXTENSIONS
 
     try:
+        filename = file.filename or "unknown"
+
         # Validate file extension
-        file_ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        file_ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
         if file_ext not in SUPPORTED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
@@ -276,7 +276,6 @@ async def upload_file(
         upload_dir = settings.uploads_dir / user_id
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = file.filename if file.filename else "unknown"
         file_path = upload_dir / filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -289,7 +288,7 @@ async def upload_file(
             logger.exception("Indexing failed for '%s' (user '%s')", filename, user_id)
             # Roll back any partially indexed chunks for this user/file to keep state consistent
             try:
-                await delete_user_upload(settings, user_id=user_id, filename=filename)
+                delete_user_upload(settings, user_id=user_id, filename=filename)
             except Exception:
                 logger.exception(
                     "Failed to roll back indexed chunks for '%s' (user '%s') after indexing error",
@@ -363,18 +362,36 @@ async def upload_file_drone(
 
 # Get list of all saved NDVI images with metadata.
 @router.get("/ndvi-images", tags=["Files"])
-async def get_ndvi_images():
+async def get_ndvi_images(current_user: dict = Depends(get_current_user)):
     try:
         metadata = load_metadata()
-        return metadata
+        user_id = current_user["user_id"]
+        user_images = [
+            image
+            for image in metadata.get("images", [])
+            if image.get("user_id") == user_id
+        ]
+        return {"images": user_images}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
 
 
 # Gets a specific NDVI image. Uh. It it's ever needed
 @router.get("/ndvi-images/{filename}", tags=["Files"])
-async def get_ndvi_image(filename: str):
+async def get_ndvi_image(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+):
     try:
+        user_id = current_user["user_id"]
+        metadata = load_metadata()
+        has_access = any(
+            image.get("filename") == filename and image.get("user_id") == user_id
+            for image in metadata.get("images", [])
+        )
+        if not has_access:
+            raise HTTPException(status_code=404, detail="Image not found")
+
         file_path = NDVI_IMAGES_DIR / filename
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Image not found")

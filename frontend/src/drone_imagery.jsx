@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./drone_imagery.css"; // Importing drone_imagery.css for styling
 
 const DroneImagery = () => {
@@ -9,27 +9,53 @@ const DroneImagery = () => {
     const [uploadStatus, setUploadStatus] = useState("");
     const [resultImageUrl, setResultImageUrl] = useState(null);
     const [savedImages, setSavedImages] = useState([]);
+    const [savedImageUrls, setSavedImageUrls] = useState({});
     const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
-    // Fetch saved NDVI images
-    useEffect(() => {
-        fetchSavedImages();
-    }, []);
+    const authHeaders = () => {
+        const token = localStorage.getItem("cresco_token");
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    };
 
-    const fetchSavedImages = async () => {
+    const fetchSavedImages = useCallback(async () => {
         setIsLoadingGallery(true);
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/ndvi-images");
+            const response = await fetch("http://127.0.0.1:8000/api/v1/ndvi-images", {
+                headers: authHeaders(),
+            });
             if (response.ok) {
                 const data = await response.json();
-                setSavedImages(data.images || []);
+                const images = data.images || [];
+                setSavedImages(images);
+
+                const urls = {};
+                await Promise.all(
+                    images.map(async (image) => {
+                        const imageResponse = await fetch(
+                            `http://127.0.0.1:8000/api/v1/ndvi-images/${image.filename}`,
+                            {
+                                headers: authHeaders(),
+                            }
+                        );
+                        if (imageResponse.ok) {
+                            const blob = await imageResponse.blob();
+                            urls[image.filename] = URL.createObjectURL(blob);
+                        }
+                    })
+                );
+                setSavedImageUrls(urls);
             }
         } catch {
             console.error("Error fetching saved images");
         } finally {
             setIsLoadingGallery(false);
         }
-    };
+    }, []);
+
+    // Fetch saved NDVI images
+    useEffect(() => {
+        fetchSavedImages();
+    }, [fetchSavedImages]);
 
 
     const handleRgbChange = (e) => {
@@ -59,6 +85,7 @@ const DroneImagery = () => {
             const response = await fetch("http://127.0.0.1:8000/api/v1/droneimage", {
                 method: "POST",
                 body: formData,
+                headers: authHeaders(),
             });
             if (response.ok) {
                 const blob = await response.blob();
@@ -70,7 +97,7 @@ const DroneImagery = () => {
             } else {
                 setUploadStatus("Upload failed.");
             }
-        } catch {
+        } catch (err) {
             setUploadStatus("Error uploading files.");
             console.error("Error uploading files:", err);
         }
@@ -117,7 +144,7 @@ const DroneImagery = () => {
                         {savedImages.map((image) => (
                             <div key={image.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px", backgroundColor: "rgba(255, 255, 255, 0.1)" }}>
                                 <img 
-                                    src={`http://127.0.0.1:8000/api/v1/ndvi-images/${image.filename}`} 
+                                    src={savedImageUrls[image.filename]} 
                                     alt={`NDVI ${image.id}`} 
                                     style={{ width: "100%", borderRadius: "4px" }} 
                                 />

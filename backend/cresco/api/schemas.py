@@ -2,6 +2,16 @@ from pydantic import BaseModel, Field
 from fastapi.responses import StreamingResponse
 
 
+class FarmData(BaseModel):
+    """Request model for farm data persistence."""
+
+    location: str = Field(..., description="Farm location label")
+    area: float = Field(..., description="Farm area")
+    lat: float | None = Field(None, description="Farm latitude")
+    lon: float | None = Field(None, description="Farm longitude")
+    nodes: list[dict] | None = Field(None, description="Optional boundary polygon nodes")
+
+
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
 
