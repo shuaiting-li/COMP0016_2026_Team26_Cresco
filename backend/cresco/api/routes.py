@@ -331,7 +331,9 @@ async def list_uploads(
 
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
-    files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
+    files: list[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     try:
         if len(files) != 2:
@@ -341,9 +343,17 @@ async def upload_file_drone(
         nir = await files[1].read()
         rgb_filename = files[0].filename or "rgb.png"
         nir_filename = files[1].filename or "nir.png"
+        user_id = current_user["user_id"]
 
         # Compute NDVI and save to disk
-        result = compute_ndvi_image(rgb, nir, rgb_filename, nir_filename, save_to_disk=True)
+        result = compute_ndvi_image(
+            rgb,
+            nir,
+            rgb_filename,
+            nir_filename,
+            save_to_disk=True,
+            user_id=user_id,
+        )
 
         return StreamingResponse(io.BytesIO(result["image_bytes"]), media_type="image/png")
     except Exception as e:
