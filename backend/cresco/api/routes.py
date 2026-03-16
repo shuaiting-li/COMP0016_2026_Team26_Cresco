@@ -445,7 +445,7 @@ async def delete_account(
     """Delete all data for the currently authenticated user account."""
     user_id = current_user["user_id"]
     try:
-        delete_user_account(user_id)
+        delete_user_account(user_id, username=current_user.get("username"))
         return {"status": "deleted"}
     except Exception as e:
         logger.exception("Account deletion failed for user '%s'", user_id)

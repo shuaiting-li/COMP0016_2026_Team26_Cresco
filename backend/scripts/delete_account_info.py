@@ -12,10 +12,25 @@ from pathlib import Path
 from cresco.config import get_settings
 
 
-def delete_account_info(user_id: str):
-    from cresco.auth.users import delete_user_by_id
+def delete_account_info(user_id: str, username: str | None = None):
+    from cresco.db import get_connection
 
-    delete_user_by_id(user_id)
+    settings = get_settings()
+    conn = get_connection(settings.database_path)
+    try:
+        deleted = conn.execute("DELETE FROM users WHERE id = ?", (user_id,)).rowcount
+
+        if deleted == 0:
+            fallback_username = username or user_id
+            deleted = conn.execute(
+                "DELETE FROM users WHERE username = ?", (fallback_username,)
+            ).rowcount
+
+        conn.commit()
+        if deleted == 0:
+            raise ValueError("User account not found; credentials were not deleted")
+    finally:
+        conn.close()
 
 def delete_farm_data(user_id: str):
     from cresco.db import get_connection
@@ -77,10 +92,10 @@ def delete_uploaded_documents(user_id: str):
     finally:
         conn.close()
 
-def delete_user_account(user_id: str):
+def delete_user_account(user_id: str, username: str | None = None):
     """Delete all user-related data for a given user ID."""
     delete_farm_data(user_id)
     delete_images(user_id)
     delete_uploaded_documents(user_id)
     # once all related data is deleted, can delete the user account itself
-    delete_account_info(user_id)
+    delete_account_info(user_id, username=username)
