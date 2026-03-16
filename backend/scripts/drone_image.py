@@ -107,6 +107,7 @@ def _calculate_and_save_index(
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "rgb_filename": rgb_filename,
                 "nir_filename": nir_filename,
+                "index_type": filename_prefix.upper(),
                 "user_id": user_id,
             }
         )
@@ -128,7 +129,7 @@ def compute_ndvi_image(
 ) -> dict:
     """
     Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
-    
+
     Returns:
         dict with keys:
         - 'image_bytes': PNG image as bytes
@@ -171,7 +172,7 @@ def compute_evi_image(
 ) -> dict:
     """
     Compute EVI (Enhanced Vegetation Index) from RGB and NIR images.
-    
+
     Returns:
         dict with keys:
         - 'image_bytes': PNG image as bytes
@@ -211,3 +212,72 @@ def compute_evi_image(
             save_to_disk,
             user_id=user_id,
         )
+
+
+def compute_savi_image(
+    rgb_file: bytes,
+    nir_file: bytes,
+    rgb_filename: str = "rgb.png",
+    nir_filename: str = "nir.png",
+    save_to_disk: bool = True,
+    user_id: str | None = None,
+) -> dict:
+    """
+    Compute SAVI (Soil-Adjusted Vegetation Index) from RGB and NIR images.
+
+    Returns:
+        dict with keys:
+        - 'image_bytes': PNG image as bytes
+        - 'filename': saved filename (if save_to_disk=True)
+        - 'id': unique ID for the image"""
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        rgb_path = os.path.join(tmpdir, "rgb.png")
+        nir_path = os.path.join(tmpdir, "nir.png")
+
+        with open(rgb_path, "wb") as f:
+            f.write(rgb_file)
+        with open(nir_path, "wb") as f:
+            f.write(nir_file)
+
+        red, green, blue, nir = _read_and_normalize_bands(rgb_path, nir_path)
+        red, green, blue, nir = _ensure_dimension_match(red, green, blue, nir)
+
+        # Compute SAVI
+        L = 0.5  # noqa: N806
+        # Soil adjustment factor
+
+        np.seterr(divide="ignore", invalid="ignore")
+        savi = np.where(
+            (nir + red + L) == 0.0,
+            0,
+            ((nir - red) * (1 + L)) / (nir + red + L),
+        )
+
+        return _calculate_and_save_index(
+            savi,
+            "savi",
+            rgb_filename,
+            nir_filename,
+            save_to_disk,
+            user_id=user_id,
+        )
+
+
+def computer_savi_image(
+    rgb_file: bytes,
+    nir_file: bytes,
+    rgb_filename: str = "rgb.png",
+    nir_filename: str = "nir.png",
+    save_to_disk: bool = True,
+    user_id: str | None = None,
+) -> dict:
+    """Backward-compatible alias for compute_savi_image."""
+    return compute_savi_image(
+        rgb_file,
+        nir_file,
+        rgb_filename=rgb_filename,
+        nir_filename=nir_filename,
+        save_to_disk=save_to_disk,
+        user_id=user_id,
+    )

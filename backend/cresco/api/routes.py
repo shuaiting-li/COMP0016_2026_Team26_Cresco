@@ -20,7 +20,13 @@ from cresco.rag.indexer import (
     is_indexed,
 )
 from scripts.delete_account_info import delete_user_account
-from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
+from scripts.drone_image import (
+    NDVI_IMAGES_DIR,
+    compute_evi_image,
+    compute_ndvi_image,
+    compute_savi_image,
+    load_metadata,
+)
 from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
@@ -337,6 +343,7 @@ async def list_uploads(
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
     files: list[UploadFile] = File(...),
+    index_type: str = Query("ndvi", description="Vegetation index type: ndvi, evi, or savi"),
     current_user: dict = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ):
@@ -352,9 +359,22 @@ async def upload_file_drone(
         rgb_filename = files[0].filename or "rgb.png"
         nir_filename = files[1].filename or "nir.png"
         user_id = current_user["user_id"]
+        selected_index = index_type.strip().lower()
 
-        # Compute NDVI and save to disk
-        result = compute_ndvi_image(
+        compute_fn_by_index = {
+            "ndvi": compute_ndvi_image,
+            "evi": compute_evi_image,
+            "savi": compute_savi_image,
+        }
+        compute_fn = compute_fn_by_index.get(selected_index)
+        if compute_fn is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid index_type. Use one of: ndvi, evi, savi.",
+            )
+
+        # Compute selected vegetation index and save to disk
+        result = compute_fn(
             rgb,
             nir,
             rgb_filename,

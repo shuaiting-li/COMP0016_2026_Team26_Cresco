@@ -4,6 +4,7 @@ import "./drone_imagery.css"; // Importing drone_imagery.css for styling
 const DroneImagery = () => {
     const [rgbFile, setRgbFile] = useState(null);
     const [nirFile, setNirFile] = useState(null);
+    const [selectedIndexType, setSelectedIndexType] = useState("NDVI");
     const [rgbPreview, setRgbPreview] = useState(null);
     const [nirPreview, setNirPreview] = useState(null);
     const [uploadStatus, setUploadStatus] = useState("");
@@ -82,16 +83,19 @@ const DroneImagery = () => {
 
         setUploadStatus("Uploading...");
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/droneimage", {
+            const response = await fetch(
+                `http://127.0.0.1:8000/api/v1/droneimage?index_type=${selectedIndexType.toLowerCase()}`,
+                {
                 method: "POST",
                 body: formData,
                 headers: authHeaders(),
-            });
+                }
+            );
             if (response.ok) {
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);  //bc its sending back a whole file, not just a url
                 setResultImageUrl(url);
-                setUploadStatus("Upload successful!");
+                setUploadStatus(`${selectedIndexType} upload successful!`);
                 // Refresh the gallery after successful upload
                 fetchSavedImages();
             } else {
@@ -106,6 +110,22 @@ const DroneImagery = () => {
     return (
         <div className="drone-imagery-container scrollable">
             <h2 className="drone-imagery-title">Upload files</h2>
+            <div style={{ marginBottom: 12 }}>
+                <label className="text-label" htmlFor="index-type-select">
+                    Vegetation Index:
+                </label>
+                <br />
+                <select
+                    id="index-type-select"
+                    value={selectedIndexType}
+                    onChange={(e) => setSelectedIndexType(e.target.value)}
+                    style={{ marginTop: 6, padding: "6px 8px" }}
+                >
+                    <option value="NDVI">NDVI</option>
+                    <option value="EVI">EVI</option>
+                    <option value="SAVI">SAVI</option>
+                </select>
+            </div>
             <div className = "drone-imagery-form"> 
                 <div>
                     <label className="text-label">
@@ -129,14 +149,14 @@ const DroneImagery = () => {
             <br />
             {resultImageUrl && (
                 <div style={{ marginTop: 16 }}>
-                    <h3 style={{color: "white" }} >NDVI Result Image:</h3>
+                    <h3 style={{color: "white" }} >{selectedIndexType} Result Image:</h3>
                     <img src={resultImageUrl} alt="Result" style={{ maxWidth: 400 }} />
                 </div>
             )}
 
             {/* Saved Images Gallery */}
             <div style={{ marginTop: 32 }}>
-                <h2 className="drone-imagery-title">Saved NDVI Images</h2>
+                <h2 className="drone-imagery-title">Saved Vegetation Index Images</h2>
                 {isLoadingGallery ? (
                     <div style={{ color: "white" }}>Loading saved images...</div>
                 ) : savedImages.length > 0 ? (
@@ -145,10 +165,11 @@ const DroneImagery = () => {
                             <div key={image.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px", backgroundColor: "rgba(255, 255, 255, 0.1)" }}>
                                 <img 
                                     src={savedImageUrls[image.filename]} 
-                                    alt={`NDVI ${image.id}`} 
+                                    alt={`${image.index_type || "INDEX"} ${image.id}`} 
                                     style={{ width: "100%", borderRadius: "4px" }} 
                                 />
                                 <div style={{ marginTop: "8px", color: "white", fontSize: "12px" }}>
+                                    <div><strong>Index:</strong> {image.index_type || image.filename?.split("_")[0]?.toUpperCase() || "NDVI"}</div>
                                     <div><strong>Created:</strong> {new Date(image.timestamp).toLocaleString()}</div>
                                     <div><strong>RGB:</strong> {image.rgb_filename}</div>
                                     <div><strong>NIR:</strong> {image.nir_filename}</div>
