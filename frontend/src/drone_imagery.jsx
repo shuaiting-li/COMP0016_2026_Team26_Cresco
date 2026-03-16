@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { deleteDroneImage, updateDroneImageTimestamp } from "./services/api";
 import "./drone_imagery.css"; // Importing drone_imagery.css for styling
 
 const DroneImagery = () => {
@@ -13,6 +15,7 @@ const DroneImagery = () => {
     const [savedImageUrls, setSavedImageUrls] = useState({});
     const [isLoadingGallery, setIsLoadingGallery] = useState(false);
     const [galleryFilter, setGalleryFilter] = useState("ALL");
+    const [timestampEdits, setTimestampEdits] = useState({});
 
     const getImageIndexType = (image) => (
         image.index_type || image.filename?.split("_")[0]?.toUpperCase() || "NDVI"
@@ -21,6 +24,18 @@ const DroneImagery = () => {
     const filteredSavedImages = savedImages.filter((image) => (
         galleryFilter === "ALL" || getImageIndexType(image) === galleryFilter
     ));
+
+    const toDatetimeLocal = (isoTimestamp) => {
+        if (!isoTimestamp) {
+            return "";
+        }
+        const date = new Date(isoTimestamp);
+        if (Number.isNaN(date.getTime())) {
+            return "";
+        }
+        const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return localDate.toISOString().slice(0, 16);
+    };
 
     const authHeaders = () => {
         const token = localStorage.getItem("cresco_token");
@@ -116,6 +131,66 @@ const DroneImagery = () => {
         }
     };
 
+    const handleDeleteImage = async (filename) => {
+        const confirmed = window.confirm("Delete this saved image?");
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            await deleteDroneImage(filename);
+
+            setSavedImages((prev) => prev.filter((image) => image.filename !== filename));
+            setSavedImageUrls((prev) => {
+                const next = { ...prev };
+                if (next[filename]) {
+                    URL.revokeObjectURL(next[filename]);
+                    delete next[filename];
+                }
+                return next;
+            });
+        } catch (err) {
+            console.error("Error deleting image:", err);
+            setUploadStatus("Failed to delete image.");
+        }
+    };
+
+    const handleTimestampChange = (filename, value) => {
+        setTimestampEdits((prev) => ({
+            ...prev,
+            [filename]: value,
+        }));
+    };
+
+    const handleTimestampSave = async (filename) => {
+        const localValue = timestampEdits[filename];
+        if (!localValue) {
+            setUploadStatus("Please choose a valid date and time.");
+            return;
+        }
+
+        const isoTimestamp = new Date(localValue).toISOString();
+        if (!isoTimestamp || Number.isNaN(new Date(isoTimestamp).getTime())) {
+            setUploadStatus("Please choose a valid date and time.");
+            return;
+        }
+
+        try {
+            const result = await updateDroneImageTimestamp(filename, isoTimestamp);
+            setSavedImages((prev) => (
+                prev.map((image) => (
+                    image.filename === filename
+                        ? { ...image, timestamp: result.timestamp || isoTimestamp }
+                        : image
+                ))
+            ));
+            setUploadStatus("Image date/time updated.");
+        } catch (err) {
+            console.error("Error updating image timestamp:", err);
+            setUploadStatus("Failed to update image date/time.");
+        }
+    };
+
     return (
         <div className="drone-imagery-container scrollable">
             <h2 className="drone-imagery-title">Upload files</h2>
@@ -189,16 +264,68 @@ const DroneImagery = () => {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px", marginTop: "16px" }}>
                         {filteredSavedImages.map((image) => (
                             <div key={image.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px", backgroundColor: "rgba(255, 255, 255, 0.1)" }}>
-                                <img 
-                                    src={savedImageUrls[image.filename]} 
-                                    alt={`${image.index_type || "INDEX"} ${image.id}`} 
-                                    style={{ width: "100%", borderRadius: "4px" }} 
-                                />
+                                <div style={{ position: "relative" }}>
+                                    <img 
+                                        src={savedImageUrls[image.filename]} 
+                                        alt={`${image.index_type || "INDEX"} ${image.id}`} 
+                                        style={{ width: "100%", borderRadius: "4px" }} 
+                                    />
+                                    <button
+                                        type="button"
+                                        aria-label="Delete image"
+                                        onClick={() => handleDeleteImage(image.filename)}
+                                        style={{
+                                            position: "absolute",
+                                            top: "8px",
+                                            right: "8px",
+                                            width: "28px",
+                                            height: "28px",
+                                            borderRadius: "50%",
+                                            border: "1px solid rgba(239, 68, 68, 0.9)",
+                                            backgroundColor: "rgba(185, 28, 28, 0.9)",
+                                            color: "#fee2e2",
+                                            fontSize: "16px",
+                                            lineHeight: 1,
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <X size={14} strokeWidth={2.5} />
+                                    </button>
+                                </div>
                                 <div style={{ marginTop: "8px", color: "white", fontSize: "12px" }}>
                                     <div><strong>Index:</strong> {getImageIndexType(image)}</div>
                                     <div><strong>Created:</strong> {new Date(image.timestamp).toLocaleString()}</div>
-                                    <div><strong>RGB:</strong> {image.rgb_filename}</div>
-                                    <div><strong>NIR:</strong> {image.nir_filename}</div>
+                                    <div style={{ marginTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
+                                        <input
+                                            type="datetime-local"
+                                            value={timestampEdits[image.filename] ?? toDatetimeLocal(image.timestamp)}
+                                            onChange={(e) => handleTimestampChange(image.filename, e.target.value)}
+                                            style={{
+                                                flex: 1,
+                                                minWidth: 0,
+                                                padding: "4px 6px",
+                                                borderRadius: "6px",
+                                                border: "1px solid rgba(255, 255, 255, 0.25)",
+                                                backgroundColor: "rgba(15, 17, 16, 0.85)",
+                                                color: "#ffffff",
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTimestampSave(image.filename)}
+                                            style={{
+                                                padding: "5px 8px",
+                                                borderRadius: "6px",
+                                                border: "1px solid rgba(132, 204, 22, 0.6)",
+                                                backgroundColor: "rgba(132, 204, 22, 0.2)",
+                                                color: "#d9f99d",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}

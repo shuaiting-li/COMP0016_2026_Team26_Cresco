@@ -125,7 +125,7 @@ describe('deleteAccount', () => {
         const result = await api.deleteAccount();
 
         expect(fetch).toHaveBeenCalledWith(
-            `${API_BASE}/auth/me`,
+            `${API_BASE}/account`,
             expect.objectContaining({
                 method: 'DELETE',
                 headers: expect.objectContaining({ Authorization: 'Bearer tok' }),

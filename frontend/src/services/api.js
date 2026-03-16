@@ -447,6 +447,45 @@ export const uploadAndIndexFile = async (file) => {
     return await response.json();
 };
 
+export const deleteDroneImage = async (filename) => {
+    const response = await fetch(`${API_BASE_URL}/images/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Delete image failed (${response.status})`);
+    }
+
+    return await response.json();
+};
+
+export const updateDroneImageTimestamp = async (filename, timestamp) => {
+    const response = await fetch(`${API_BASE_URL}/images/${encodeURIComponent(filename)}/timestamp`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ timestamp }),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Update timestamp failed (${response.status})`);
+    }
+
+    return await response.json();
+};
+
 
 /**
  * handle satellite image upload and processing

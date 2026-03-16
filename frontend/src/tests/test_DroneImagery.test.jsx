@@ -91,6 +91,6 @@ describe('DroneImagery', () => {
 
     it('renders saved images gallery heading', () => {
         render(<DroneImagery />);
-        expect(screen.getByText(/saved ndvi images/i)).toBeInTheDocument();
+        expect(screen.getByText(/saved vegetation index images/i)).toBeInTheDocument();
     });
 });

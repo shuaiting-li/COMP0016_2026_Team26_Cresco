@@ -4,10 +4,10 @@ import asyncio
 import io
 import logging
 import shutil
-import json
+from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from cresco import __version__, db
@@ -27,6 +27,7 @@ from scripts.drone_image import (
     compute_ndvi_image,
     compute_savi_image,
     load_metadata,
+    save_metadata,
 )
 from scripts.satellite_image import satellite_images_main
 
@@ -449,8 +450,7 @@ async def delete_ndvi_image(
 
         # Remove from metadata
         metadata["images"].remove(image_entry)
-        with open(IMAGES_DIR.parent / "images_metadata.json", "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=2)
+        save_metadata(metadata)
 
         # Remove file from disk
         file_path = IMAGES_DIR / filename
@@ -462,6 +462,48 @@ async def delete_ndvi_image(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting image: {str(e)}")
+
+
+@router.patch("/images/{filename}/timestamp", tags=["Files"])
+async def update_image_timestamp(
+    filename: str,
+    payload: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        user_id = current_user["user_id"]
+        raw_timestamp = str(payload.get("timestamp", "")).strip()
+        if not raw_timestamp:
+            raise HTTPException(status_code=400, detail="'timestamp' is required")
+
+        try:
+            parsed = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid timestamp format") from exc
+
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        normalized_timestamp = parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        metadata = load_metadata()
+        image_entry = next(
+            (
+                image
+                for image in metadata.get("images", [])
+                if image.get("filename") == filename and image.get("user_id") == user_id
+            ),
+            None,
+        )
+        if image_entry is None:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        image_entry["timestamp"] = normalized_timestamp
+        save_metadata(metadata)
+        return {"status": "updated", "timestamp": normalized_timestamp}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating image timestamp: {str(e)}")
 
 @router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
 async def delete_file(
