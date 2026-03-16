@@ -12,6 +12,15 @@ const DroneImagery = () => {
     const [savedImages, setSavedImages] = useState([]);
     const [savedImageUrls, setSavedImageUrls] = useState({});
     const [isLoadingGallery, setIsLoadingGallery] = useState(false);
+    const [galleryFilter, setGalleryFilter] = useState("ALL");
+
+    const getImageIndexType = (image) => (
+        image.index_type || image.filename?.split("_")[0]?.toUpperCase() || "NDVI"
+    );
+
+    const filteredSavedImages = savedImages.filter((image) => (
+        galleryFilter === "ALL" || getImageIndexType(image) === galleryFilter
+    ));
 
     const authHeaders = () => {
         const token = localStorage.getItem("cresco_token");
@@ -21,7 +30,7 @@ const DroneImagery = () => {
     const fetchSavedImages = useCallback(async () => {
         setIsLoadingGallery(true);
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/ndvi-images", {
+            const response = await fetch("http://127.0.0.1:8000/api/v1/images", {
                 headers: authHeaders(),
             });
             if (response.ok) {
@@ -33,7 +42,7 @@ const DroneImagery = () => {
                 await Promise.all(
                     images.map(async (image) => {
                         const imageResponse = await fetch(
-                            `http://127.0.0.1:8000/api/v1/ndvi-images/${image.filename}`,
+                            `http://127.0.0.1:8000/api/v1/images/${image.filename}`,
                             {
                                 headers: authHeaders(),
                             }
@@ -157,11 +166,28 @@ const DroneImagery = () => {
             {/* Saved Images Gallery */}
             <div style={{ marginTop: 32 }}>
                 <h2 className="drone-imagery-title">Saved Vegetation Index Images</h2>
+                <div style={{ marginBottom: 12 }}>
+                    <label className="text-label" htmlFor="gallery-index-filter">
+                        Filter gallery:
+                    </label>
+                    <br />
+                    <select
+                        id="gallery-index-filter"
+                        value={galleryFilter}
+                        onChange={(e) => setGalleryFilter(e.target.value)}
+                        style={{ marginTop: 6, padding: "6px 8px" }}
+                    >
+                        <option value="ALL">All</option>
+                        <option value="NDVI">NDVI</option>
+                        <option value="EVI">EVI</option>
+                        <option value="SAVI">SAVI</option>
+                    </select>
+                </div>
                 {isLoadingGallery ? (
                     <div style={{ color: "white" }}>Loading saved images...</div>
-                ) : savedImages.length > 0 ? (
+                ) : filteredSavedImages.length > 0 ? (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "16px", marginTop: "16px" }}>
-                        {savedImages.map((image) => (
+                        {filteredSavedImages.map((image) => (
                             <div key={image.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px", backgroundColor: "rgba(255, 255, 255, 0.1)" }}>
                                 <img 
                                     src={savedImageUrls[image.filename]} 
@@ -169,7 +195,7 @@ const DroneImagery = () => {
                                     style={{ width: "100%", borderRadius: "4px" }} 
                                 />
                                 <div style={{ marginTop: "8px", color: "white", fontSize: "12px" }}>
-                                    <div><strong>Index:</strong> {image.index_type || image.filename?.split("_")[0]?.toUpperCase() || "NDVI"}</div>
+                                    <div><strong>Index:</strong> {getImageIndexType(image)}</div>
                                     <div><strong>Created:</strong> {new Date(image.timestamp).toLocaleString()}</div>
                                     <div><strong>RGB:</strong> {image.rgb_filename}</div>
                                     <div><strong>NIR:</strong> {image.nir_filename}</div>
@@ -178,7 +204,11 @@ const DroneImagery = () => {
                         ))}
                     </div>
                 ) : (
-                    <div style={{ color: "white" }}>No saved images yet. Upload some images to get started!</div>
+                    <div style={{ color: "white" }}>
+                        {savedImages.length === 0
+                            ? "No saved images yet. Upload some images to get started!"
+                            : `No ${galleryFilter} images found in your gallery.`}
+                    </div>
                 )}
             </div>
         </div>

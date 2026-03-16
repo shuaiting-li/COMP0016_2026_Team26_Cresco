@@ -695,7 +695,7 @@ class TestNDVIImagesEndpoint:
             ]
         }
         with patch("cresco.api.routes.load_metadata", return_value=mock_metadata):
-            response = client.get("/api/v1/ndvi-images")
+            response = client.get("/api/v1/images")
         assert response.status_code == 200
         images = response.json()["images"]
         assert len(images) == 1
@@ -713,8 +713,8 @@ class TestNDVIImagesEndpoint:
                     }
                 ]
             },
-        ), patch("cresco.api.routes.NDVI_IMAGES_DIR", Path("/nonexistent")):
-            response = client.get("/api/v1/ndvi-images/missing.png")
+        ), patch("cresco.api.routes.IMAGES_DIR", Path("/nonexistent")):
+            response = client.get("/api/v1/images/missing.png")
         assert response.status_code == 404
 
     def test_get_ndvi_image_success(self, client):
@@ -732,8 +732,8 @@ class TestNDVIImagesEndpoint:
                         }
                     ]
                 },
-            ), patch("cresco.api.routes.NDVI_IMAGES_DIR", Path(tmpdir)):
-                response = client.get("/api/v1/ndvi-images/result.png")
+            ), patch("cresco.api.routes.IMAGES_DIR", Path(tmpdir)):
+                response = client.get("/api/v1/images/result.png")
             assert response.status_code == 200
 
     def test_get_ndvi_image_forbidden_for_other_user(self, client):
@@ -749,7 +749,7 @@ class TestNDVIImagesEndpoint:
                 ]
             },
         ):
-            response = client.get("/api/v1/ndvi-images/result.png")
+            response = client.get("/api/v1/images/result.png")
         assert response.status_code == 404
 
 

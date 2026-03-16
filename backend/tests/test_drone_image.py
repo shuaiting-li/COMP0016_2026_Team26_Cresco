@@ -16,12 +16,12 @@ class TestDroneImageMetadata:
         """Test user_id is stored in NDVI metadata entries when saving images."""
         images_dir = tmp_path / "ndvi_images"
         images_dir.mkdir(parents=True, exist_ok=True)
-        metadata_file = tmp_path / "ndvi_metadata.json"
+        metadata_file = tmp_path / "images_metadata.json"
 
         index_array = np.zeros((2, 2), dtype=np.float32)
 
-        with patch.object(drone_image, "NDVI_IMAGES_DIR", images_dir), patch.object(
-            drone_image, "NDVI_METADATA_FILE", metadata_file
+        with patch.object(drone_image, "IMAGES_DIR", images_dir), patch.object(
+            drone_image, "images_metadata_FILE", metadata_file
         ):
             result = drone_image._calculate_and_save_index(
                 index_array=index_array,

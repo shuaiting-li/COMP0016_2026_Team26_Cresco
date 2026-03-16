@@ -155,7 +155,7 @@ export default function Dashboard({ farmLocation, messages = [] }) {
             // essentially, this fetches all ndvi images, then saves the latest one to state. We can optimize later by having an endpoint that just returns the latest image, but this is fine for now.
             async function fetchLatestNdvi() {
                 try {
-                    const response = await fetch('http://127.0.0.1:8000/api/v1/ndvi-images');
+                    const response = await fetch('http://127.0.0.1:8000/api/v1/images');
                     if (response.ok) {
                         const data = await response.json();
                         if (data.images && data.images.length > 0) {
@@ -308,7 +308,7 @@ export default function Dashboard({ farmLocation, messages = [] }) {
                         {ndviImage ? (
                             <>
                                 <img
-                                    src={`http://127.0.0.1:8000/api/v1/ndvi-images/${ndviImage.filename}`}
+                                    src={`http://127.0.0.1:8000/api/v1/images/${ndviImage.filename}`}
                                     alt="NDVI Map"
                                     className={styles.placeholderIcon}
                                     style={{ maxWidth: 300, borderRadius: 8 }}

@@ -4,6 +4,7 @@ import asyncio
 import io
 import logging
 import shutil
+import json
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -21,7 +22,7 @@ from cresco.rag.indexer import (
 )
 from scripts.delete_account_info import delete_user_account
 from scripts.drone_image import (
-    NDVI_IMAGES_DIR,
+    IMAGES_DIR,
     compute_evi_image,
     compute_ndvi_image,
     compute_savi_image,
@@ -390,7 +391,7 @@ async def upload_file_drone(
 
 
 # Get list of all saved NDVI images with metadata.
-@router.get("/ndvi-images", tags=["Files"])
+@router.get("/images", tags=["Files"])
 async def get_ndvi_images(current_user: dict = Depends(get_current_user)):
     try:
         metadata = load_metadata()
@@ -406,7 +407,7 @@ async def get_ndvi_images(current_user: dict = Depends(get_current_user)):
 
 
 # Gets a specific NDVI image. Uh. It it's ever needed
-@router.get("/ndvi-images/{filename}", tags=["Files"])
+@router.get("/images/{filename}", tags=["Files"])
 async def get_ndvi_image(
     filename: str,
     current_user: dict = Depends(get_current_user),
@@ -421,7 +422,7 @@ async def get_ndvi_image(
         if not has_access:
             raise HTTPException(status_code=404, detail="Image not found")
 
-        file_path = NDVI_IMAGES_DIR / filename
+        file_path = IMAGES_DIR / filename
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Image not found")
         return FileResponse(file_path, media_type="image/png")
@@ -430,6 +431,37 @@ async def get_ndvi_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
 
+@router.delete("/images/{filename}", tags=["Files"])
+async def delete_ndvi_image(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        user_id = current_user["user_id"]
+        metadata = load_metadata()
+        image_entry = next(
+            (image for image in metadata.get("images", [])
+             if image.get("filename") == filename and image.get("user_id") == user_id),
+            None,
+        )
+        if not image_entry:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        # Remove from metadata
+        metadata["images"].remove(image_entry)
+        with open(IMAGES_DIR.parent / "images_metadata.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
+
+        # Remove file from disk
+        file_path = IMAGES_DIR / filename
+        if file_path.exists():
+            file_path.unlink()
+
+        return {"status": "deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting image: {str(e)}")
 
 @router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
 async def delete_file(

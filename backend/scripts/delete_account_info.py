@@ -45,7 +45,7 @@ def delete_farm_data(user_id: str):
 
 def delete_images(user_id: str):
     data_dir = Path(__file__).resolve().parent.parent / "data"
-    metadata_file = data_dir / "ndvi_metadata.json"
+    metadata_file = data_dir / "images_metadata.json"
     images_dir = data_dir / "ndvi_images"
 
     if not metadata_file.exists():

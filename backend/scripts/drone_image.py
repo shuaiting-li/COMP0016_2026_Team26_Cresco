@@ -15,24 +15,24 @@ from PIL import Image
 router = APIRouter()
 
 # Define paths for storing NDVI images and metadata
-NDVI_IMAGES_DIR = Path(__file__).parent.parent / "data" / "ndvi_images"
-NDVI_METADATA_FILE = Path(__file__).parent.parent / "data" / "ndvi_metadata.json"
+IMAGES_DIR = Path(__file__).parent.parent / "data" / "ndvi_images"
+images_metadata_FILE = Path(__file__).parent.parent / "data" / "images_metadata.json"
 
 # Ensure directory exists
-NDVI_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # loading metdata from json file
 def load_metadata():
-    if NDVI_METADATA_FILE.exists():
-        with open(NDVI_METADATA_FILE, "r") as f:
+    if images_metadata_FILE.exists():
+        with open(images_metadata_FILE, "r") as f:
             return json.load(f)
     return {"images": []}
 
 
 # Saving metagata to json file
 def save_metadata(metadata):
-    with open(NDVI_METADATA_FILE, "w") as f:
+    with open(images_metadata_FILE, "w") as f:
         json.dump(metadata, f, indent=2)
 
 
@@ -94,7 +94,7 @@ def _calculate_and_save_index(
     if save_to_disk:
         image_id = str(uuid.uuid4())
         filename = f"{filename_prefix}_{image_id}.png"
-        file_path = NDVI_IMAGES_DIR / filename
+        file_path = IMAGES_DIR / filename
 
         with open(file_path, "wb") as f:
             f.write(image_bytes)
