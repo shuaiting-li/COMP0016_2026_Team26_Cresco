@@ -98,7 +98,7 @@ export async function login(username, password) {
  * @returns {Promise<{message: string, username: string}>}
  */
 export async function deleteAccount() {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    const response = await fetch(`${API_BASE_URL}/account`, {
         method: 'DELETE',
         headers: authHeaders(),
     });

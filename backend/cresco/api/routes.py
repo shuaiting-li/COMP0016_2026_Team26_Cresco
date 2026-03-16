@@ -13,7 +13,13 @@ from cresco import __version__, db
 from cresco.agent.agent import CrescoAgent, get_agent
 from cresco.auth.dependencies import get_current_user
 from cresco.config import Settings, get_settings
-from cresco.rag.indexer import delete_user_upload, index_knowledge_base, index_user_upload, is_indexed
+from cresco.rag.indexer import (
+    delete_user_upload,
+    index_knowledge_base,
+    index_user_upload,
+    is_indexed,
+)
+from scripts.delete_account_info import delete_user_account
 from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
 from scripts.satellite_image import satellite_images_main
 
@@ -336,7 +342,10 @@ async def upload_file_drone(
 ):
     try:
         if len(files) != 2:
-            raise HTTPException(status_code=400, detail="Exactly 2 files (NIR and RGB) are required")
+            raise HTTPException(
+                status_code=400,
+                detail="Exactly 2 files (NIR and RGB) are required",
+            )
 
         rgb = await files[0].read()
         nir = await files[1].read()
@@ -427,6 +436,20 @@ async def delete_file(
         status="deleted",
         chunks_removed=chunks_deleted,
     )
+
+
+@router.delete("/account", tags=["Account"])
+async def delete_account(
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete all data for the currently authenticated user account."""
+    user_id = current_user["user_id"]
+    try:
+        delete_user_account(user_id)
+        return {"status": "deleted"}
+    except Exception as e:
+        logger.exception("Account deletion failed for user '%s'", user_id)
+        raise HTTPException(status_code=500, detail=f"Account deletion error: {str(e)}")
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])

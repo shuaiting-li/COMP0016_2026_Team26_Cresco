@@ -6,7 +6,18 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, deleteUploadedFile, fetchUploadedFiles, fetchFarmData, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
+import {
+    sendMessage,
+    uploadAndIndexFile,
+    deleteUploadedFile,
+    fetchUploadedFiles,
+    fetchFarmData,
+    isLoggedIn,
+    logout,
+    getUsername,
+    deleteLastExchange,
+    deleteAccount,
+} from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
@@ -204,7 +215,11 @@ function App() {
 
     return (
         <div className="app-container">
-            <Header onLogout={handleLogout} username={getUsername()} />
+            <Header
+                onLogout={handleLogout}
+                onDeleteAccount={handleDeleteAccount}
+                username={getUsername()}
+            />
             <div style={layoutStyle}>
                 {!leftCollapsed && (
                     <SidebarLeft
