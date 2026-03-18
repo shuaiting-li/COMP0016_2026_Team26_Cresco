@@ -20,6 +20,7 @@ RAG-powered agricultural chatbot for UK farmers — **Python/FastAPI backend** a
 - Python 3.12+
 - Node.js 18+ and npm
 - [uv](https://github.com/astral-sh/uv) package manager
+- Docker (for PostgreSQL) or a PostgreSQL 17+ instance
 
 ## Quick Start
 
@@ -32,7 +33,15 @@ cp .env.example .env
 
 The `.env` file lives at the **project root**. Both backend and frontend read from it.
 
-### 2. Backend setup
+### 2. Start PostgreSQL
+
+```bash
+docker run -d --name cresco-postgres -p 5432:5432 \
+  -e POSTGRES_USER=cresco -e POSTGRES_PASSWORD=cresco \
+  -e POSTGRES_DB=cresco postgres:17-alpine
+```
+
+### 3. Backend setup
 
 ```bash
 cd backend
@@ -44,7 +53,7 @@ uv run uvicorn cresco.main:app --reload --port 8000  # Start server
 
 API docs available at http://localhost:8000/docs
 
-### 3. Frontend setup
+### 4. Frontend setup
 
 ```bash
 cd frontend
@@ -80,7 +89,8 @@ npm run dev    # Starts on http://localhost:3000
 │   └── vite.config.js
 │
 ├── .env                    # Environment variables (project root)
-└── .env.example            # Template
+├── .env.example            # Template
+└── docker-compose.yml      # PostgreSQL service
 ```
 
 ## Architecture
@@ -90,7 +100,7 @@ npm run dev    # Starts on http://localhost:3000
 | Layer | Purpose |
 |-------|---------|
 | **API** (`api/`) | FastAPI router at `/api/v1`. Endpoints for chat, file upload/delete, farm data, weather, geocoding, drone/satellite imagery, and health. Third-party APIs proxied server-side via `httpx`. |
-| **Agent** (`agent/`) | LangGraph agent with three tools: RAG retrieval (ChromaDB, k=5), weather data (cached farm context), and TavilySearch (internet). Parses structured `---TASKS---` and `---CHART---` blocks from LLM output. Per-user conversation memory via `InMemorySaver`. |
+| **Agent** (`agent/`) | LangGraph agent with three tools: RAG retrieval (ChromaDB, k=5), weather data (from PostgreSQL), and TavilySearch (internet). Parses structured `---TASKS---` and `---CHART---` blocks from LLM output. Per-user conversation memory via `AsyncPostgresSaver` (persists across restarts). |
 | **RAG** (`rag/`) | ChromaDB vector store with Azure OpenAI embeddings. Supports multiple file formats. Chunks at 1500 chars / 200 overlap. Documents scoped by user ID for multi-tenant retrieval. |
 | **Auth** (`auth/`) | JWT Bearer tokens (HS256, 24h expiry). Passwords hashed with bcrypt. Admin-only registration. |
 | **Config** (`config.py`) | `pydantic-settings` singleton reading `.env` from project root. |
@@ -116,6 +126,7 @@ See [`.env.example`](.env.example) for the full template. Key variables:
 | `VITE_OPENWEATHER_API_KEY` | Same key exposed to frontend via Vite |
 | `TAVILY_API_KEY` | Tavily search API key |
 | `JWT_SECRET_KEY` | Secret for signing JWT tokens |
+| `DATABASE_URL` | PostgreSQL connection string (default: `postgresql://cresco:cresco@localhost:5432/cresco`) |
 | `COPERNICUS_CLIENT_ID` | Copernicus Data Space client ID (satellite imagery) |
 | `COPERNICUS_CLIENT_SECRET` | Copernicus Data Space client secret |
 
