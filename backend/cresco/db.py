@@ -6,25 +6,28 @@ from psycopg_pool import AsyncConnectionPool
 
 _pool: AsyncConnectionPool | None = None
 
-_CREATE_TABLES = """
-CREATE TABLE IF NOT EXISTS users (
-    id            TEXT PRIMARY KEY,
-    username      TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    is_admin      BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at    TIMESTAMPTZ NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS farm_data (
-    user_id  TEXT PRIMARY KEY,
-    location TEXT,
-    area     DOUBLE PRECISION,
-    lat      DOUBLE PRECISION,
-    lon      DOUBLE PRECISION,
-    nodes    JSONB,
-    weather  JSONB
-);
-"""
+_CREATE_TABLES = (
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id            TEXT PRIMARY KEY,
+        username      TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        is_admin      BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at    TIMESTAMPTZ NOT NULL
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS farm_data (
+        user_id  TEXT PRIMARY KEY,
+        location TEXT,
+        area     DOUBLE PRECISION,
+        lat      DOUBLE PRECISION,
+        lon      DOUBLE PRECISION,
+        nodes    JSONB,
+        weather  JSONB
+    );
+    """,
+)
 
 
 async def init_pool(conninfo: str) -> AsyncConnectionPool:
@@ -33,7 +36,8 @@ async def init_pool(conninfo: str) -> AsyncConnectionPool:
     _pool = AsyncConnectionPool(conninfo, min_size=2, max_size=10, open=False)
     await _pool.open()
     async with _pool.connection() as conn:
-        await conn.execute(_CREATE_TABLES)
+        for statement in _CREATE_TABLES:
+            await conn.execute(statement)
         await conn.commit()
     return _pool
 
@@ -49,7 +53,8 @@ async def close_pool() -> None:
 def init_tables_sync(conninfo: str) -> None:
     """Create tables using a one-shot sync connection (for scripts)."""
     with psycopg.connect(conninfo) as conn:
-        conn.execute(_CREATE_TABLES)
+        for statement in _CREATE_TABLES:
+            conn.execute(statement)
         conn.commit()
 
 
