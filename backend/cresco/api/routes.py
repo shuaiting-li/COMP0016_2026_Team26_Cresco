@@ -26,6 +26,7 @@ from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metada
 from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
+    ChatHistoryResponse,
     ChatRequest,
     ChatResponse,
     FarmData,
@@ -259,6 +260,30 @@ async def chat(
     except Exception as e:
         logger.exception("Chat error for user '%s'", current_user.get("user_id", "?"))
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
+
+@router.get("/chat/history", response_model=ChatHistoryResponse, tags=["Chat"])
+async def chat_history(
+    current_user: dict = Depends(get_current_user),
+    agent: CrescoAgent = Depends(get_agent_dep),
+) -> ChatHistoryResponse:
+    """Retrieve conversation history for the current user."""
+    user_id = current_user["user_id"]
+    messages = await agent.get_history(thread_id=user_id, user_id=user_id)
+    return ChatHistoryResponse(messages=messages)
+
+
+@router.delete("/chat/history", tags=["Chat"])
+async def clear_chat_history(
+    current_user: dict = Depends(get_current_user),
+    agent: CrescoAgent = Depends(get_agent_dep),
+):
+    """Clear all conversation history for the current user."""
+    user_id = current_user["user_id"]
+    cleared = await agent.clear_history(thread_id=user_id, user_id=user_id)
+    if not cleared:
+        raise HTTPException(status_code=404, detail="No history to clear")
+    return {"status": "cleared"}
 
 
 @router.delete("/chat/last-exchange", tags=["Chat"])

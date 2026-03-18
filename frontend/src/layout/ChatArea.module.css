@@ -44,6 +44,25 @@
     pointer-events: none;
 }
 
+.clearHistoryBtn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    transition: 0.2s;
+}
+.clearHistoryBtn:hover {
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+}
+
 /* --- Chat Content --- */
 .contentArea { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 

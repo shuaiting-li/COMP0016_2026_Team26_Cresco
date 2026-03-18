@@ -540,6 +540,103 @@ class TestDeleteFileEndpoint:
             assert (other_dir / "secret.md").exists()
 
 
+class TestChatHistoryEndpoint:
+    """Tests for the GET /chat/history endpoint."""
+
+    def test_chat_history_returns_empty(self, client):
+        """Test chat history returns empty messages for new user."""
+        from cresco.api.routes import get_agent_dep
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.get_history.return_value = []
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
+
+        response = client.get("/api/v1/chat/history")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["messages"] == []
+
+    def test_chat_history_returns_messages(self, client):
+        """Test chat history returns messages from agent."""
+        from cresco.api.routes import get_agent_dep
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.get_history.return_value = [
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi", "tasks": [], "charts": []},
+        ]
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
+
+        response = client.get("/api/v1/chat/history")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["messages"]) == 2
+        assert data["messages"][0]["role"] == "user"
+        assert data["messages"][1]["role"] == "assistant"
+
+    def test_chat_history_calls_agent_with_user_id(self, client):
+        """Test the endpoint passes the user's ID to agent.get_history."""
+        from cresco.api.routes import get_agent_dep
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.get_history.return_value = []
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
+
+        client.get("/api/v1/chat/history")
+
+        mock_agent.get_history.assert_called_once_with(
+            thread_id="test-user-id", user_id="test-user-id"
+        )
+
+
+class TestClearChatHistoryEndpoint:
+    """Tests for the DELETE /chat/history endpoint."""
+
+    def test_clear_chat_history_success(self, client):
+        """Test successful clearing returns 200 with status 'cleared'."""
+        from cresco.api.routes import get_agent_dep
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.clear_history.return_value = True
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
+
+        response = client.delete("/api/v1/chat/history")
+        assert response.status_code == 200
+        assert response.json()["status"] == "cleared"
+
+    def test_clear_chat_history_calls_agent(self, client):
+        """Test the endpoint passes the user's ID to agent.clear_history."""
+        from cresco.api.routes import get_agent_dep
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.clear_history.return_value = True
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
+
+        client.delete("/api/v1/chat/history")
+
+        mock_agent.clear_history.assert_called_once_with(
+            thread_id="test-user-id", user_id="test-user-id"
+        )
+
+    def test_clear_chat_history_returns_404_when_empty(self, client):
+        """Test 404 response when there is no history to clear."""
+        from cresco.api.routes import get_agent_dep
+        from cresco.main import app
+
+        mock_agent = AsyncMock()
+        mock_agent.clear_history.return_value = False
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
+
+        response = client.delete("/api/v1/chat/history")
+        assert response.status_code == 404
+        assert "no history" in response.json()["detail"].lower()
+
+
 class TestDeleteLastExchangeEndpoint:
     """Tests for the DELETE /chat/last-exchange endpoint."""
 

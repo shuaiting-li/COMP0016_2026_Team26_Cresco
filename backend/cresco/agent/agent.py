@@ -5,7 +5,7 @@ import logging
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langchain.tools import tool
-from langchain_core.messages import HumanMessage, RemoveMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
@@ -190,6 +190,51 @@ class CrescoAgent:
 
         return agent
 
+    @staticmethod
+    def _parse_ai_content(content) -> dict:
+        """Parse an AI message's content, extracting tasks and charts.
+
+        Returns dict with 'answer', 'tasks', and 'charts' keys.
+        """
+        import json
+
+        if isinstance(content, list):
+            answer = "".join(
+                block.get("text", "") if isinstance(block, dict) else str(block)
+                for block in content
+            )
+        else:
+            answer = str(content)
+
+        tasks = []
+        if "---TASKS---" in answer and "---END_TASKS---" in answer:
+            try:
+                task_start = answer.index("---TASKS---") + len("---TASKS---")
+                task_end = answer.index("---END_TASKS---")
+                task_json = answer[task_start:task_end].strip()
+                tasks = json.loads(task_json)[:5]
+                answer = answer[: answer.index("---TASKS---")].strip()
+            except (ValueError, json.JSONDecodeError):
+                pass
+
+        charts = []
+        try:
+            while "---CHART---" in answer and "---END_CHART---" in answer:
+                chart_marker_start = answer.index("---CHART---")
+                chart_start = chart_marker_start + len("---CHART---")
+                chart_end = answer.index("---END_CHART---")
+                chart_json = answer[chart_start:chart_end].strip()
+                chart = json.loads(chart_json)
+                chart["position"] = chart_marker_start - 1
+                charts.append(chart)
+                before = answer[:chart_marker_start].rstrip()
+                after = answer[chart_end + len("---END_CHART---") :].lstrip()
+                answer = before + ("\n" if before and after else "") + after
+        except (ValueError, json.JSONDecodeError):
+            pass
+
+        return {"answer": answer, "tasks": tasks, "charts": charts}
+
     async def chat(
         self,
         message: str,
@@ -221,50 +266,10 @@ class CrescoAgent:
 
         # Handle different content formats (string or list of content blocks)
         content = ai_message.content if hasattr(ai_message, "content") else str(ai_message)
-        if isinstance(content, list):
-            # Extract text from content blocks like [{'type': 'text', 'text': '...'}]
-            answer = "".join(
-                block.get("text", "") if isinstance(block, dict) else str(block)
-                for block in content
-            )
-        else:
-            answer = str(content)
-
-        # Parse tasks from the response if present
-        tasks = []
-        if "---TASKS---" in answer and "---END_TASKS---" in answer:
-            try:
-                import json
-
-                task_start = answer.index("---TASKS---") + len("---TASKS---")
-                task_end = answer.index("---END_TASKS---")
-                task_json = answer[task_start:task_end].strip()
-                tasks = json.loads(task_json)[:5]
-                # Remove the task section from the answer
-                answer = answer[: answer.index("---TASKS---")].strip()
-            except (ValueError, json.JSONDecodeError):
-                # If parsing fails, just leave tasks empty
-                pass
-
-        # Parse charts from the response if present (inline, multiple allowed)
-        charts = []
-        try:
-            import json
-
-            while "---CHART---" in answer and "---END_CHART---" in answer:
-                chart_marker_start = answer.index("---CHART---")
-                chart_start = chart_marker_start + len("---CHART---")
-                chart_end = answer.index("---END_CHART---")
-                chart_json = answer[chart_start:chart_end].strip()
-                chart = json.loads(chart_json)
-                chart["position"] = chart_marker_start - 1
-                charts.append(chart)
-                before = answer[:chart_marker_start].rstrip()
-                after = answer[chart_end + len("---END_CHART---") :].lstrip()
-                answer = before + ("\n" if before and after else "") + after
-        except (ValueError, json.JSONDecodeError):
-            # If parsing fails, just leave charts empty
-            pass
+        parsed = self._parse_ai_content(content)
+        answer = parsed["answer"]
+        tasks = parsed["tasks"]
+        charts = parsed["charts"]
 
         # Extract sources from tool artifacts if available
         sources = []
@@ -288,6 +293,31 @@ class CrescoAgent:
                 break  # Only consider the first message with artifacts for sources
 
         return {"answer": answer, "sources": sources, "tasks": tasks, "charts": charts}
+
+    async def get_history(self, thread_id: str = "default", user_id: str = "") -> list[dict]:
+        """Retrieve conversation history from the checkpointer.
+
+        Returns list of dicts with role, content, tasks, and charts keys.
+        """
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
+        state = await self._agent_with_search.aget_state(config)
+        messages = state.values.get("messages", [])
+
+        history = []
+        for msg in messages:
+            if isinstance(msg, HumanMessage):
+                history.append({"role": "user", "content": msg.content})
+            elif isinstance(msg, AIMessage):
+                parsed = self._parse_ai_content(msg.content)
+                history.append(
+                    {
+                        "role": "assistant",
+                        "content": parsed["answer"],
+                        "tasks": parsed["tasks"],
+                        "charts": parsed["charts"],
+                    }
+                )
+        return history
 
     async def delete_last_exchange(self, thread_id: str = "default", user_id: str = "") -> bool:
         """Remove the last user-assistant exchange from conversation memory.
@@ -319,6 +349,22 @@ class CrescoAgent:
         # Remove every message from the last HumanMessage onwards
         to_remove = messages[last_human_idx:]
         removals = [RemoveMessage(id=m.id) for m in to_remove]
+        await self._agent_with_search.aupdate_state(config, {"messages": removals})
+        return True
+
+    async def clear_history(self, thread_id: str = "default", user_id: str = "") -> bool:
+        """Remove all messages from conversation memory.
+
+        Returns True if messages were removed, False if already empty.
+        """
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "user_id": user_id}}
+        state = await self._agent_with_search.aget_state(config)
+        messages = state.values.get("messages", [])
+
+        if not messages:
+            return False
+
+        removals = [RemoveMessage(id=m.id) for m in messages]
         await self._agent_with_search.aupdate_state(config, {"messages": removals})
         return True
 

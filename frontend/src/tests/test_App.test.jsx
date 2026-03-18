@@ -14,6 +14,8 @@ vi.mock('../services/api', () => ({
     deleteUploadedFile: vi.fn(),
     fetchUploadedFiles: vi.fn(() => Promise.resolve([])),
     fetchFarmData: vi.fn(() => Promise.resolve(null)),
+    fetchChatHistory: vi.fn(() => Promise.resolve([])),
+    clearChatHistory: vi.fn(() => Promise.resolve({ status: 'cleared' })),
     isLoggedIn: vi.fn(() => false),
     logout: vi.fn(),
     getUsername: vi.fn(() => 'testuser'),

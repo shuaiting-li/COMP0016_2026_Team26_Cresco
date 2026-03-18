@@ -6,7 +6,7 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, deleteUploadedFile, fetchUploadedFiles, fetchFarmData, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
+import { sendMessage, uploadAndIndexFile, deleteUploadedFile, fetchUploadedFiles, fetchFarmData, fetchChatHistory, clearChatHistory, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
 import DroneImagery from './drone_imagery';
@@ -51,6 +51,13 @@ function App() {
                     }
                 })
                 .catch(err => console.error('Failed to fetch farm data:', err));
+            fetchChatHistory()
+                .then(history => {
+                    if (history.length > 0) {
+                        setMessages(history);
+                    }
+                })
+                .catch(err => console.error('Failed to fetch chat history:', err));
         }
     }, [authenticated]);
 
@@ -109,6 +116,15 @@ function App() {
             await deleteLastExchange();
         } catch (error) {
             console.error('Failed to delete exchange from agent memory:', error);
+        }
+    };
+
+    const handleClearHistory = async () => {
+        setMessages([]);
+        try {
+            await clearChatHistory();
+        } catch (error) {
+            console.error('Failed to clear chat history:', error);
         }
     };
 
@@ -213,6 +229,7 @@ function App() {
                         messages={messages}
                         onSendMessage={handleSendMessage}
                         onDeleteLastExchange={handleDeleteLastExchange}
+                        onClearHistory={handleClearHistory}
                         isLoading={isLoading}
                         farmLocation={farmLocation}
                         internetSearchEnabled={internetSearchEnabled}

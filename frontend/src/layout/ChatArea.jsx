@@ -16,6 +16,7 @@ export default function ChatArea({
     messages,
     onSendMessage,
     onDeleteLastExchange,
+    onClearHistory,
     isLoading,
     farmLocation,
     internetSearchEnabled = true,
@@ -68,6 +69,17 @@ export default function ChatArea({
                         <span className={styles.tabLabel} title="Dashboard">Dashboard</span>
                     </button>
                 </div>
+                {messages.length > 0 && (
+                    <button
+                        className={styles.clearHistoryBtn}
+                        onClick={onClearHistory}
+                        aria-label="Clear conversation"
+                        title="Clear conversation"
+                    >
+                        <Trash2 size={14} />
+                        <span>Clear</span>
+                    </button>
+                )}
             </div>
 
             <div className={styles.contentArea}>

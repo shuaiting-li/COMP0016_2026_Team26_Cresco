@@ -441,6 +441,176 @@ class TestCrescoAgentSourceExtraction:
         assert result is False
 
 
+class TestParseAiContent:
+    """Tests for CrescoAgent._parse_ai_content static method."""
+
+    def test_parse_plain_text(self, mock_settings):
+        """Test parsing plain text content."""
+        result = CrescoAgent._parse_ai_content("Hello world")
+        assert result["answer"] == "Hello world"
+        assert result["tasks"] == []
+        assert result["charts"] == []
+
+    def test_parse_content_blocks(self, mock_settings):
+        """Test parsing list-of-blocks content."""
+        content = [{"type": "text", "text": "Part 1. "}, {"type": "text", "text": "Part 2."}]
+        result = CrescoAgent._parse_ai_content(content)
+        assert result["answer"] == "Part 1. Part 2."
+
+    def test_parse_tasks(self, mock_settings):
+        """Test parsing tasks from content."""
+        tasks_json = json.dumps([{"title": "Test", "detail": "Detail", "priority": "high"}])
+        content = f"Answer.\n\n---TASKS---\n{tasks_json}\n---END_TASKS---"
+        result = CrescoAgent._parse_ai_content(content)
+        assert len(result["tasks"]) == 1
+        assert result["tasks"][0]["title"] == "Test"
+        assert "---TASKS---" not in result["answer"]
+
+    def test_parse_charts(self, mock_settings):
+        """Test parsing charts from content."""
+        chart_json = json.dumps({"type": "bar", "data": [], "title": "Yields"})
+        content = f"Text\n---CHART---\n{chart_json}\n---END_CHART---\nEnd."
+        result = CrescoAgent._parse_ai_content(content)
+        assert len(result["charts"]) == 1
+        assert result["charts"][0]["type"] == "bar"
+        assert "---CHART---" not in result["answer"]
+
+
+class TestGetHistory:
+    """Tests for CrescoAgent.get_history method."""
+
+    @pytest.mark.asyncio
+    async def test_get_history_empty(self, mock_settings, mock_agent_deps):
+        """Test get_history returns empty list when no messages exist."""
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": []}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        history = await agent.get_history(thread_id="user1", user_id="user1")
+        assert history == []
+
+    @pytest.mark.asyncio
+    async def test_get_history_returns_user_and_assistant(self, mock_settings, mock_agent_deps):
+        """Test get_history returns correct user/assistant pairs."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        msgs = [
+            HumanMessage(content="hello", id="h1"),
+            AIMessage(content="hi there", id="a1"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        history = await agent.get_history(thread_id="user1", user_id="user1")
+
+        assert len(history) == 2
+        assert history[0] == {"role": "user", "content": "hello"}
+        assert history[1]["role"] == "assistant"
+        assert history[1]["content"] == "hi there"
+
+    @pytest.mark.asyncio
+    async def test_get_history_parses_tasks_from_ai(self, mock_settings, mock_agent_deps):
+        """Test that tasks/charts in historical AI messages are parsed."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        tasks_json = json.dumps([{"title": "Soil Test", "detail": "Test pH", "priority": "high"}])
+        ai_content = f"Answer.\n\n---TASKS---\n{tasks_json}\n---END_TASKS---"
+        msgs = [
+            HumanMessage(content="question", id="h1"),
+            AIMessage(content=ai_content, id="a1"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        history = await agent.get_history(thread_id="user1", user_id="user1")
+
+        assert len(history) == 2
+        assert history[1]["tasks"][0]["title"] == "Soil Test"
+        assert "---TASKS---" not in history[1]["content"]
+
+    @pytest.mark.asyncio
+    async def test_get_history_skips_tool_messages(self, mock_settings, mock_agent_deps):
+        """Test that ToolMessages are excluded from history."""
+        from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+        msgs = [
+            HumanMessage(content="hello", id="h1"),
+            ToolMessage(content="tool result", tool_call_id="tc1", id="t1"),
+            AIMessage(content="reply", id="a1"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        history = await agent.get_history(thread_id="user1", user_id="user1")
+
+        assert len(history) == 2
+        assert history[0]["role"] == "user"
+        assert history[1]["role"] == "assistant"
+
+
+class TestClearHistory:
+    """Tests for CrescoAgent.clear_history method."""
+
+    @pytest.mark.asyncio
+    async def test_clear_history_removes_all_messages(self, mock_settings, mock_agent_deps):
+        """Test that clear_history calls adelete_thread on the checkpointer."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        msgs = [
+            HumanMessage(content="hello", id="h1"),
+            AIMessage(content="hi", id="a1"),
+            HumanMessage(content="bye", id="h2"),
+            AIMessage(content="goodbye", id="a2"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.clear_history(thread_id="user1", user_id="user1")
+
+        assert result is True
+        mock_graph.aupdate_state.assert_called_once()
+        removals = mock_graph.aupdate_state.call_args.args[1]["messages"]
+        assert len(removals) == 4
+
+    @pytest.mark.asyncio
+    async def test_clear_history_returns_false_when_empty(self, mock_settings, mock_agent_deps):
+        """Test that clear_history returns False when there are no messages."""
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": []}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        result = await agent.clear_history(thread_id="user1", user_id="user1")
+
+        assert result is False
+        mock_graph.aupdate_state.assert_not_called()
+
+
 class TestGetAgent:
     """Tests for get_agent dependency."""
 
