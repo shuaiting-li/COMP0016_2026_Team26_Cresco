@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import DroneImagery from '../drone_imagery';
+import DroneImagery from '../DroneFrontend/drone_imagery';
 
 // Stub URL.createObjectURL / revokeObjectURL for image previews
 globalThis.URL.createObjectURL = globalThis.URL.createObjectURL || vi.fn(() => 'blob:fake-url');
@@ -22,6 +22,9 @@ describe('DroneImagery', () => {
 
     it('renders upload form with two file inputs', () => {
         render(<DroneImagery />);
+        expect(screen.getByRole('tab', { name: /upload/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /gallery/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /time series/i })).toBeInTheDocument();
         expect(screen.getByText(/rgb image/i)).toBeInTheDocument();
         expect(screen.getByText(/nir image/i)).toBeInTheDocument();
     });
@@ -91,6 +94,13 @@ describe('DroneImagery', () => {
 
     it('renders saved images gallery heading', () => {
         render(<DroneImagery />);
+        fireEvent.click(screen.getByRole('tab', { name: /gallery/i }));
         expect(screen.getByText(/saved vegetation index images/i)).toBeInTheDocument();
+    });
+
+    it('renders time series placeholder when tab is selected', () => {
+        render(<DroneImagery />);
+        fireEvent.click(screen.getByRole('tab', { name: /time series/i }));
+        expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
     });
 });

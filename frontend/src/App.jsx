@@ -20,7 +20,7 @@ import {
 } from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
-import DroneImagery from './drone_imagery';
+import DroneImagery from './DroneFrontend/drone_imagery';
 import SatelliteImagery from './satellite_imagery';
 
 

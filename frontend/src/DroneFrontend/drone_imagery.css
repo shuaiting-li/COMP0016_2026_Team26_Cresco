@@ -1,0 +1,146 @@
+/* Drone Imagery.css */
+
+.drone-imagery-container {
+    background-color: #0f1110;
+    color: rgb(47, 47, 47);
+    padding: 2rem;
+    border-radius: 8px;
+    font-family: sans-serif;
+    max-height: 72vh; /* Restrict height to 80% of the viewport */
+    overflow-y: auto; /* Enable vertical scrolling */
+
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.drone-imagery-title {
+    font-size: 24px;
+    margin-bottom: 1rem;
+    color: rgb(255, 255, 255);
+}
+
+.drone-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 10px;
+}
+
+.drone-tab-button {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background-color: rgba(30, 41, 59, 0.35);
+    color: #e2e8f0;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.drone-tab-button:hover {
+    background-color: rgba(51, 65, 85, 0.55);
+}
+
+.drone-tab-button.active {
+    border-color: rgba(132, 204, 22, 0.7);
+    background-color: rgba(132, 204, 22, 0.18);
+    color: #ecfccb;
+}
+
+.text-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: rgb(255, 255, 255);
+}
+
+.drone-imagery-form {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.drone-imagery-form > div {
+    flex: 1;
+    min-width: 200px;
+}
+
+
+.weather-card {
+    background-color: #333;
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.histogram-chart {
+    background: rgba(15, 17, 16, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.histogram-chart-header {
+    color: #e5e7eb;
+    font-size: 12px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.histogram-bars {
+    height: 100px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(8px, 1fr);
+    gap: 2px;
+    align-items: end;
+}
+
+.histogram-bar-wrapper {
+    height: 100%;
+    display: flex;
+    align-items: end;
+}
+
+.histogram-bar {
+    width: 100%;
+    min-height: 2px;
+    background: linear-gradient(180deg, #84cc16 0%, #22c55e 100%);
+    border-radius: 2px 2px 0 0;
+    cursor: pointer;
+}
+
+.histogram-bar:focus {
+    outline: 2px solid rgba(132, 204, 22, 0.85);
+    outline-offset: 1px;
+}
+
+.histogram-hover-value {
+    margin-top: 8px;
+    min-height: 18px;
+    color: #d1d5db;
+    font-size: 11px;
+}
+
+.histogram-axis {
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #d1d5db;
+}
+
+.histogram-toggle-button {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(148, 163, 184, 0.55);
+    background-color: rgba(51, 65, 85, 0.45);
+    color: #e2e8f0;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.histogram-toggle-button:hover {
+    background-color: rgba(71, 85, 105, 0.6);
+}
+

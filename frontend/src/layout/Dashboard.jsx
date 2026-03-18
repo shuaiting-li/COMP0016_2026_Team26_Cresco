@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import DroneImagery from '../drone_imagery';
+import DroneImagery from '../DroneFrontend/drone_imagery';
 import { CloudSun, Sprout, BarChart2, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Leaf, Droplets, Thermometer, Wind, MapPin, Loader } from 'lucide-react';
 import { ClipboardList } from 'lucide-react';
 import { fetchWeather } from '../services/api';
