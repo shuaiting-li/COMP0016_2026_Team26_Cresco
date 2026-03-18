@@ -269,8 +269,10 @@ class TestDeleteLastExchange:
     """Tests for CrescoAgent.delete_last_exchange method."""
 
     @pytest.mark.asyncio
-    async def test_delete_last_exchange_removes_messages(self, mock_settings, mock_agent_deps):
-        """Test that delete_last_exchange calls aget_state and aupdate_state correctly."""
+    async def test_delete_last_exchange_single_exchange_uses_adelete_thread(
+        self, mock_settings, mock_agent_deps
+    ):
+        """Test that deleting the only exchange uses adelete_thread instead of aupdate_state."""
         from langchain_core.messages import AIMessage, HumanMessage
 
         human_msg = HumanMessage(content="hello", id="h1")
@@ -283,12 +285,12 @@ class TestDeleteLastExchange:
         mock_agent_deps["create_agent"].return_value = mock_graph
 
         agent = CrescoAgent(mock_settings)
+        agent.checkpointer = AsyncMock()
         result = await agent.delete_last_exchange(thread_id="user1", user_id="user1")
 
         assert result is True
-        mock_graph.aupdate_state.assert_called_once()
-        removals = mock_graph.aupdate_state.call_args.args[1]["messages"]
-        assert len(removals) == 2
+        agent.checkpointer.adelete_thread.assert_called_once_with("user1")
+        mock_graph.aupdate_state.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_delete_last_exchange_returns_false_when_empty(
@@ -588,12 +590,11 @@ class TestClearHistory:
         mock_agent_deps["create_agent"].return_value = mock_graph
 
         agent = CrescoAgent(mock_settings)
+        agent.checkpointer = AsyncMock()
         result = await agent.clear_history(thread_id="user1", user_id="user1")
 
         assert result is True
-        mock_graph.aupdate_state.assert_called_once()
-        removals = mock_graph.aupdate_state.call_args.args[1]["messages"]
-        assert len(removals) == 4
+        agent.checkpointer.adelete_thread.assert_called_once_with("user1")
 
     @pytest.mark.asyncio
     async def test_clear_history_returns_false_when_empty(self, mock_settings, mock_agent_deps):
@@ -605,10 +606,11 @@ class TestClearHistory:
         mock_agent_deps["create_agent"].return_value = mock_graph
 
         agent = CrescoAgent(mock_settings)
+        agent.checkpointer = AsyncMock()
         result = await agent.clear_history(thread_id="user1", user_id="user1")
 
         assert result is False
-        mock_graph.aupdate_state.assert_not_called()
+        agent.checkpointer.adelete_thread.assert_not_called()
 
 
 class TestGetAgent:

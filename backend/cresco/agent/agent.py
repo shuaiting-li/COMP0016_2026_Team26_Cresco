@@ -347,9 +347,13 @@ class CrescoAgent:
             return False
 
         # Remove every message from the last HumanMessage onwards
-        to_remove = messages[last_human_idx:]
-        removals = [RemoveMessage(id=m.id) for m in to_remove]
-        await self._agent_with_search.aupdate_state(config, {"messages": removals})
+        if last_human_idx == 0:
+            # Removing the only exchange — use adelete_thread to avoid empty-state routing bug
+            await self.checkpointer.adelete_thread(thread_id)
+        else:
+            to_remove = messages[last_human_idx:]
+            removals = [RemoveMessage(id=m.id) for m in to_remove]
+            await self._agent_with_search.aupdate_state(config, {"messages": removals})
         return True
 
     async def clear_history(self, thread_id: str = "default", user_id: str = "") -> bool:
@@ -364,8 +368,7 @@ class CrescoAgent:
         if not messages:
             return False
 
-        removals = [RemoveMessage(id=m.id) for m in messages]
-        await self._agent_with_search.aupdate_state(config, {"messages": removals})
+        await self.checkpointer.adelete_thread(thread_id)
         return True
 
     def clear_memory(self, thread_id: str = "default") -> None:
