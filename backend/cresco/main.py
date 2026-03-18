@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from cresco import __version__
+from cresco import __version__, db
 from cresco.api import router
 from cresco.auth import auth_router
 from cresco.config import get_settings
@@ -22,8 +23,22 @@ async def lifespan(app: FastAPI):
     print(f"[*] Starting Cresco v{__version__}")
     print(f"[*] Knowledge base: {settings.knowledge_base}")
     print(f"[*] Using model: {settings.model_provider}/{settings.model_name}")
-    yield
+
+    # Initialize database pool
+    pool = await db.init_pool(settings.database_url)
+    app.state.db_pool = pool
+    print("[*] Database pool initialized")
+
+    # Initialize PostgresSaver for conversation checkpointing
+    async with AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+        await checkpointer.setup()
+        app.state.checkpointer = checkpointer
+        print("[*] PostgresSaver checkpointer initialized")
+
+        yield
+
     # Shutdown
+    await db.close_pool()
     print("[*] Shutting down Cresco")
 
 

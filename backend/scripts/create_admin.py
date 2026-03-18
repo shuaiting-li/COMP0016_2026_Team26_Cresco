@@ -12,9 +12,11 @@ from pathlib import Path
 # Load .env file before importing config
 from dotenv import load_dotenv
 
-from cresco.auth.users import create_user, get_user_by_username
-
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
+from cresco.auth.users import create_user, get_user_by_username  # noqa: E402
+from cresco.config import get_settings  # noqa: E402
+from cresco.db import init_tables_sync  # noqa: E402
 
 
 def main() -> None:
@@ -31,6 +33,9 @@ def main() -> None:
     if len(password) < 8:
         print("Error: password must be at least 8 characters")
         sys.exit(1)
+
+    # Ensure tables exist before creating a user
+    init_tables_sync(get_settings().database_url)
 
     existing = get_user_by_username(username)
     if existing:

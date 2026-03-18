@@ -75,7 +75,7 @@ class TestGetWeatherDataTool:
         """Test tool returns formatted weather when farm + weather data exist."""
         user_data = self._make_farm_data()
         with (
-            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.db.get_farm_data_sync", return_value=user_data),
             patch("cresco.config.get_settings"),
         ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
@@ -89,7 +89,7 @@ class TestGetWeatherDataTool:
     def test_returns_instruction_when_no_farm_data(self, weather_tool):
         """Test tool instructs user to set up farm when no data exists."""
         with (
-            patch("cresco.db.get_farm_data", return_value=None),
+            patch("cresco.db.get_farm_data_sync", return_value=None),
             patch("cresco.config.get_settings"),
         ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
@@ -101,7 +101,7 @@ class TestGetWeatherDataTool:
         """Test tool instructs user when weather is missing from farm data."""
         user_data = self._make_farm_data(with_weather=False)
         with (
-            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.db.get_farm_data_sync", return_value=user_data),
             patch("cresco.config.get_settings"),
         ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
@@ -111,7 +111,7 @@ class TestGetWeatherDataTool:
     def test_unknown_user_id(self, weather_tool):
         """Test tool handles unknown user_id gracefully."""
         with (
-            patch("cresco.db.get_farm_data", return_value=None),
+            patch("cresco.db.get_farm_data_sync", return_value=None),
             patch("cresco.config.get_settings"),
         ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "unknown-user"}})
@@ -122,7 +122,7 @@ class TestGetWeatherDataTool:
         """Test forecast entry with rain data is formatted."""
         user_data = self._make_farm_data()
         with (
-            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.db.get_farm_data_sync", return_value=user_data),
             patch("cresco.config.get_settings"),
         ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})
@@ -133,7 +133,7 @@ class TestGetWeatherDataTool:
         """Test forecast entry without rain data defaults to 0."""
         user_data = self._make_farm_data()
         with (
-            patch("cresco.db.get_farm_data", return_value=user_data),
+            patch("cresco.db.get_farm_data_sync", return_value=user_data),
             patch("cresco.config.get_settings"),
         ):
             result = weather_tool.invoke({}, {"configurable": {"user_id": "user-123"}})

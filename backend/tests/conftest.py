@@ -31,7 +31,7 @@ def mock_settings():
             debug=True,
             jwt_secret_key="test-secret-key-for-testing-only",
             jwt_expiry_hours=24,
-            database_path=str(Path(tmpdir) / "cresco.db"),
+            database_url="postgresql://cresco:cresco@localhost:5432/cresco_test",
         )
         # Create the knowledge base directory
         Path(settings.knowledge_base_path).mkdir(parents=True, exist_ok=True)
@@ -89,10 +89,16 @@ def mock_agent():
 
 
 @pytest.fixture
-def client():
+def mock_db_pool():
+    """Create a mock async connection pool for testing."""
+    return MagicMock()
+
+
+@pytest.fixture
+def client(mock_db_pool):
     """Create FastAPI test client with mocked dependencies (auth bypassed)."""
     # Import here to avoid circular imports
-    from cresco.agent.agent import get_agent
+    from cresco.api.routes import get_agent_dep, get_db_pool
     from cresco.auth.dependencies import get_current_user
     from cresco.config import get_settings
     from cresco.main import app
@@ -110,8 +116,9 @@ def client():
     mock_settings.knowledge_base = Path("/tmp/kb")
 
     # Override dependencies — bypass auth for existing API tests
-    app.dependency_overrides[get_agent] = lambda: mock_agent
+    app.dependency_overrides[get_agent_dep] = lambda: mock_agent
     app.dependency_overrides[get_settings] = lambda: mock_settings
+    app.dependency_overrides[get_db_pool] = lambda: mock_db_pool
     app.dependency_overrides[get_current_user] = lambda: {
         "user_id": "test-user-id",
         "username": "testuser",
@@ -127,21 +134,23 @@ def client():
 
 @pytest.fixture
 def tmp_database(mock_settings):
-    """Ensure database is initialised and clean for each test."""
-    from cresco.db import get_connection
+    """Ensure database tables exist and are clean for each test."""
+    from cresco.db import init_tables_sync
 
-    conn = get_connection(mock_settings.database_path)
-    conn.close()
-    yield mock_settings.database_path
-    db_path = Path(mock_settings.database_path)
-    if db_path.exists():
-        db_path.unlink()
+    init_tables_sync(mock_settings.database_url)
+    # Truncate tables for a clean slate
+    import psycopg
+
+    with psycopg.connect(mock_settings.database_url) as conn:
+        conn.execute("TRUNCATE users, farm_data")
+        conn.commit()
+    yield mock_settings.database_url
 
 
 @pytest.fixture
 def auth_client(mock_settings, tmp_database):
     """Create FastAPI test client with mocked deps and real auth (using tmp database)."""
-    from cresco.agent.agent import get_agent
+    from cresco.api.routes import get_agent_dep, get_db_pool
     from cresco.config import get_settings
     from cresco.main import app
 
@@ -153,9 +162,12 @@ def auth_client(mock_settings, tmp_database):
         "tasks": [],
     }
 
+    mock_pool = MagicMock()
+
     # Override dependencies — use real auth but mock agent and settings
-    app.dependency_overrides[get_agent] = lambda: mock_agent_instance
+    app.dependency_overrides[get_agent_dep] = lambda: mock_agent_instance
     app.dependency_overrides[get_settings] = lambda: mock_settings
+    app.dependency_overrides[get_db_pool] = lambda: mock_pool
 
     with (
         patch("cresco.api.routes.is_indexed", return_value=True),
@@ -168,9 +180,9 @@ def auth_client(mock_settings, tmp_database):
 
 
 @pytest.fixture
-async def async_client():
+async def async_client(mock_db_pool):
     """Create async test client for async tests."""
-    from cresco.agent.agent import get_agent
+    from cresco.api.routes import get_agent_dep, get_db_pool
     from cresco.auth.dependencies import get_current_user
     from cresco.config import get_settings
     from cresco.main import app
@@ -187,8 +199,9 @@ async def async_client():
     mock_settings = MagicMock()
     mock_settings.knowledge_base = Path("/tmp/kb")
 
-    app.dependency_overrides[get_agent] = lambda: mock_agent
+    app.dependency_overrides[get_agent_dep] = lambda: mock_agent
     app.dependency_overrides[get_settings] = lambda: mock_settings
+    app.dependency_overrides[get_db_pool] = lambda: mock_db_pool
     app.dependency_overrides[get_current_user] = lambda: {
         "user_id": "test-user-id",
         "username": "testuser",

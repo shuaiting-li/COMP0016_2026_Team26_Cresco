@@ -320,13 +320,16 @@ class TestWeatherEndpoint:
             mock_client_cls.return_value.__aenter__.return_value.get = AsyncMock(
                 side_effect=fake_get
             )
-            mock_db.get_farm_data.return_value = {
-                "weather": {
-                    "location": "London",
-                    "current_weather": weather_json,
-                    "forecast": forecast_json,
+            mock_db.update_farm_weather = AsyncMock()
+            mock_db.get_farm_data = AsyncMock(
+                return_value={
+                    "weather": {
+                        "location": "London",
+                        "current_weather": weather_json,
+                        "forecast": forecast_json,
+                    }
                 }
-            }
+            )
             response = client.get("/api/v1/weather", params={"lat": 51.5074, "lon": -0.1278})
 
         assert response.status_code == 200
@@ -549,12 +552,12 @@ class TestDeleteLastExchangeEndpoint:
 
     def test_delete_last_exchange_calls_agent(self, client):
         """Test the endpoint delegates to agent.delete_last_exchange with the user's ID."""
-        from cresco.agent.agent import get_agent
+        from cresco.api.routes import get_agent_dep
         from cresco.main import app
 
         mock_agent = AsyncMock()
         mock_agent.delete_last_exchange.return_value = True
-        app.dependency_overrides[get_agent] = lambda: mock_agent
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
 
         client.delete("/api/v1/chat/last-exchange")
 
@@ -564,12 +567,12 @@ class TestDeleteLastExchangeEndpoint:
 
     def test_delete_last_exchange_returns_404_when_empty(self, client):
         """Test 404 response when there is no exchange to delete."""
-        from cresco.agent.agent import get_agent
+        from cresco.api.routes import get_agent_dep
         from cresco.main import app
 
         mock_agent = AsyncMock()
         mock_agent.delete_last_exchange.return_value = False
-        app.dependency_overrides[get_agent] = lambda: mock_agent
+        app.dependency_overrides[get_agent_dep] = lambda: mock_agent
 
         response = client.delete("/api/v1/chat/last-exchange")
         assert response.status_code == 404
@@ -708,7 +711,7 @@ class TestSatelliteImageEndpoint:
     def test_satellite_image_no_farm_data(self, client):
         """Test 404 when user has no farm data set."""
         with patch("cresco.api.routes.db") as mock_db:
-            mock_db.get_farm_data.return_value = None
+            mock_db.get_farm_data = AsyncMock(return_value=None)
             response = client.post("/api/v1/satellite-image")
         assert response.status_code == 404
         assert "farm data" in response.json()["detail"].lower()
@@ -716,7 +719,7 @@ class TestSatelliteImageEndpoint:
     def test_satellite_image_success(self, client):
         """Test successful satellite image retrieval returns PNG."""
         with patch("cresco.api.routes.db") as mock_db:
-            mock_db.get_farm_data.return_value = {"lat": 51.5, "lon": -0.1}
+            mock_db.get_farm_data = AsyncMock(return_value={"lat": 51.5, "lon": -0.1})
             with patch(
                 "cresco.api.routes.satellite_images_main",
                 new_callable=AsyncMock,
@@ -729,7 +732,7 @@ class TestSatelliteImageEndpoint:
     def test_satellite_image_upstream_failure(self, client):
         """Test 502 when satellite service returns None."""
         with patch("cresco.api.routes.db") as mock_db:
-            mock_db.get_farm_data.return_value = {"lat": 51.5, "lon": -0.1}
+            mock_db.get_farm_data = AsyncMock(return_value={"lat": 51.5, "lon": -0.1})
             with patch(
                 "cresco.api.routes.satellite_images_main",
                 new_callable=AsyncMock,
@@ -740,18 +743,29 @@ class TestSatelliteImageEndpoint:
 
 
 class TestFarmDataPersistence:
-    """Tests for farm data persistence via SQLite."""
+    """Tests for farm data persistence via PostgreSQL."""
 
     def test_save_and_get_farm_data(self, client):
         """Test POST then GET round-trips farm data through the database."""
         from cresco.config import get_settings
         from cresco.main import app
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mock_s = MagicMock()
-            mock_s.database_path = str(Path(tmpdir) / "test.db")
-            mock_s.openweather_api_key = ""
-            app.dependency_overrides[get_settings] = lambda: mock_s
+        mock_s = MagicMock()
+        mock_s.openweather_api_key = ""
+        app.dependency_overrides[get_settings] = lambda: mock_s
+
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.save_farm_data = AsyncMock()
+            mock_db.get_farm_data = AsyncMock(
+                return_value={
+                    "location": "Kent, UK",
+                    "area": 50.0,
+                    "lat": 51.27,
+                    "lon": 0.52,
+                    "nodes": [],
+                    "weather": None,
+                }
+            )
 
             response = client.post(
                 "/api/v1/farm-data",
@@ -767,13 +781,8 @@ class TestFarmDataPersistence:
 
     def test_get_farm_data_404_when_empty(self, client):
         """Test GET /farm-data returns 404 when no data has been saved."""
-        from cresco.config import get_settings
-        from cresco.main import app
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            mock_s = MagicMock()
-            mock_s.database_path = str(Path(tmpdir) / "test.db")
-            app.dependency_overrides[get_settings] = lambda: mock_s
+        with patch("cresco.api.routes.db") as mock_db:
+            mock_db.get_farm_data = AsyncMock(return_value=None)
 
             response = client.get("/api/v1/farm-data")
             assert response.status_code == 404

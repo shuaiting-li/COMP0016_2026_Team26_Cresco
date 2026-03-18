@@ -1,6 +1,7 @@
 """Tests for FastAPI application setup."""
 
-from unittest.mock import MagicMock, patch
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -43,16 +44,13 @@ class TestCreateApp:
 class TestCORS:
     """Tests for CORS middleware configuration."""
 
-    def test_cors_middleware_added(self):
+    def test_cors_middleware_added(self, client):
         """Test CORS middleware is added to the app."""
-        from fastapi.testclient import TestClient
-
-        with TestClient(app) as tc:
-            response = tc.get(
-                "/api/v1/health",
-                headers={"Origin": "http://localhost:3000"},
-            )
-            assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+        response = client.get(
+            "/api/v1/health",
+            headers={"Origin": "http://localhost:3000"},
+        )
+        assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
 
 
 class TestAppVersion:
@@ -79,11 +77,27 @@ class TestLifespan:
         """Test lifespan context manager runs startup without raising."""
         from cresco.main import lifespan
 
-        with patch("cresco.main.get_settings") as mock_settings:
+        mock_checkpointer = AsyncMock()
+
+        @asynccontextmanager
+        async def fake_from_conn_string(*args, **kwargs):
+            yield mock_checkpointer
+
+        with (
+            patch("cresco.main.get_settings") as mock_settings,
+            patch("cresco.main.db") as mock_db,
+            patch("cresco.main.AsyncPostgresSaver") as mock_pg_saver,
+        ):
             mock_settings.return_value.knowledge_base = "/tmp/kb"
             mock_settings.return_value.model_provider = "openai"
             mock_settings.return_value.model_name = "gpt-4"
+            mock_settings.return_value.database_url = "postgresql://test:test@localhost/test"
+            mock_db.init_pool = AsyncMock(return_value=MagicMock())
+            mock_db.close_pool = AsyncMock()
+            mock_pg_saver.from_conn_string = fake_from_conn_string
 
             async with lifespan(app):
                 # Verify startup accessed settings
                 assert mock_settings.called
+                mock_db.init_pool.assert_called_once()
+                mock_checkpointer.setup.assert_called_once()

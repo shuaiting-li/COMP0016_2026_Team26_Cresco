@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 class CrescoAgent:
     """Conversational agent for agricultural queries using modern LangChain patterns."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, checkpointer=None):
         """Initialize the Cresco agent."""
         self.settings = settings
         self.vector_store = get_vector_store()
-        self.checkpointer = InMemorySaver()
+        self.checkpointer = checkpointer if checkpointer is not None else InMemorySaver()
         self._agent_with_search = self._build_agent(include_internet_search=True)
         self._agent_no_search = self._build_agent(include_internet_search=False)
 
@@ -104,7 +104,7 @@ class CrescoAgent:
             from cresco.config import get_settings as _get_settings
 
             user_id = config["configurable"].get("user_id", "")
-            user_data = db.get_farm_data(_get_settings().database_path, user_id) or {}
+            user_data = db.get_farm_data_sync(_get_settings().database_url, user_id) or {}
 
             if not user_data:
                 return (
@@ -323,22 +323,23 @@ class CrescoAgent:
         return True
 
     def clear_memory(self, thread_id: str = "default") -> None:
-        """Clear conversation memory for a specific thread."""
-        # InMemorySaver doesn't have a direct clear method per thread
-        # Reinitialize checkpointer to clear all memory
-        self.checkpointer = InMemorySaver()
-        self._agent_with_search = self._build_agent(include_internet_search=True)
-        self._agent_no_search = self._build_agent(include_internet_search=False)
+        """Clear conversation memory for a specific thread.
+        Only used in tests for in-memory checkpointer.
+        """
+        if isinstance(self.checkpointer, InMemorySaver):
+            self.checkpointer = InMemorySaver()
+            self._agent_with_search = self._build_agent(include_internet_search=True)
+            self._agent_no_search = self._build_agent(include_internet_search=False)
 
 
 # Module-level singleton
 _agent = None
 
 
-def get_agent() -> CrescoAgent:
+def get_agent(checkpointer=None) -> CrescoAgent:
     """Get or create the Cresco agent instance (singleton)."""
     global _agent
     if _agent is None:
         settings = get_settings()
-        _agent = CrescoAgent(settings)
+        _agent = CrescoAgent(settings, checkpointer=checkpointer)
     return _agent
