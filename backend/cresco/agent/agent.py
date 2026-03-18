@@ -212,7 +212,11 @@ class CrescoAgent:
                 task_start = answer.index("---TASKS---") + len("---TASKS---")
                 task_end = answer.index("---END_TASKS---")
                 task_json = answer[task_start:task_end].strip()
-                tasks = json.loads(task_json)[:5]
+                parsed_tasks = json.loads(task_json)
+                if isinstance(parsed_tasks, list):
+                    tasks = parsed_tasks[:5]
+                else:
+                    tasks = []
                 answer = answer[: answer.index("---TASKS---")].strip()
             except (ValueError, json.JSONDecodeError):
                 pass
