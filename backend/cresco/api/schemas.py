@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from fastapi.responses import StreamingResponse
 
 
 class FarmData(BaseModel):
