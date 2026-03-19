@@ -466,6 +466,26 @@ export const deleteDroneImage = async (filename) => {
     return await response.json();
 };
 
+export const fetchDroneImages = async () => {
+    const response = await fetch(`${API_BASE_URL}/images`, {
+        method: 'GET',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Fetch images failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.images || [];
+};
+
 export const updateDroneImageTimestamp = async (filename, timestamp) => {
     const response = await fetch(`${API_BASE_URL}/images/${encodeURIComponent(filename)}/timestamp`, {
         method: 'PATCH',

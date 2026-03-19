@@ -98,9 +98,11 @@ describe('DroneImagery', () => {
         expect(screen.getByText(/saved vegetation index images/i)).toBeInTheDocument();
     });
 
-    it('renders time series placeholder when tab is selected', () => {
+    it('renders time series charts section when tab is selected', () => {
         render(<DroneImagery />);
         fireEvent.click(screen.getByRole('tab', { name: /time series/i }));
-        expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /time series/i })).toBeInTheDocument();
+        expect(screen.getByText(/ndvi distribution over time/i)).toBeInTheDocument();
+        expect(screen.getByText(/upload indexed images to see ndvi, savi, and evi distribution trends/i)).toBeInTheDocument();
     });
 });

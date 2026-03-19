@@ -2,8 +2,8 @@
  * Tests for the Dashboard component.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Dashboard from '../layout/Dashboard';
 
 // Recharts ResizeObserver stub
@@ -52,6 +52,51 @@ describe('Dashboard', () => {
         expect(screen.getByText('Check pH')).toBeInTheDocument();
     });
 
+    it('allows deleting tasks from dashboard list', () => {
+        const messages = [
+            {
+                id: 1,
+                role: 'assistant',
+                content: 'plan',
+                tasks: [
+                    { title: 'Soil Test', detail: 'Check pH', priority: 'high' },
+                    { title: 'Fertilise', detail: 'Apply NPK', priority: 'medium' },
+                ],
+            },
+        ];
+
+        render(<Dashboard farmLocation={null} messages={messages} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /delete task soil test/i }));
+        expect(screen.queryByText('Soil Test')).not.toBeInTheDocument();
+        expect(screen.getByText('Fertilise')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /delete task fertilise/i }));
+        expect(screen.queryByText('Fertilise')).not.toBeInTheDocument();
+        expect(screen.getByText(/tasks suggested by the assistant/i)).toBeInTheDocument();
+    });
+
+    it('calls persistent delete callback with message and task indexes', () => {
+        const onDeleteTask = vi.fn();
+        const messages = [
+            {
+                id: 10,
+                role: 'assistant',
+                content: 'plan',
+                tasks: [
+                    { title: 'Soil Test', detail: 'Check pH', priority: 'high' },
+                    { title: 'Fertilise', detail: 'Apply NPK', priority: 'medium' },
+                ],
+            },
+        ];
+
+        render(<Dashboard farmLocation={null} messages={messages} onDeleteTask={onDeleteTask} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /delete task fertilise/i }));
+
+        expect(onDeleteTask).toHaveBeenCalledWith(10, 1);
+    });
+
     it('shows forecast placeholder when no farm location', () => {
         render(<Dashboard farmLocation={null} messages={[]} />);
         expect(screen.getByText(/set a farm location/i)).toBeInTheDocument();
@@ -81,22 +126,34 @@ describe('Dashboard', () => {
             json: async () => ({ images: [] }),
         });
         render(<Dashboard farmLocation={null} messages={[]} />);
-        expect(screen.getByText(/upload drone images/i)).toBeInTheDocument();
+        return waitFor(() => {
+            expect(screen.getByText(/upload drone images/i)).toBeInTheDocument();
+        });
     });
 
-    it('renders NDVI image when available', async () => {
+    it('renders NDVI overall chart when data is available', async () => {
         const ndviData = {
             images: [
-                { id: '1', filename: 'ndvi_001.png', timestamp: '2026-01-15T10:00:00Z' },
+                {
+                    id: '1',
+                    filename: 'ndvi_001.png',
+                    timestamp: '2026-01-15T10:00:00Z',
+                    index_type: 'NDVI',
+                    histogram: {
+                        counts: [5, 10, 15, 20],
+                        bin_edges: [-1, -0.5, 0, 0.5, 1],
+                    },
+                },
             ],
         };
         fetch.mockResolvedValueOnce({
             ok: true,
             json: async () => ndviData,
         });
-        render(<Dashboard farmLocation={null} messages={[]} />);
+        const { container } = render(<Dashboard farmLocation={null} messages={[]} />);
         await waitFor(() => {
-            expect(screen.getByAltText('NDVI Map')).toBeInTheDocument();
+            expect(screen.getByText(/ndvi overall time series/i)).toBeInTheDocument();
+            expect(container.querySelector('.recharts-responsive-container')).toBeInTheDocument();
         });
     });
 

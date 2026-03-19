@@ -16,6 +16,7 @@ export default function ChatArea({
     messages,
     onSendMessage,
     onDeleteLastExchange,
+    onDeleteTask = () => {},
     isLoading,
     farmLocation,
     internetSearchEnabled = true,
@@ -72,7 +73,7 @@ export default function ChatArea({
 
             <div className={styles.contentArea}>
                 {activeTab === 'dashboard' ? (
-                    <Dashboard farmLocation={farmLocation} messages={messages} />
+                    <Dashboard farmLocation={farmLocation} messages={messages} onDeleteTask={onDeleteTask} />
                 ) : messages.length === 0 ? (
                     <div className={styles.emptyContainer}>
                         <Sprout size={48} className={styles.heroIcon} strokeWidth={1} />
@@ -235,7 +236,7 @@ export default function ChatArea({
 
                     {activeTab === 'dashboard' &&
                         <div>
-                            <Dashboard farmLocation={farmLocation} messages={messages} />
+                            <Dashboard farmLocation={farmLocation} messages={messages} onDeleteTask={onDeleteTask} />
                         </div>}
                     </>
                 )}

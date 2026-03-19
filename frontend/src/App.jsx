@@ -135,6 +135,20 @@ function App() {
         }
     };
 
+    const handleDeleteTaskFromMessages = (messageKey, taskIndex) => {
+        setMessages((prev) => prev.map((message, index) => {
+            const currentMessageKey = message.id ?? index;
+            if (currentMessageKey !== messageKey || !Array.isArray(message.tasks)) {
+                return message;
+            }
+
+            return {
+                ...message,
+                tasks: message.tasks.filter((_, idx) => idx !== taskIndex),
+            };
+        }));
+    };
+
     const handleSendMessage = async (text, enableInternetSearch = true) => {
         if (!text.trim()) return;
 
@@ -235,6 +249,7 @@ function App() {
                         messages={messages}
                         onSendMessage={handleSendMessage}
                         onDeleteLastExchange={handleDeleteLastExchange}
+                        onDeleteTask={handleDeleteTaskFromMessages}
                         isLoading={isLoading}
                         farmLocation={farmLocation}
                         internetSearchEnabled={internetSearchEnabled}
