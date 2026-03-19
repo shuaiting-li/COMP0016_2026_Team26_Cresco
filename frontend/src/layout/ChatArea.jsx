@@ -19,7 +19,7 @@ export default function ChatArea({
     onDeleteTask = () => {},
     isLoading,
     farmLocation,
-    internetSearchEnabled = true,
+    internetSearchEnabled = false,
     setInternetSearchEnabled = () => {},
 }) {
     const [input, setInput] = useState("");
@@ -186,7 +186,13 @@ export default function ChatArea({
                                                         <li key={idx} className={styles.taskItem}>
                                                             <strong>{chart.title}</strong>
                                                             <p>{chart.detail}</p>
-                                                            {chart.priority && <span className={styles.tag}>{chart.priority}</span>}
+                                                            {chart.priority && (
+                                                                <span
+                                                                    className={`${styles.priorityTag} ${styles[`priority-${chart.priority.toLowerCase()}`]}`}
+                                                                >
+                                                                    {chart.priority}
+                                                                </span>
+                                                            )}
                                                         </li>
                                                     ))}
                                                 </ul>
@@ -205,7 +211,13 @@ export default function ChatArea({
                                                         <li key={idx} className={styles.taskItem}>
                                                             <strong>{task.title}</strong>
                                                             <p>{task.detail}</p>
-                                                            {task.priority && <span className={styles.tag}>{task.priority}</span>}
+                                                            {task.priority && (
+                                                                <span
+                                                                    className={`${styles.priorityTag} ${styles[`priority-${task.priority.toLowerCase()}`]}`}
+                                                                >
+                                                                    {task.priority}
+                                                                </span>
+                                                            )}
                                                         </li>
                                                     ))}
                                                 </ul>
