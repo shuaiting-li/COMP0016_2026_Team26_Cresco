@@ -42,7 +42,7 @@ function App() {
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
-    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(false);
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
 
