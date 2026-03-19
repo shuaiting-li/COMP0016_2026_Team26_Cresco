@@ -118,7 +118,7 @@ describe('register', () => {
             json: async () => ({ access_token: 'new-jwt', username: 'newuser' }),
         });
 
-        await api.register('newuser', 'pass1234', false);
+        await api.register('newuser', 'pass1234');
 
         const [url, opts] = fetch.mock.calls[0];
         expect(url).toBe(`${API_BASE}/auth/register`);
@@ -126,7 +126,7 @@ describe('register', () => {
         expect(JSON.parse(opts.body)).toEqual({
             username: 'newuser',
             password: 'pass1234',
-            is_admin: false,
+            is_admin: true,
         });
     });
 
