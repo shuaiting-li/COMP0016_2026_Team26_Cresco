@@ -63,9 +63,16 @@ function App() {
                             lng: data.lon,
                             nodes: (data.nodes || []).map(n => ({ lat: n.lat, lng: n.lng || n.lon })),
                         });
+                    } else {
+                        setFarmLocation(null);
                     }
                 })
-                .catch(err => console.error('Failed to fetch farm data:', err));
+                .catch(err => {
+                    console.error('Failed to fetch farm data:', err);
+                    setFarmLocation(null);
+                });
+        } else {
+            setFarmLocation(null);
         }
     }, [authenticated]);
 
@@ -77,6 +84,7 @@ function App() {
         setMessages([]);
         setConversationId(null);
         setFiles([]);
+        setFarmLocation(null);
     };
 
     const handleDeleteAccount = async () => {
@@ -94,6 +102,7 @@ function App() {
             setMessages([]);
             setConversationId(null);
             setFiles([]);
+            setFarmLocation(null);
         } catch (error) {
             console.error('Delete account error:', error);
         } finally {

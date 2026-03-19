@@ -1,8 +1,7 @@
 """Authentication API routes."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastapi import Depends
 from .dependencies import get_current_user
 from .jwt import create_access_token
 from .schemas import DeleteAccountResponse, LoginRequest, RegisterRequest, TokenResponse

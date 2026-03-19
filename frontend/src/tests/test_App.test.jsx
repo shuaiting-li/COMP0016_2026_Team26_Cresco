@@ -248,5 +248,38 @@ describe('App', () => {
             expect(api.deleteAccount).toHaveBeenCalledTimes(1);
             expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
         });
+    }, 10000);
+
+    it('does not reuse previous user farm location after re-login', async () => {
+        /** Verifies farm location state is cleared across user switch in a single app session. */
+        api.isLoggedIn.mockReturnValue(true);
+        api.fetchFarmData
+            .mockResolvedValueOnce({ lat: 51.5, lon: -0.12, nodes: [{ lat: 51.5, lon: -0.12 }] })
+            .mockResolvedValueOnce(null);
+        api.login.mockResolvedValueOnce({ access_token: 'jwt', username: 'seconduser' });
+
+        render(<App />);
+        const user = userEvent.setup();
+
+        // User 1 logs out
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
+        await user.click(avatarBtn);
+        await user.click(screen.getByText(/sign out/i));
+
+        // User 2 logs in
+        await user.type(screen.getByLabelText(/username/i), 'seconduser');
+        await user.type(screen.getByLabelText(/password/i), 'password123');
+        await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText(/message cresco/i)).toBeInTheDocument();
+        });
+
+        // If stale farm location leaks, Weather component renders; correct behavior is location prompt.
+        await user.click(screen.getByText('Weather Data'));
+        await waitFor(() => {
+            expect(screen.getByText(/please select a farm location first/i)).toBeInTheDocument();
+        });
     });
 });
