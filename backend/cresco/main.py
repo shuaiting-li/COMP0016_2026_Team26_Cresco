@@ -44,8 +44,6 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    get_settings()
-
     app = FastAPI(
         title="Cresco",
         description="AI Chatbot for UK Farmers - Agricultural knowledge assistant",
@@ -53,17 +51,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Configure CORS for frontend access
-    # Note: allow_origins=["*"] with allow_credentials=True is not valid per CORS spec
-    # Use specific origins in production
+    settings = get_settings()
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",  # Vite dev server
-            "http://localhost:3000",  # Alternative dev port
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000",
-        ],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],

@@ -39,7 +39,15 @@ class Settings(BaseSettings):
     # API settings
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    debug: bool = True
+    debug: bool = False
+    allowed_origins: str = (
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000"
+    )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Parse comma-separated allowed origins into a list."""
+        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
     # Auth settings
     jwt_secret_key: str = ""  # Required — set JWT_SECRET_KEY in .env
