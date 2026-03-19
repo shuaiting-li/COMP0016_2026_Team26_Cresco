@@ -4,9 +4,10 @@ import asyncio
 import io
 import logging
 import shutil
+from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from cresco import __version__, db
@@ -19,9 +20,15 @@ from cresco.rag.indexer import (
     index_user_upload,
     is_indexed,
 )
-
-# Drone and satellite imagery imports
-from scripts.drone_image import NDVI_IMAGES_DIR, compute_ndvi_image, load_metadata
+from scripts.delete_account_info import delete_user_account
+from scripts.drone_image import (
+    IMAGES_DIR,
+    compute_evi_image,
+    compute_ndvi_image,
+    compute_savi_image,
+    load_metadata,
+    save_metadata,
+)
 from scripts.satellite_image import satellite_images_main
 
 from .schemas import (
@@ -267,8 +274,10 @@ async def upload_file(
     from cresco.rag.document_loader import SUPPORTED_EXTENSIONS
 
     try:
+        filename = file.filename or "unknown"
+
         # Validate file extension
-        file_ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        file_ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
         if file_ext not in SUPPORTED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
@@ -281,7 +290,6 @@ async def upload_file(
         upload_dir = settings.uploads_dir / user_id
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = file.filename if file.filename else "unknown"
         file_path = upload_dir / filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -294,7 +302,7 @@ async def upload_file(
             logger.exception("Indexing failed for '%s' (user '%s')", filename, user_id)
             # Roll back any partially indexed chunks for this user/file to keep state consistent
             try:
-                await delete_user_upload(settings, user_id=user_id, filename=filename)
+                delete_user_upload(settings, user_id=user_id, filename=filename)
             except Exception:
                 logger.exception(
                     "Failed to roll back indexed chunks for '%s' (user '%s') after indexing error",
@@ -336,21 +344,46 @@ async def list_uploads(
 
 @router.post("/droneimage", tags=["Files"])
 async def upload_file_drone(
-    files: list[UploadFile] = File(...), settings: Settings = Depends(get_settings)
+    files: list[UploadFile] = File(...),
+    index_type: str = Query("ndvi", description="Vegetation index type: ndvi, evi, or savi"),
+    current_user: dict = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     try:
         if len(files) != 2:
             raise HTTPException(
-                status_code=400, detail="Exactly 2 files (NIR and RGB) are required"
-            )  # noqa: E501
+                status_code=400,
+                detail="Exactly 2 files (NIR and RGB) are required",
+            )
 
         rgb = await files[0].read()
         nir = await files[1].read()
         rgb_filename = files[0].filename or "rgb.png"
         nir_filename = files[1].filename or "nir.png"
+        user_id = current_user["user_id"]
+        selected_index = index_type.strip().lower()
 
-        # Compute NDVI and save to disk
-        result = compute_ndvi_image(rgb, nir, rgb_filename, nir_filename, save_to_disk=True)
+        compute_fn_by_index = {
+            "ndvi": compute_ndvi_image,
+            "evi": compute_evi_image,
+            "savi": compute_savi_image,
+        }
+        compute_fn = compute_fn_by_index.get(selected_index)
+        if compute_fn is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid index_type. Use one of: ndvi, evi, savi.",
+            )
+
+        # Compute selected vegetation index and save to disk
+        result = compute_fn(
+            rgb,
+            nir,
+            rgb_filename,
+            nir_filename,
+            save_to_disk=True,
+            user_id=user_id,
+        )
 
         return StreamingResponse(io.BytesIO(result["image_bytes"]), media_type="image/png")
     except Exception as e:
@@ -359,20 +392,36 @@ async def upload_file_drone(
 
 
 # Get list of all saved NDVI images with metadata.
-@router.get("/ndvi-images", tags=["Files"])
-async def get_ndvi_images():
+@router.get("/images", tags=["Files"])
+async def get_ndvi_images(current_user: dict = Depends(get_current_user)):
     try:
         metadata = load_metadata()
-        return metadata
+        user_id = current_user["user_id"]
+        user_images = [
+            image for image in metadata.get("images", []) if image.get("user_id") == user_id
+        ]
+        return {"images": user_images}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading NDVI images: {str(e)}")
 
 
 # Gets a specific NDVI image. Uh. It it's ever needed
-@router.get("/ndvi-images/{filename}", tags=["Files"])
-async def get_ndvi_image(filename: str):
+@router.get("/images/{filename}", tags=["Files"])
+async def get_ndvi_image(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+):
     try:
-        file_path = NDVI_IMAGES_DIR / filename
+        user_id = current_user["user_id"]
+        metadata = load_metadata()
+        has_access = any(
+            image.get("filename") == filename and image.get("user_id") == user_id
+            for image in metadata.get("images", [])
+        )
+        if not has_access:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        file_path = IMAGES_DIR / filename
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Image not found")
         return FileResponse(file_path, media_type="image/png")
@@ -380,6 +429,83 @@ async def get_ndvi_image(filename: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
+
+
+@router.delete("/images/{filename}", tags=["Files"])
+async def delete_ndvi_image(
+    filename: str,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        user_id = current_user["user_id"]
+        metadata = load_metadata()
+        image_entry = next(
+            (
+                image
+                for image in metadata.get("images", [])
+                if image.get("filename") == filename and image.get("user_id") == user_id
+            ),
+            None,
+        )
+        if not image_entry:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        # Remove from metadata
+        metadata["images"].remove(image_entry)
+        save_metadata(metadata)
+
+        # Remove file from disk
+        file_path = IMAGES_DIR / filename
+        if file_path.exists():
+            file_path.unlink()
+
+        return {"status": "deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting image: {str(e)}")
+
+
+@router.patch("/images/{filename}/timestamp", tags=["Files"])
+async def update_image_timestamp(
+    filename: str,
+    payload: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        user_id = current_user["user_id"]
+        raw_timestamp = str(payload.get("timestamp", "")).strip()
+        if not raw_timestamp:
+            raise HTTPException(status_code=400, detail="'timestamp' is required")
+
+        try:
+            parsed = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid timestamp format") from exc
+
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        normalized_timestamp = parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+        metadata = load_metadata()
+        image_entry = next(
+            (
+                image
+                for image in metadata.get("images", [])
+                if image.get("filename") == filename and image.get("user_id") == user_id
+            ),
+            None,
+        )
+        if image_entry is None:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        image_entry["timestamp"] = normalized_timestamp
+        save_metadata(metadata)
+        return {"status": "updated", "timestamp": normalized_timestamp}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating image timestamp: {str(e)}")
 
 
 @router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
@@ -407,6 +533,20 @@ async def delete_file(
         status="deleted",
         chunks_removed=chunks_deleted,
     )
+
+
+@router.delete("/account", tags=["Account"])
+async def delete_account(
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete all data for the currently authenticated user account."""
+    user_id = current_user["user_id"]
+    try:
+        delete_user_account(user_id, username=current_user.get("username"))
+        return {"status": "deleted"}
+    except Exception as e:
+        logger.exception("Account deletion failed for user '%s'", user_id)
+        raise HTTPException(status_code=500, detail=f"Account deletion error: {str(e)}")
 
 
 @router.post("/index", response_model=IndexResponse, tags=["System"])

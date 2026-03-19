@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter, HTTPException, status
 
+from .dependencies import get_current_admin, get_current_user
 from .jwt import create_access_token
-from .schemas import LoginRequest, RegisterRequest, TokenResponse
-from .users import create_user, get_user_by_username, verify_password
+from .schemas import DeleteAccountResponse, LoginRequest, RegisterRequest, TokenResponse
+from .users import create_user, delete_user_by_id, get_user_by_username, verify_password
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -40,3 +41,22 @@ async def login(request: LoginRequest) -> TokenResponse:
 
     token = create_access_token(user["id"], user["username"], is_admin=user.get("is_admin", False))
     return TokenResponse(access_token=token, username=user["username"])
+
+
+@router.delete("/me", response_model=DeleteAccountResponse)
+async def delete_current_account(
+    current_user: dict = Depends(get_current_user),
+) -> DeleteAccountResponse:
+    """Delete the authenticated user's account."""
+    deleted = delete_user_by_id(current_user["user_id"])
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return DeleteAccountResponse(
+        message="Account deleted successfully",
+        username=current_user["username"],
+    )

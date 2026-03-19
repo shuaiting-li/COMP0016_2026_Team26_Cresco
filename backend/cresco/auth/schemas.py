@@ -28,6 +28,13 @@ class TokenResponse(BaseModel):
     username: str = Field(..., description="Authenticated username")
 
 
+class DeleteAccountResponse(BaseModel):
+    """Response model for self-service account deletion."""
+
+    message: str = Field(..., description="Deletion status message")
+    username: str = Field(..., description="Deleted username")
+
+
 class UserInfo(BaseModel):
     """Public user information."""
 

@@ -106,6 +106,57 @@ describe('login', () => {
 });
 
 
+describe('deleteAccount', () => {
+    /** Tests for the deleteAccount() API call. */
+
+    beforeEach(() => {
+        localStorage.setItem('cresco_token', 'tok');
+        localStorage.setItem('cresco_username', 'farmer');
+    });
+
+    it('sends delete request and clears auth on success', async () => {
+        /** Verifies account deletion uses DELETE and evicts local auth state. */
+        fetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({ message: 'Account deleted successfully', username: 'farmer' }),
+        });
+
+        const result = await api.deleteAccount();
+
+        expect(fetch).toHaveBeenCalledWith(
+            `${API_BASE}/account`,
+            expect.objectContaining({
+                method: 'DELETE',
+                headers: expect.objectContaining({ Authorization: 'Bearer tok' }),
+            }),
+        );
+        expect(result).toEqual({ message: 'Account deleted successfully', username: 'farmer' });
+        expect(localStorage.removeItem).toHaveBeenCalledWith('cresco_token');
+        expect(localStorage.removeItem).toHaveBeenCalledWith('cresco_username');
+    });
+
+    it('logs out on expired session', async () => {
+        /** Verifies auth state is cleared when deletion returns 401. */
+        fetch.mockResolvedValueOnce({ ok: false, status: 401 });
+
+        await expect(api.deleteAccount()).rejects.toThrow('Session expired');
+        expect(localStorage.removeItem).toHaveBeenCalledWith('cresco_token');
+    });
+
+    it('throws backend detail on delete failure', async () => {
+        /** Verifies backend detail is surfaced on account deletion failure. */
+        fetch.mockResolvedValueOnce({
+            ok: false,
+            status: 404,
+            json: async () => ({ detail: 'User not found' }),
+        });
+
+        await expect(api.deleteAccount()).rejects.toThrow('User not found');
+    });
+});
+
+
 describe('register', () => {
     /** Tests for the register() API call. */
 

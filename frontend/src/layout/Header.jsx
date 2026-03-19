@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sprout, ChevronDown, LogOut } from 'lucide-react';
+import { Sprout, ChevronDown, LogOut, Trash2 } from 'lucide-react';
 import styles from './Header.module.css';
 
-export default function Header({ onLogout, username }) {
+export default function Header({ onLogout, onDeleteAccount, username }) {
     const initials = username ? username.slice(0, 2).toUpperCase() : 'CR';
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -39,6 +39,14 @@ export default function Header({ onLogout, username }) {
                         <button className={styles.logoutBtn} onClick={onLogout}>
                             <LogOut size={14} />
                             Sign out
+                        </button>
+                        <button
+                            className={styles.deleteAccountBtn}
+                            type="button"
+                            onClick={onDeleteAccount}
+                        >
+                            <Trash2 size={14} />
+                            Delete account
                         </button>
                     </div>
                 )}

@@ -8,6 +8,7 @@ import pytest
 from cresco.auth.jwt import ALGORITHM, create_access_token, decode_token
 from cresco.auth.users import (
     create_user,
+    delete_user_by_id,
     get_user_by_id,
     get_user_by_username,
     hash_password,
@@ -106,6 +107,18 @@ class TestUserManagement:
         """Looking up a non-existent ID returns None."""
         with patch("cresco.auth.users.get_settings", return_value=mock_settings):
             assert get_user_by_id("nonexistent-uuid") is None
+
+    def test_delete_user_by_id_removes_existing_user(self, mock_settings, tmp_database):
+        """Deleting an existing user removes it from storage."""
+        with patch("cresco.auth.users.get_settings", return_value=mock_settings):
+            created = create_user("delete_me", "password123")
+            assert delete_user_by_id(created["id"]) is True
+            assert get_user_by_id(created["id"]) is None
+
+    def test_delete_user_by_id_returns_false_when_missing(self, mock_settings, tmp_database):
+        """Deleting a missing user ID returns False."""
+        with patch("cresco.auth.users.get_settings", return_value=mock_settings):
+            assert delete_user_by_id("missing-user-id") is False
 
 
 class TestJWT:
@@ -255,6 +268,35 @@ class TestAuthAPI:
             "/api/v1/auth/login",
             json={"username": "ghost", "password": "password123"},
         )
+        assert response.status_code == 401
+
+    def test_delete_current_account_succeeds(self, auth_client, mock_settings, tmp_database):
+        """An authenticated user can delete their own account."""
+        with patch("cresco.auth.users.get_settings", return_value=mock_settings):
+            user = create_user("selfdelete", "password123")
+        with patch("cresco.auth.jwt.get_settings", return_value=mock_settings):
+            token = create_access_token(user["id"], user["username"])
+
+        def _delete_from_test_db(user_id: str, username: str | None = None):
+            with patch("cresco.auth.users.get_settings", return_value=mock_settings):
+                if not delete_user_by_id(user_id):
+                    raise ValueError("User account not found; credentials were not deleted")
+
+        with patch("cresco.api.routes.delete_user_account", side_effect=_delete_from_test_db):
+            response = auth_client.delete(
+                "/api/v1/account",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "deleted"
+
+        with patch("cresco.auth.users.get_settings", return_value=mock_settings):
+            assert get_user_by_id(user["id"]) is None
+
+    def test_delete_current_account_without_token_returns_401(self, auth_client):
+        """Deleting the current account without a token returns 401."""
+        response = auth_client.delete("/api/v1/account")
         assert response.status_code == 401
 
 

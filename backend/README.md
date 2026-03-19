@@ -42,8 +42,8 @@ All endpoints mounted at `/api/v1`. All except `/health` require `Authorization:
 | GET | `/geocode/search` | Forward geocoding (Nominatim proxy) |
 | GET | `/geocode/reverse` | Reverse geocoding (Nominatim proxy) |
 | POST | `/droneimage` | Process drone RGB + NIR images for NDVI |
-| GET | `/ndvi-images` | List saved NDVI images |
-| GET | `/ndvi-images/{filename}` | Serve a specific NDVI image |
+| GET | `/images` | List saved NDVI images |
+| GET | `/images/{filename}` | Serve a specific NDVI image |
 | POST | `/satellite-image` | Fetch satellite imagery from Copernicus |
 | GET | `/health` | Health check (no auth required) |
 
