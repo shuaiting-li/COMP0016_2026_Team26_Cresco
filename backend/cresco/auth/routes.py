@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from .dependencies import get_current_admin, get_current_user
+from .dependencies import get_current_user
 from .jwt import create_access_token
 from .schemas import DeleteAccountResponse, LoginRequest, RegisterRequest, TokenResponse
 from .users import create_user, delete_user_by_id, get_user_by_username, verify_password
