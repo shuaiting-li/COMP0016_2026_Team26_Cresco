@@ -160,9 +160,8 @@ describe('deleteAccount', () => {
 describe('register', () => {
     /** Tests for the register() API call. */
 
-    it('sends registration request with auth header', async () => {
-        /** Verifies register attaches Bearer token (admin-only endpoint). */
-        localStorage.setItem('cresco_token', 'admin-token');
+    it('sends registration request with content-type header', async () => {
+        /** Verifies public register sends JSON payload without auth dependency. */
 
         fetch.mockResolvedValueOnce({
             ok: true,
@@ -173,7 +172,7 @@ describe('register', () => {
 
         const [url, opts] = fetch.mock.calls[0];
         expect(url).toBe(`${API_BASE}/auth/register`);
-        expect(opts.headers).toMatchObject({ Authorization: 'Bearer admin-token' });
+        expect(opts.headers).toEqual({ 'Content-Type': 'application/json' });
         expect(JSON.parse(opts.body)).toEqual({
             username: 'newuser',
             password: 'pass1234',

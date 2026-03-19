@@ -55,7 +55,7 @@ function authHeaders(extra = {}) {
 export async function register(username, password) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, is_admin: true }),
     });
 

@@ -19,6 +19,7 @@ vi.mock('../services/api', () => ({
     getUsername: vi.fn(() => 'testuser'),
     login: vi.fn(),
     deleteLastExchange: vi.fn(),
+    deleteAccount: vi.fn(),
 }));
 
 // Avoid rendering heavy sub-components that require Leaflet / canvas
@@ -207,6 +208,45 @@ describe('App', () => {
         // Backend API should have been called
         await waitFor(() => {
             expect(api.deleteLastExchange).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('shows delete confirmation and cancels on No', async () => {
+        /** Verifies account deletion prompt closes without API call when cancelled. */
+        api.isLoggedIn.mockReturnValue(true);
+        render(<App />);
+        const user = userEvent.setup();
+
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
+        await user.click(avatarBtn);
+        await user.click(screen.getByText(/delete account/i));
+
+        expect(screen.getByText(/delete account\?/i)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /^no$/i }));
+
+        expect(api.deleteAccount).not.toHaveBeenCalled();
+        expect(screen.queryByText(/delete account\?/i)).not.toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/message cresco/i)).toBeInTheDocument();
+    });
+
+    it('deletes account on Yes and returns to auth page', async () => {
+        /** Verifies account deletion API runs only after confirmation and logs user out. */
+        api.isLoggedIn.mockReturnValue(true);
+        api.deleteAccount.mockResolvedValueOnce({ message: 'Account deleted successfully' });
+
+        render(<App />);
+        const user = userEvent.setup();
+
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
+        await user.click(avatarBtn);
+        await user.click(screen.getByText(/delete account/i));
+        await user.click(screen.getByRole('button', { name: /^yes$/i }));
+
+        await waitFor(() => {
+            expect(api.deleteAccount).toHaveBeenCalledTimes(1);
+            expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
         });
     });
 });
