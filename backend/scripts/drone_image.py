@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -15,24 +15,24 @@ from PIL import Image
 router = APIRouter()
 
 # Define paths for storing NDVI images and metadata
-NDVI_IMAGES_DIR = Path(__file__).parent.parent / "data" / "ndvi_images"
-NDVI_METADATA_FILE = Path(__file__).parent.parent / "data" / "ndvi_metadata.json"
+IMAGES_DIR = Path(__file__).parent.parent / "data" / "ndvi_images"
+IMAGES_METADATA_FILE = Path(__file__).parent.parent / "data" / "images_metadata.json"
 
 # Ensure directory exists
-NDVI_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # loading metdata from json file
 def load_metadata():
-    if NDVI_METADATA_FILE.exists():
-        with open(NDVI_METADATA_FILE, "r") as f:
+    if IMAGES_METADATA_FILE.exists():
+        with open(IMAGES_METADATA_FILE, "r") as f:
             return json.load(f)
     return {"images": []}
 
 
 # Saving metagata to json file
 def save_metadata(metadata):
-    with open(NDVI_METADATA_FILE, "w") as f:
+    with open(IMAGES_METADATA_FILE, "w") as f:
         json.dump(metadata, f, indent=2)
 
 
@@ -63,9 +63,24 @@ def _ensure_dimension_match(red, green, blue, nir):
     return red, green, blue, nir
 
 
+def compute_histogram(index_array: np.ndarray, bins: int = 20) -> dict:
+    """Compute histogram data for a vegetation index matrix."""
+    counts, bin_edges = np.histogram(index_array, bins=bins, range=(-1.0, 1.0))
+    return {
+        "counts": counts.tolist(),
+        "bin_edges": bin_edges.tolist(),
+    }
+
+
 def _calculate_and_save_index(
-    index_array, filename_prefix, rgb_filename, nir_filename, save_to_disk
-):  # noqa: E501
+    index_array,
+    filename_prefix,
+    rgb_filename,
+    nir_filename,
+    save_to_disk,
+    histogram: dict | None = None,
+    user_id: str | None = None,
+):
     """Normalize index array, apply colormap, and save as PNG."""
     # Normalize from [-1,1] to [0,1]
     index_normalized = (index_array + 1) / 2
@@ -89,7 +104,7 @@ def _calculate_and_save_index(
     if save_to_disk:
         image_id = str(uuid.uuid4())
         filename = f"{filename_prefix}_{image_id}.png"
-        file_path = NDVI_IMAGES_DIR / filename
+        file_path = IMAGES_DIR / filename
 
         with open(file_path, "wb") as f:
             f.write(image_bytes)
@@ -99,9 +114,12 @@ def _calculate_and_save_index(
             {
                 "id": image_id,
                 "filename": filename,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "rgb_filename": rgb_filename,
                 "nir_filename": nir_filename,
+                "index_type": filename_prefix.upper(),
+                "histogram": histogram,
+                "user_id": user_id,
             }
         )
         save_metadata(metadata)
@@ -112,67 +130,23 @@ def _calculate_and_save_index(
     return result
 
 
-def sat_compute_ndvi_image(
-    red_file: bytes,
-    nir_file: bytes,
-    rgb_filename: str = "rgb.png",
-    nir_filename: str = "nir.png",
-    save_to_disk: bool = False,
-) -> dict:  # noqa: E501
-    """
-    Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
-
-    Returns:
-        dict with keys:
-        - 'image_bytes': PNG image as bytes
-        - 'filename': saved filename (if save_to_disk=True)
-        - 'id': unique ID for the image
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        red_path = os.path.join(tmpdir, "red.tif")
-        nir_path = os.path.join(tmpdir, "nir.tif")
-
-        with open(red_path, "wb") as f:
-            f.write(red_file)
-        with open(nir_path, "wb") as f:
-            f.write(nir_file)
-
-        with rasterio.open(nir_path) as nir_src:
-            nir = nir_src.read(1).astype("float32")
-        with rasterio.open(red_path) as red_src:
-            red = red_src.read(1).astype("float32")
-
-        # Normalize if needed (optional, depending on TIFF bit depth)
-        if nir.max() > 255 or red.max() > 255:
-            # Assume 16-bit data, scale to 0-1
-            nir = nir / 65535.0
-            red = red / 65535.0
-        else:
-            # Assume 8-bit data, scale to 0-1
-            nir = nir / 255.0
-            red = red / 255.0
-
-        # Compute NDVI
-        np.seterr(divide="ignore", invalid="ignore")
-        ndvi = np.where((nir + red) == 0.0, 0, (nir - red) / (nir + red))
-
-        return _calculate_and_save_index(ndvi, "ndvi", "red.tif", nir_filename, save_to_disk)
-
-
 def compute_ndvi_image(
     rgb_file: bytes,
     nir_file: bytes,
     rgb_filename: str = "rgb.png",
     nir_filename: str = "nir.png",
     save_to_disk: bool = True,
-) -> dict:  # noqa: E501
+    user_id: str | None = None,
+) -> dict:
     """
     Compute NDVI (Normalized Difference Vegetation Index) from RGB and NIR images.
+
     Returns:
         dict with keys:
         - 'image_bytes': PNG image as bytes
         - 'filename': saved filename (if save_to_disk=True)
         - 'id': unique ID for the image
+        - 'histogram': index histogram bins and counts
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         rgb_path = os.path.join(tmpdir, "rgb.png")
@@ -189,8 +163,19 @@ def compute_ndvi_image(
         # Compute NDVI
         np.seterr(divide="ignore", invalid="ignore")
         ndvi = np.where((nir + red) == 0.0, 0, (nir - red) / (nir + red))
+        histogram = compute_histogram(ndvi)
 
-        return _calculate_and_save_index(ndvi, "ndvi", rgb_filename, nir_filename, save_to_disk)
+        result = _calculate_and_save_index(
+            ndvi,
+            "ndvi",
+            rgb_filename,
+            nir_filename,
+            save_to_disk,
+            histogram=histogram,
+            user_id=user_id,
+        )
+        result["histogram"] = histogram
+        return result
 
 
 def compute_evi_image(
@@ -199,14 +184,17 @@ def compute_evi_image(
     rgb_filename: str = "rgb.png",
     nir_filename: str = "nir.png",
     save_to_disk: bool = True,
-) -> dict:  # noqa: E501
+    user_id: str | None = None,
+) -> dict:
     """
     Compute EVI (Enhanced Vegetation Index) from RGB and NIR images.
+
     Returns:
         dict with keys:
         - 'image_bytes': PNG image as bytes
         - 'filename': saved filename (if save_to_disk=True)
         - 'id': unique ID for the image
+        - 'histogram': index histogram bins and counts
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         rgb_path = os.path.join(tmpdir, "rgb.png")
@@ -232,5 +220,72 @@ def compute_evi_image(
             0,
             G * (nir - red) / (nir + C1 * red - C2 * blue + L),
         )
+        histogram = compute_histogram(evi)
 
-        return _calculate_and_save_index(evi, "evi", rgb_filename, nir_filename, save_to_disk)
+        result = _calculate_and_save_index(
+            evi,
+            "evi",
+            rgb_filename,
+            nir_filename,
+            save_to_disk,
+            histogram=histogram,
+            user_id=user_id,
+        )
+        result["histogram"] = histogram
+        return result
+
+
+def compute_savi_image(
+    rgb_file: bytes,
+    nir_file: bytes,
+    rgb_filename: str = "rgb.png",
+    nir_filename: str = "nir.png",
+    save_to_disk: bool = True,
+    user_id: str | None = None,
+) -> dict:
+    """
+    Compute SAVI (Soil-Adjusted Vegetation Index) from RGB and NIR images.
+
+    Returns:
+        dict with keys:
+        - 'image_bytes': PNG image as bytes
+        - 'filename': saved filename (if save_to_disk=True)
+        - 'id': unique ID for the image
+        - 'histogram': index histogram bins and counts
+    """
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        rgb_path = os.path.join(tmpdir, "rgb.png")
+        nir_path = os.path.join(tmpdir, "nir.png")
+
+        with open(rgb_path, "wb") as f:
+            f.write(rgb_file)
+        with open(nir_path, "wb") as f:
+            f.write(nir_file)
+
+        red, green, blue, nir = _read_and_normalize_bands(rgb_path, nir_path)
+        red, green, blue, nir = _ensure_dimension_match(red, green, blue, nir)
+
+        # Compute SAVI
+        L = 0.5  # noqa: N806
+        # Soil adjustment factor
+
+        np.seterr(divide="ignore", invalid="ignore")
+        savi = np.where(
+            (nir + red + L) == 0.0,
+            0,
+            ((nir - red) * (1 + L)) / (nir + red + L),
+        )
+        histogram = compute_histogram(savi)
+
+        result = _calculate_and_save_index(
+            savi,
+            "savi",
+            rgb_filename,
+            nir_filename,
+            save_to_disk,
+            histogram=histogram,
+            user_id=user_id,
+        )
+        result["histogram"] = histogram
+        return result

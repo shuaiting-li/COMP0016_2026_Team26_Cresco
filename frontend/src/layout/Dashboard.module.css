@@ -164,9 +164,15 @@
     grid-column: span 2;
 }
 
+.fieldHealthChartWrap {
+    width: 100%;
+    max-width: 100%;
+    height: 240px;
+}
+
 .bottomGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 16px;
 }
 
@@ -253,6 +259,12 @@
     gap: 8px;
 }
 
+.taskMeta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .taskTitle {
     font-size: 0.83rem;
     font-weight: 600;
@@ -292,6 +304,25 @@
     background: rgba(110, 231, 183, 0.1);
     color: var(--accent);
     border: 1px solid rgba(110, 231, 183, 0.2);
+}
+
+.taskDeleteBtn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.08);
+    color: #fca5a5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.taskDeleteBtn:hover {
+    background: rgba(248, 113, 113, 0.16);
+    border-color: rgba(248, 113, 113, 0.55);
 }
 
 /* ── Activity feed ───────────────────────────────────── */

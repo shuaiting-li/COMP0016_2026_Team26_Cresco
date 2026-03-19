@@ -94,6 +94,31 @@ export async function login(username, password) {
 }
 
 /**
+ * Delete the currently authenticated user account.
+ * @returns {Promise<{message: string, username: string}>}
+ */
+export async function deleteAccount() {
+    const response = await fetch(`${API_BASE_URL}/account`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Account deletion failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    logout();
+    return data;
+}
+
+/**
  * Send a message to the chatbot and get a response
  * @param {string} message - The user's message
  * @param {string} conversationId - Optional conversation ID for context
@@ -417,6 +442,65 @@ export const uploadAndIndexFile = async (file) => {
 
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+};
+
+export const deleteDroneImage = async (filename) => {
+    const response = await fetch(`${API_BASE_URL}/images/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Delete image failed (${response.status})`);
+    }
+
+    return await response.json();
+};
+
+export const fetchDroneImages = async () => {
+    const response = await fetch(`${API_BASE_URL}/images`, {
+        method: 'GET',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Fetch images failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.images || [];
+};
+
+export const updateDroneImageTimestamp = async (filename, timestamp) => {
+    const response = await fetch(`${API_BASE_URL}/images/${encodeURIComponent(filename)}/timestamp`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ timestamp }),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || `Update timestamp failed (${response.status})`);
     }
 
     return await response.json();

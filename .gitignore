@@ -52,6 +52,6 @@ frontend/coverage/
 
 # Sensitive files
 backend/data/users.json
-backend/data/ndvi_metadata.json
+backend/data/images_metadata.json
 
 CLAUDE.md
