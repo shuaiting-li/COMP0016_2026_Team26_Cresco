@@ -1,7 +1,7 @@
 # 🚀 Cresco Azure Deployment Checklist
 
-**Public IP**: <your-vm-public-ip>  
-**Access URL**: http://<your-vm-public-ip>:3000
+**Public IP**: 20.90.3.97  
+**Access URL**: http://20.90.3.97:3000
 
 ---
 
@@ -9,21 +9,21 @@
 
 - [ ] Azure VM created (Cresco in Cresco_group)
 - [ ] SSH key pair downloaded and saved locally
-- [ ] Can SSH to VM: `ssh -i /path/to/key.pem <your-vm-username>@<your-vm-public-ip>`
+- [ ] Can SSH to VM: `ssh -i /path/to/key.pem crescoteam26@20.90.3.97`
 
 ---
 
 ## ✅ Step 1: Connect & Install Docker
 
 ```bash
-ssh -i /path/to/key.pem <your-vm-username>@<your-vm-public-ip>
+ssh -i /path/to/key.pem crescoteam26@20.90.3.97
 sudo apt update && sudo apt upgrade -y
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
-sudo usermod -aG docker "$USER"
+sudo usermod -aG docker crescoteam26
 exit
 # SSH back in
-ssh -i /path/to/key.pem <your-vm-username>@<your-vm-public-ip>
+ssh -i /path/to/key.pem crescoteam26@20.90.3.97
 docker --version
 ```
 
@@ -43,7 +43,7 @@ cd agritech-project
 **Or upload with SCP:**
 ```bash
 # From local machine
-scp -i /path/to/key.pem -r ./agritech-project <your-vm-username>@<your-vm-public-ip>:~/
+scp -i /path/to/key.pem -r ./agritech-project crescoteam26@20.90.3.97:~/
 ```
 
 Then:
@@ -63,10 +63,6 @@ docker compose ps
 **Option A: Automated (Linux/Mac)**
 ```bash
 chmod +x setup-azure-firewall.sh
-AZURE_SUBSCRIPTION_ID=<your-subscription-id> \
-AZURE_RESOURCE_GROUP=<your-resource-group> \
-AZURE_VM_NAME=<your-vm-name> \
-AZURE_PUBLIC_IP=<your-vm-public-ip> \
 bash setup-azure-firewall.sh
 ```
 
@@ -87,7 +83,7 @@ bash setup-azure-firewall.sh
 
 Open browser and visit:
 ```
-http://<your-vm-public-ip>:3000
+http://20.90.3.97:3000
 ```
 
 - [ ] Frontend loads (Cresco app visible)
@@ -101,7 +97,7 @@ http://<your-vm-public-ip>:3000
 
 ### View Logs
 ```bash
-ssh -i /path/to/key.pem <your-vm-username>@<your-vm-public-ip>
+ssh -i /path/to/key.pem crescoteam26@20.90.3.97
 docker compose logs -f backend
 docker compose logs -f frontend
 ```
@@ -142,7 +138,6 @@ bash setup-https.sh your-domain.com
 ```
 
 - [ ] DNS points to 20.90.3.97
-- [ ] DNS points to <your-vm-public-ip>
 - [ ] SSL certificate generated
 - [ ] Nginx configured for HTTPS
 

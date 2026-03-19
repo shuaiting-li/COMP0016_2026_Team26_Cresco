@@ -1,12 +1,11 @@
 # Cresco Azure VM Deployment Guide
 
 ## Your Azure Details
-- **Subscription ID**: <your-subscription-id>
-- **Resource Group**: <your-resource-group>
-- **VM Name**: <your-vm-name>
-- **Public IP**: <your-vm-public-ip>
-- **SSH Username**: <your-vm-username>
-- **OS**: Ubuntu 22.04/24.04 LTS
+- **Subscription ID**: 029e7210-7637-41e3-b2fb-5ec0f850f643
+- **Resource Group**: Cresco_group
+- **VM Name**: Cresco
+- **Public IP**: 20.90.3.97
+- **OS**: Ubuntu 22.04 LTS
 
 ---
 
@@ -16,7 +15,7 @@
 
 ```bash
 # SSH into your Azure VM
-ssh -i /path/to/your-private-key.pem <your-vm-username>@<your-vm-public-ip>
+ssh -i /path/to/your-private-key.pem crescoteam26@20.90.3.97
 ```
 
 Verify Ubuntu version:
@@ -35,7 +34,7 @@ curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
 # Add your user to docker group
-sudo usermod -aG docker "$USER"
+sudo usermod -aG docker crescoteam26
 
 # Apply group changes (log out and back in)
 exit
@@ -43,7 +42,7 @@ exit
 
 SSH back in:
 ```bash
-ssh -i /path/to/your-private-key.pem <your-vm-username>@<your-vm-public-ip>
+ssh -i /path/to/your-private-key.pem crescoteam26@20.90.3.97
 
 # Verify Docker is working
 docker --version
@@ -63,7 +62,7 @@ cd agritech-project
 **Option B: Upload from local machine**
 ```bash
 # From your local machine (Terminal)
-scp -i /path/to/private-key.pem -r /path/to/agritech-project <your-vm-username>@<your-vm-public-ip>:~/
+scp -i /path/to/private-key.pem -r /path/to/agritech-project crescoteam26@20.90.3.97:~/
 ```
 
 Then on the VM:
@@ -95,10 +94,6 @@ docker compose logs frontend
 **Option A: Use the Azure CLI script** (automated)
 ```bash
 # Run on your local machine
-AZURE_SUBSCRIPTION_ID=<your-subscription-id> \
-AZURE_RESOURCE_GROUP=<your-resource-group> \
-AZURE_VM_NAME=<your-vm-name> \
-AZURE_PUBLIC_IP=<your-vm-public-ip> \
 bash ./setup-azure-firewall.sh
 ```
 
@@ -132,7 +127,7 @@ bash ./setup-azure-firewall.sh
 
 Open in your browser:
 ```
-http://<your-vm-public-ip>:3000
+http://20.90.3.97:3000
 ```
 
 ✅ **Your Cresco app is now live!**
@@ -174,8 +169,8 @@ docker compose exec backend bash
 ```bash
 # Azure CLI: verify rules were added
 az network nsg rule list \
-  --resource-group <your-resource-group> \
-  --nsg-name <your-nsg-name> \
+  --resource-group Cresco_group \
+  --nsg-name Cresco-nsg \
   -o table
 ```
 
