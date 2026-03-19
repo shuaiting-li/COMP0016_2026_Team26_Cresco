@@ -398,9 +398,7 @@ async def get_ndvi_images(current_user: dict = Depends(get_current_user)):
         metadata = load_metadata()
         user_id = current_user["user_id"]
         user_images = [
-            image
-            for image in metadata.get("images", [])
-            if image.get("user_id") == user_id
+            image for image in metadata.get("images", []) if image.get("user_id") == user_id
         ]
         return {"images": user_images}
     except Exception as e:
@@ -432,6 +430,7 @@ async def get_ndvi_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error serving image: {str(e)}")
 
+
 @router.delete("/images/{filename}", tags=["Files"])
 async def delete_ndvi_image(
     filename: str,
@@ -441,8 +440,11 @@ async def delete_ndvi_image(
         user_id = current_user["user_id"]
         metadata = load_metadata()
         image_entry = next(
-            (image for image in metadata.get("images", [])
-             if image.get("filename") == filename and image.get("user_id") == user_id),
+            (
+                image
+                for image in metadata.get("images", [])
+                if image.get("filename") == filename and image.get("user_id") == user_id
+            ),
             None,
         )
         if not image_entry:
@@ -504,6 +506,7 @@ async def update_image_timestamp(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating image timestamp: {str(e)}")
+
 
 @router.delete("/upload/{filename}", response_model=FileDeleteResponse, tags=["Files"])
 async def delete_file(

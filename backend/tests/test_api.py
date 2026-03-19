@@ -703,17 +703,20 @@ class TestNDVIImagesEndpoint:
 
     def test_get_ndvi_image_file_not_found(self, client):
         """Test getting a non-existent NDVI image returns 404."""
-        with patch(
-            "cresco.api.routes.load_metadata",
-            return_value={
-                "images": [
-                    {
-                        "filename": "missing.png",
-                        "user_id": "test-user-id",
-                    }
-                ]
-            },
-        ), patch("cresco.api.routes.IMAGES_DIR", Path("/nonexistent")):
+        with (
+            patch(
+                "cresco.api.routes.load_metadata",
+                return_value={
+                    "images": [
+                        {
+                            "filename": "missing.png",
+                            "user_id": "test-user-id",
+                        }
+                    ]
+                },
+            ),
+            patch("cresco.api.routes.IMAGES_DIR", Path("/nonexistent")),
+        ):
             response = client.get("/api/v1/images/missing.png")
         assert response.status_code == 404
 
@@ -722,17 +725,20 @@ class TestNDVIImagesEndpoint:
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "result.png"
             img_path.write_bytes(b"\x89PNG_FAKE")
-            with patch(
-                "cresco.api.routes.load_metadata",
-                return_value={
-                    "images": [
-                        {
-                            "filename": "result.png",
-                            "user_id": "test-user-id",
-                        }
-                    ]
-                },
-            ), patch("cresco.api.routes.IMAGES_DIR", Path(tmpdir)):
+            with (
+                patch(
+                    "cresco.api.routes.load_metadata",
+                    return_value={
+                        "images": [
+                            {
+                                "filename": "result.png",
+                                "user_id": "test-user-id",
+                            }
+                        ]
+                    },
+                ),
+                patch("cresco.api.routes.IMAGES_DIR", Path(tmpdir)),
+            ):
                 response = client.get("/api/v1/images/result.png")
             assert response.status_code == 200
 

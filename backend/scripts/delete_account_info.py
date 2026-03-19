@@ -1,4 +1,4 @@
-""" Deletes:
+"""Deletes:
 - AccountInfo
 - FarmData
 - NDVI Images
@@ -32,6 +32,7 @@ def delete_account_info(user_id: str, username: str | None = None):
     finally:
         conn.close()
 
+
 def delete_farm_data(user_id: str):
     from cresco.db import get_connection
 
@@ -42,6 +43,7 @@ def delete_farm_data(user_id: str):
         conn.commit()
     finally:
         conn.close()
+
 
 def delete_images(user_id: str):
     data_dir = Path(__file__).resolve().parent.parent / "data"
@@ -71,6 +73,7 @@ def delete_images(user_id: str):
     with open(metadata_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
+
 def delete_uploaded_documents(user_id: str):
     from cresco.db import get_connection
 
@@ -91,6 +94,7 @@ def delete_uploaded_documents(user_id: str):
             conn.commit()
     finally:
         conn.close()
+
 
 def delete_user_account(user_id: str, username: str | None = None):
     """Delete all user-related data for a given user ID."""

@@ -21,8 +21,9 @@ class TestDroneImageMetadata:
         index_array = np.zeros((2, 2), dtype=np.float32)
         histogram = drone_image.compute_histogram(index_array)
 
-        with patch.object(drone_image, "IMAGES_DIR", images_dir), patch.object(
-            drone_image, "IMAGES_METADATA_FILE", metadata_file
+        with (
+            patch.object(drone_image, "IMAGES_DIR", images_dir),
+            patch.object(drone_image, "IMAGES_METADATA_FILE", metadata_file),
         ):
             result = drone_image._calculate_and_save_index(
                 index_array=index_array,
