@@ -1,7 +1,7 @@
 
 import { handleSatelliteImage } from './services/api';
 import React, { useState, useEffect } from "react";
-import "./drone_imagery.css"; // Reuse styling for now
+import "./DroneFrontend/drone_imagery.css"; // Reuse styling for now
 
 const SatelliteImagery = () => {
 

@@ -6,10 +6,21 @@ import SidebarLeft from './layout/SidebarLeft';
 import SidebarRight from './layout/SidebarRight';
 import ChatArea from './layout/ChatArea';
 import AuthPage from './layout/AuthPage';
-import { sendMessage, uploadAndIndexFile, deleteUploadedFile, fetchUploadedFiles, fetchFarmData, fetchChatHistory, clearChatHistory, isLoggedIn, logout, getUsername, deleteLastExchange } from './services/api';
+import {
+    sendMessage,
+    uploadAndIndexFile,
+    deleteUploadedFile,
+    fetchUploadedFiles,
+    fetchFarmData, fetchChatHistory, clearChatHistory,
+    isLoggedIn,
+    logout,
+    getUsername,
+    deleteLastExchange,
+    deleteAccount,
+} from './services/api';
 import SatelliteMap from './satellite';
 import Weather from './weather';
-import DroneImagery from './drone_imagery';
+import DroneImagery from './DroneFrontend/drone_imagery';
 import SatelliteImagery from './satellite_imagery';
 
 
@@ -71,6 +82,18 @@ function App() {
         setFiles([]);
     };
 
+    const handleDeleteAccount = async () => {
+        try {
+            await deleteAccount();
+            setAuthenticated(false);
+            setMessages([]);
+            setConversationId(null);
+            setFiles([]);
+        } catch (error) {
+            console.error('Delete account error:', error);
+        }
+    };
+
     if (!authenticated) {
         return <AuthPage onAuth={handleAuth} />;
     }
@@ -126,6 +149,20 @@ function App() {
         } catch (error) {
             console.error('Failed to clear chat history:', error);
         }
+    };
+
+    const handleDeleteTaskFromMessages = (messageKey, taskIndex) => {
+        setMessages((prev) => prev.map((message, index) => {
+            const currentMessageKey = message.id ?? index;
+            if (currentMessageKey !== messageKey || !Array.isArray(message.tasks)) {
+                return message;
+            }
+
+            return {
+                ...message,
+                tasks: message.tasks.filter((_, idx) => idx !== taskIndex),
+            };
+        }));
     };
 
     const handleSendMessage = async (text, enableInternetSearch = true) => {
@@ -210,9 +247,8 @@ function App() {
         <div className="app-container">
             <Header
                 onLogout={handleLogout}
+                onDeleteAccount={handleDeleteAccount}
                 username={getUsername()}
-                leftCollapsed={leftCollapsed}
-                rightCollapsed={rightCollapsed}
             />
             <div style={layoutStyle}>
                 {!leftCollapsed && (
@@ -230,6 +266,7 @@ function App() {
                         onSendMessage={handleSendMessage}
                         onDeleteLastExchange={handleDeleteLastExchange}
                         onClearHistory={handleClearHistory}
+                        onDeleteTask={handleDeleteTaskFromMessages}
                         isLoading={isLoading}
                         farmLocation={farmLocation}
                         internetSearchEnabled={internetSearchEnabled}

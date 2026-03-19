@@ -48,6 +48,22 @@ def get_user_by_id(user_id: str) -> dict | None:
     return dict(row)
 
 
+def delete_user_by_id(user_id: str) -> bool:
+    """Delete a user by ID.
+
+    Returns:
+        True if a row was deleted, False if the user ID was not found.
+    """
+    settings = get_settings()
+    conn = get_connection(settings.database_path)
+    try:
+        cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 def create_user(username: str, password: str, *, is_admin: bool = False) -> dict:
     """Create a new user.
 

@@ -7,7 +7,8 @@ const COLORS = [
 ];
 
 
-const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', height = 300 }) => {
+const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', height = 300, colors }) => {
+  const palette = Array.isArray(colors) && colors.length > 0 ? colors : COLORS;
 
 
   switch (chartType) {
@@ -21,7 +22,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', he
             <XAxis dataKey={xKey} />
             <YAxis />
             {yKeys.map((key, i) => (
-              <Bar key={key} dataKey={key} fill={COLORS[i % COLORS.length]} {...(isStacked ? { stackId: 'a' } : {})} />
+              <Bar key={key} dataKey={key} fill={palette[i % palette.length]} {...(isStacked ? { stackId: 'a' } : {})} />
             ))}
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -42,7 +43,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', he
             <XAxis dataKey={xKey} />
             <YAxis />
             {yKeys.map((key, i) => (
-              <Bar key={key} dataKey={key} stackId="a" fill={COLORS[i % COLORS.length]} />
+              <Bar key={key} dataKey={key} stackId="a" fill={palette[i % palette.length]} />
             ))}
             <Tooltip
               cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -63,7 +64,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', he
             <XAxis dataKey={xKey} />
             <YAxis />
             {yKeys.map((key, i) => (
-              <Line key={key} type="monotone" dataKey={key} stroke={COLORS[i % COLORS.length]} dot={false} />
+              <Line key={key} type="monotone" dataKey={key} stroke={palette[i % palette.length]} dot={false} />
             ))}
             <Tooltip
               contentStyle={{ background: '#1e1f1e', border: '1px solid #333', borderRadius: '6px' }}
@@ -90,7 +91,7 @@ const ChartRenderer = ({ chartData, chartType, xKey = 'name', yKey = 'value', he
               label={(entry) => entry[xKey]}
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell key={`cell-${index}`} fill={palette[index % palette.length]} />
               ))}
             </Pie>
             <Tooltip
