@@ -20,7 +20,7 @@ export default function ChatArea({
     onDeleteTask = () => { },
     isLoading,
     farmLocation,
-    internetSearchEnabled = true,
+    internetSearchEnabled = false,
     setInternetSearchEnabled = () => { },
 }) {
     const [input, setInput] = useState("");

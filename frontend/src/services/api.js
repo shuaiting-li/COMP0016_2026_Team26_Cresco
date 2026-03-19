@@ -47,17 +47,16 @@ function authHeaders(extra = {}) {
 }
 
 /**
- * Register a new user (admin-only endpoint — called from admin tools, not the login page).
+ * Register a new user.
  * @param {string} username
  * @param {string} password
- * @param {boolean} isAdmin
  * @returns {Promise<{access_token: string, username: string}>}
  */
-export async function register(username, password, isAdmin = false) {
+export async function register(username, password) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ username, password, is_admin: isAdmin }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, is_admin: true }),
     });
 
     if (!response.ok) {
@@ -92,6 +91,7 @@ export async function login(username, password) {
     saveAuth(data);
     return data;
 }
+
 
 /**
  * Delete the currently authenticated user account.
@@ -535,6 +535,62 @@ export const fetchDroneImages = async () => {
 
     const data = await response.json();
     return data.images || [];
+};
+
+export const fetchDroneImageBlob = async (filename) => {
+    const response = await fetch(`${API_BASE_URL}/images/${encodeURIComponent(filename)}`, {
+        method: 'GET',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = typeof response.json === 'function'
+            ? await response.json().catch(() => ({}))
+            : {};
+        throw new Error(err.detail || `Fetch image failed (${response.status})`);
+    }
+
+    return await response.blob();
+};
+
+export const uploadDroneImage = async (indexType, rgbFile, nirFile) => {
+    const formData = new FormData();
+    formData.append('files', rgbFile);
+    formData.append('files', nirFile);
+
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+        `${API_BASE_URL}/droneimage?index_type=${encodeURIComponent(indexType.toLowerCase())}`,
+        {
+            method: 'POST',
+            body: formData,
+            headers,
+        },
+    );
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired');
+    }
+
+    if (!response.ok) {
+        const err = typeof response.json === 'function'
+            ? await response.json().catch(() => ({}))
+            : {};
+        throw new Error(err.detail || `Upload image failed (${response.status})`);
+    }
+
+    return await response.blob();
 };
 
 export const updateDroneImageTimestamp = async (filename, timestamp) => {

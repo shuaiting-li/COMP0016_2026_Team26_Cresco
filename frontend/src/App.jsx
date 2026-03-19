@@ -42,9 +42,13 @@ function App() {
     const [isDroneImageryOpen, setIsDroneImageryOpen] = useState(false);
     const [isSatelliteImageryOpen, setIsSatelliteImageryOpen] = useState(false);
     const [farmLocation, setFarmLocation] = useState(null); // State to store farm location
-    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(false);
     const [leftCollapsed, setLeftCollapsed] = useState(false);
     const [rightCollapsed, setRightCollapsed] = useState(false);
+
+    const [deletePrompt, setDeletePrompt] = useState(false);  // State to confirm account deletion
+
+
 
     useEffect(() => {
         if (authenticated) {
@@ -59,9 +63,16 @@ function App() {
                             lng: data.lon,
                             nodes: (data.nodes || []).map(n => ({ lat: n.lat, lng: n.lng || n.lon })),
                         });
+                    } else {
+                        setFarmLocation(null);
                     }
                 })
-                .catch(err => console.error('Failed to fetch farm data:', err));
+                .catch(err => {
+                    console.error('Failed to fetch farm data:', err);
+                    setFarmLocation(null);
+                });
+        } else {
+            setFarmLocation(null);
             fetchChatHistory()
                 .then(history => {
                     if (history.length > 0) {
@@ -80,17 +91,29 @@ function App() {
         setMessages([]);
         setConversationId(null);
         setFiles([]);
+        setFarmLocation(null);
     };
 
     const handleDeleteAccount = async () => {
+        setDeletePrompt(true);
+    };
+
+    const handleCancelAction = () => {
+        setDeletePrompt(false);
+    };
+
+    const handleConfirmDeleteAccount = async () => {
         try {
             await deleteAccount();
             setAuthenticated(false);
             setMessages([]);
             setConversationId(null);
             setFiles([]);
+            setFarmLocation(null);
         } catch (error) {
             console.error('Delete account error:', error);
+        } finally {
+            setDeletePrompt(false);
         }
     };
 
@@ -556,6 +579,66 @@ function App() {
                                 Please select a farm location first.
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {deletePrompt && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1200,
+                }}>
+                    <div style={{
+                        width: 'min(90vw, 420px)',
+                        backgroundColor: '#0f1110',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '10px',
+                        padding: '20px',
+                        color: '#f5f5f5',
+                        boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4)',
+                    }}>
+                        <h3 style={{ margin: '0 0 10px 0' }}>Delete account?</h3>
+                        <p style={{ margin: '0 0 18px 0', color: '#d1d5db' }}>
+                            This action is permanent. Do you want to continue?
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={handleCancelAction}
+                                style={{
+                                    padding: '8px 14px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(148, 163, 184, 0.4)',
+                                    background: 'transparent',
+                                    color: '#e5e7eb',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                No
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDeleteAccount}
+                                style={{
+                                    padding: '8px 14px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(239, 68, 68, 0.6)',
+                                    background: 'rgba(239, 68, 68, 0.2)',
+                                    color: '#fecaca',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Yes
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
