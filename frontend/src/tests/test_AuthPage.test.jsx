@@ -88,7 +88,7 @@ describe('AuthPage', () => {
         await user.click(screen.getByRole('button', { name: /sign in/i }));
 
         await waitFor(() => {
-            expect(screen.getByText(/please wait/i)).toBeInTheDocument();
+            expect(screen.getAllByText(/please wait/i)).toHaveLength(2);
         });
     });
 

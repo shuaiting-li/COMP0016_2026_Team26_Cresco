@@ -19,6 +19,7 @@ vi.mock('../services/api', () => ({
     getUsername: vi.fn(() => 'testuser'),
     login: vi.fn(),
     deleteLastExchange: vi.fn(),
+    deleteAccount: vi.fn(),
 }));
 
 // Avoid rendering heavy sub-components that require Leaflet / canvas
@@ -207,6 +208,78 @@ describe('App', () => {
         // Backend API should have been called
         await waitFor(() => {
             expect(api.deleteLastExchange).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('shows delete confirmation and cancels on No', async () => {
+        /** Verifies account deletion prompt closes without API call when cancelled. */
+        api.isLoggedIn.mockReturnValue(true);
+        render(<App />);
+        const user = userEvent.setup();
+
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
+        await user.click(avatarBtn);
+        await user.click(screen.getByText(/delete account/i));
+
+        expect(screen.getByText(/delete account\?/i)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /^no$/i }));
+
+        expect(api.deleteAccount).not.toHaveBeenCalled();
+        expect(screen.queryByText(/delete account\?/i)).not.toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/message cresco/i)).toBeInTheDocument();
+    });
+
+    it('deletes account on Yes and returns to auth page', async () => {
+        /** Verifies account deletion API runs only after confirmation and logs user out. */
+        api.isLoggedIn.mockReturnValue(true);
+        api.deleteAccount.mockResolvedValueOnce({ message: 'Account deleted successfully' });
+
+        render(<App />);
+        const user = userEvent.setup();
+
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
+        await user.click(avatarBtn);
+        await user.click(screen.getByText(/delete account/i));
+        await user.click(screen.getByRole('button', { name: /^yes$/i }));
+
+        await waitFor(() => {
+            expect(api.deleteAccount).toHaveBeenCalledTimes(1);
+            expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
+        });
+    }, 10000);
+
+    it('does not reuse previous user farm location after re-login', async () => {
+        /** Verifies farm location state is cleared across user switch in a single app session. */
+        api.isLoggedIn.mockReturnValue(true);
+        api.fetchFarmData
+            .mockResolvedValueOnce({ lat: 51.5, lon: -0.12, nodes: [{ lat: 51.5, lon: -0.12 }] })
+            .mockResolvedValueOnce(null);
+        api.login.mockResolvedValueOnce({ access_token: 'jwt', username: 'seconduser' });
+
+        render(<App />);
+        const user = userEvent.setup();
+
+        // User 1 logs out
+        const initials = 'testuser'.slice(0, 2).toUpperCase();
+        const avatarBtn = screen.getByText(initials).closest('button');
+        await user.click(avatarBtn);
+        await user.click(screen.getByText(/sign out/i));
+
+        // User 2 logs in
+        await user.type(screen.getByLabelText(/username/i), 'seconduser');
+        await user.type(screen.getByLabelText(/password/i), 'password123');
+        await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+        await waitFor(() => {
+            expect(screen.getByPlaceholderText(/message cresco/i)).toBeInTheDocument();
+        });
+
+        // If stale farm location leaks, Weather component renders; correct behavior is location prompt.
+        await user.click(screen.getByText('Weather Data'));
+        await waitFor(() => {
+            expect(screen.getByText(/please select a farm location first/i)).toBeInTheDocument();
         });
     });
 });

@@ -176,24 +176,31 @@ class TestAuthAPI:
         assert data["username"] == "newfarmer"
         assert data["token_type"] == "bearer"
 
-    def test_register_without_token_returns_401(self, auth_client):
-        """Registering without a token returns 401."""
+    def test_register_without_token_succeeds(self, auth_client):
+        """Registering without a token succeeds for public self-signup."""
         response = auth_client.post(
             "/api/v1/auth/register",
             json={"username": "newfarmer", "password": "password123"},
         )
-        assert response.status_code == 401
+        assert response.status_code == 201
 
-    def test_register_as_non_admin_returns_403(self, auth_client, mock_settings, tmp_database):
-        """A non-admin user cannot register new users."""
+        data = response.json()
+        payload = decode_token(data["access_token"])
+        assert payload["is_admin"] is True
+
+    def test_register_as_non_admin_succeeds(self, auth_client, mock_settings, tmp_database):
+        """A non-admin user can register users when signup is public."""
         regular_token = _create_regular_user_and_get_token(mock_settings)
         response = auth_client.post(
             "/api/v1/auth/register",
             json={"username": "anotheruser", "password": "password123"},
             headers={"Authorization": f"Bearer {regular_token}"},
         )
-        assert response.status_code == 403
-        assert "Admin privileges required" in response.json()["detail"]
+        assert response.status_code == 201
+
+        data = response.json()
+        payload = decode_token(data["access_token"])
+        assert payload["is_admin"] is True
 
     def test_register_duplicate_returns_409(self, auth_client, mock_settings, tmp_database):
         """Registering with an existing username returns 409."""

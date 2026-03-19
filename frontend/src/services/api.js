@@ -47,17 +47,16 @@ function authHeaders(extra = {}) {
 }
 
 /**
- * Register a new user (admin-only endpoint — called from admin tools, not the login page).
+ * Register a new user.
  * @param {string} username
  * @param {string} password
- * @param {boolean} isAdmin
  * @returns {Promise<{access_token: string, username: string}>}
  */
-export async function register(username, password, isAdmin = false) {
+export async function register(username, password) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ username, password, is_admin: isAdmin }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, is_admin: true }),
     });
 
     if (!response.ok) {
@@ -92,6 +91,7 @@ export async function login(username, password) {
     saveAuth(data);
     return data;
 }
+
 
 /**
  * Delete the currently authenticated user account.

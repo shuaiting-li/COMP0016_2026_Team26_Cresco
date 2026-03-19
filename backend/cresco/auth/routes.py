@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .dependencies import get_current_admin, get_current_user
+from .dependencies import get_current_user
 from .jwt import create_access_token
 from .schemas import DeleteAccountResponse, LoginRequest, RegisterRequest, TokenResponse
 from .users import create_user, delete_user_by_id, get_user_by_username, verify_password
@@ -13,11 +13,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
-    _admin: dict = Depends(get_current_admin),
 ) -> TokenResponse:
-    """Register a new user (admin only) and return an access token for the new user."""
+    """Register a new user and return an access token for the new user."""
     try:
-        user = create_user(request.username, request.password, is_admin=request.is_admin)
+        # Product decision: every registered user is an admin.
+        user = create_user(request.username, request.password, is_admin=True)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
