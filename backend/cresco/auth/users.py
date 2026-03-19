@@ -55,13 +55,10 @@ def delete_user_by_id(user_id: str) -> bool:
         True if a row was deleted, False if the user ID was not found.
     """
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
-        cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    with psycopg.connect(settings.database_url) as conn:
+        cursor = conn.execute("DELETE FROM users WHERE id = %s", (user_id,))
         conn.commit()
         return cursor.rowcount > 0
-    finally:
-        conn.close()
 
 
 def create_user(username: str, password: str, *, is_admin: bool = False) -> dict:
