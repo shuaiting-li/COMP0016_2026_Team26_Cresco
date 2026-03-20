@@ -5,7 +5,7 @@ RUN pip install uv
 
 WORKDIR /app/backend
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --no-dev --frozen
 
 # --- Runtime stage ---
