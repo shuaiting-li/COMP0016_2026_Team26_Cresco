@@ -1,7 +1,9 @@
 """FastAPI application entry point for Cresco."""
 
+import logging
 from contextlib import asynccontextmanager
 
+import psycopg.errors
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,8 @@ from cresco.auth import auth_router
 from cresco.config import get_settings
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -30,8 +34,13 @@ async def lifespan(app: FastAPI):
     print("[*] Database pool initialized")
 
     # Initialize PostgresSaver for conversation checkpointing
+    # setup() may race when multiple gunicorn workers start simultaneously;
+    # a UniqueViolation on the migrations table is harmless — another worker won.
     async with AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer:
-        await checkpointer.setup()
+        try:
+            await checkpointer.setup()
+        except psycopg.errors.UniqueViolation:
+            logger.info("Checkpointer migrations already applied by another worker")
         app.state.checkpointer = checkpointer
         print("[*] PostgresSaver checkpointer initialized")
 
