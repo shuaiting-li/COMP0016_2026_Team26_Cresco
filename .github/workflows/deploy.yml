@@ -107,6 +107,12 @@ jobs:
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/cresco-backend:${{ github.sha }}
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/cresco-backend:latest
 
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: cresco-backend
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          images: ${{ secrets.ACR_LOGIN_SERVER }}/cresco-backend:${{ github.sha }}
 
   deploy-frontend:
     name: Deploy Frontend
