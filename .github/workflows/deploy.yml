@@ -107,9 +107,6 @@ jobs:
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/cresco-backend:${{ github.sha }}
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/cresco-backend:latest
 
-      - name: Restart Azure Web App
-        run: curl -sSf -X POST "${{ secrets.AZURE_WEBAPP_WEBHOOK_URL }}"
-
   deploy-frontend:
     name: Deploy Frontend
     needs: [ci-backend, ci-frontend]
