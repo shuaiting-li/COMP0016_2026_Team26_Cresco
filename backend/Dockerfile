@@ -12,11 +12,9 @@ RUN uv sync --no-dev --frozen
 FROM python:3.12-slim
 
 # Install runtime system dependencies:
-# libpq5 for psycopg, libgdal-dev/gdal-bin for rasterio, libgl1-mesa-glx for OpenCV
+# libpq5 for psycopg, libgl1 for OpenCV (rasterio bundles its own GDAL)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
-    libgdal-dev \
-    gdal-bin \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
