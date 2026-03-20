@@ -71,8 +71,6 @@ function App() {
                     console.error('Failed to fetch farm data:', err);
                     setFarmLocation(null);
                 });
-        } else {
-            setFarmLocation(null);
             fetchChatHistory()
                 .then(history => {
                     if (history.length > 0) {
@@ -80,6 +78,8 @@ function App() {
                     }
                 })
                 .catch(err => console.error('Failed to fetch chat history:', err));
+        } else {
+            setFarmLocation(null);
         }
     }, [authenticated]);
 
