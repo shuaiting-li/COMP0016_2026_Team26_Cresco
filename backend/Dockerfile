@@ -27,11 +27,12 @@ COPY --from=builder /app/backend/.venv .venv
 COPY cresco/ cresco/
 COPY scripts/ scripts/
 
-# Bake static knowledge base into image
+# Bake static knowledge base and pre-built vector index into image
 COPY data/knowledge_base/ data/knowledge_base/
+COPY data/chroma_db/ data/chroma_db/
 
 # Create empty directories for runtime data
-RUN mkdir -p data/chroma_db data/uploads data/ndvi_images
+RUN mkdir -p data/uploads data/ndvi_images
 
 ENV PATH="/app/backend/.venv/bin:$PATH"
 
