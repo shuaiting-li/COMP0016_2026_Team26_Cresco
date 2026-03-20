@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { deleteDroneImage, updateDroneImageTimestamp } from "../services/api";
+import {
+    deleteDroneImage,
+    fetchDroneImageBlob,
+    fetchDroneImages,
+    updateDroneImageTimestamp,
+    uploadDroneImage,
+} from "../services/api";
 import DroneGallerySection from "./DroneGallerySection";
 import DroneTimeSeriesSection from "./DroneTimeSeriesSection";
 import DroneUploadSection from "./DroneUploadSection";
@@ -41,39 +47,24 @@ const DroneImagery = () => {
         return localDate.toISOString().slice(0, 16);
     };
 
-    const authHeaders = () => {
-        const token = localStorage.getItem("cresco_token");
-        return token ? { Authorization: `Bearer ${token}` } : {};
-    };
-
     const fetchSavedImages = useCallback(async () => {
         setIsLoadingGallery(true);
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/v1/images", {
-                headers: authHeaders(),
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const images = data.images || [];
-                setSavedImages(images);
+            const images = await fetchDroneImages();
+            setSavedImages(images);
 
-                const urls = {};
-                await Promise.all(
-                    images.map(async (image) => {
-                        const imageResponse = await fetch(
-                            `http://127.0.0.1:8000/api/v1/images/${image.filename}`,
-                            {
-                                headers: authHeaders(),
-                            }
-                        );
-                        if (imageResponse.ok) {
-                            const blob = await imageResponse.blob();
-                            urls[image.filename] = URL.createObjectURL(blob);
-                        }
-                    })
-                );
-                setSavedImageUrls(urls);
-            }
+            const urls = {};
+            await Promise.all(
+                images.map(async (image) => {
+                    try {
+                        const blob = await fetchDroneImageBlob(image.filename);
+                        urls[image.filename] = URL.createObjectURL(blob);
+                    } catch {
+                        // Skip images that cannot be fetched and continue rendering the rest.
+                    }
+                }),
+            );
+            setSavedImageUrls(urls);
         } catch {
             console.error("Error fetching saved images");
         } finally {
@@ -105,32 +96,16 @@ const DroneImagery = () => {
             setUploadStatus("Please select both images.");
             return;
         }
-        const formData = new FormData();
-        formData.append("files", rgbFile);
-        formData.append("files", nirFile);
-
         setUploadStatus("Uploading...");
         try {
-            const response = await fetch(
-                `http://127.0.0.1:8000/api/v1/droneimage?index_type=${selectedIndexType.toLowerCase()}`,
-                {
-                method: "POST",
-                body: formData,
-                headers: authHeaders(),
-                }
-            );
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);  //bc its sending back a whole file, not just a url
-                setResultImageUrl(url);
-                setUploadStatus(`${selectedIndexType} upload successful!`);
-                // Refresh the gallery after successful upload
-                fetchSavedImages();
-            } else {
-                setUploadStatus("Upload failed.");
-            }
+            const blob = await uploadDroneImage(selectedIndexType, rgbFile, nirFile);
+            const url = URL.createObjectURL(blob);
+            setResultImageUrl(url);
+            setUploadStatus(`${selectedIndexType} upload successful!`);
+            // Refresh the gallery after successful upload
+            fetchSavedImages();
         } catch (err) {
-            setUploadStatus("Error uploading files.");
+            setUploadStatus("Upload failed.");
             console.error("Error uploading files:", err);
         }
     };

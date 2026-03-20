@@ -9,7 +9,7 @@ import { useState } from 'react';
 import ChatArea from '../layout/ChatArea';
 
 function ControlledChatArea(props) {
-    const [internetSearchEnabled, setInternetSearchEnabled] = useState(true);
+    const [internetSearchEnabled, setInternetSearchEnabled] = useState(false);
 
     return (
         <ChatArea
@@ -45,25 +45,25 @@ describe('ChatArea', () => {
 
     it('sends message on button click', async () => {
         /** Verifies send callback fires with input text. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const user = userEvent.setup();
 
         const input = screen.getByPlaceholderText(/message cresco/i);
         await user.type(input, 'What diseases affect wheat?');
         await user.click(screen.getByRole('button', { name: /send message/i }));
 
-        expect(onSendMessage).toHaveBeenCalledWith('What diseases affect wheat?', true);
+        expect(onSendMessage).toHaveBeenCalledWith('What diseases affect wheat?', false);
     });
 
     it('sends message on Enter key', async () => {
         /** Verifies Enter key triggers send. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const user = userEvent.setup();
 
         const input = screen.getByPlaceholderText(/message cresco/i);
         await user.type(input, 'Hello{Enter}');
 
-        expect(onSendMessage).toHaveBeenCalledWith('Hello', true);
+        expect(onSendMessage).toHaveBeenCalledWith('Hello', false);
     });
 
     it('clears input after sending', async () => {
@@ -271,41 +271,41 @@ describe('ChatArea', () => {
 
     it('renders internet search toggle button', () => {
         /** Verifies the internet search toggle is rendered. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         expect(screen.getByRole('button', { name: /toggle internet search/i })).toBeInTheDocument();
     });
 
-    it('internet search is enabled by default', () => {
-        /** Verifies the toggle starts in the enabled state. */
-        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} internetSearchEnabled={true} setInternetSearchEnabled={vi.fn()} />);
+    it('internet search is disabled by default', () => {
+        /** Verifies the toggle starts in the disabled state. */
+        render(<ChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const toggle = screen.getByRole('button', { name: /toggle internet search/i });
-        expect(toggle.title).toBe('Internet search enabled');
+        expect(toggle.title).toBe('Internet search disabled');
     });
 
-    it('toggles internet search off when clicked', async () => {
-        /** Verifies clicking the toggle disables internet search. */
+    it('toggles internet search on when clicked', async () => {
+        /** Verifies clicking the toggle enables internet search. */
         render(<ControlledChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const user = userEvent.setup();
 
         const toggle = screen.getByRole('button', { name: /toggle internet search/i });
         await user.click(toggle);
 
-        expect(toggle.title).toBe('Internet search disabled');
+        expect(toggle.title).toBe('Internet search enabled');
     });
 
-    it('sends message with internet search disabled after toggle', async () => {
+    it('sends message with internet search enabled after toggle', async () => {
         /** Verifies the send callback includes the internet search state. */
         render(<ControlledChatArea messages={[]} onSendMessage={onSendMessage} isLoading={false} />);
         const user = userEvent.setup();
 
-        // Disable internet search
+        // Enable internet search
         await user.click(screen.getByRole('button', { name: /toggle internet search/i }));
 
         // Send a message
         const input = screen.getByPlaceholderText(/message cresco/i);
         await user.type(input, 'Hello{Enter}');
 
-        expect(onSendMessage).toHaveBeenCalledWith('Hello', false);
+        expect(onSendMessage).toHaveBeenCalledWith('Hello', true);
     });
 
     it('switches to dashboard tab', async () => {

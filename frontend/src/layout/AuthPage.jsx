@@ -7,6 +7,8 @@ export default function AuthPage({ onAuth }) {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [authType, setAuthType] = useState('login'); // default submit mode
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -14,8 +16,14 @@ export default function AuthPage({ onAuth }) {
         setLoading(true);
 
         try {
-            const { login } = await import('../services/api');
-            await login(username, password);
+            const api = await import('../services/api');
+            const mode = e.nativeEvent.submitter?.dataset?.mode || authType;
+            if (mode === 'register') {
+                await api.register(username, password);
+            }
+            else {
+                await api.login(username, password);
+            }
             onAuth();
         } catch (err) {
             setError(err.message);
@@ -26,6 +34,7 @@ export default function AuthPage({ onAuth }) {
 
     return (
         <div className={styles.page}>
+
             <div className={styles.card}>
                 <div className={styles.logo}>
                     <div className={styles.logoBox}>
@@ -66,8 +75,23 @@ export default function AuthPage({ onAuth }) {
 
                     {error && <p className={styles.error}>{error}</p>}
 
-                    <button type="submit" className={styles.submitBtn} disabled={loading}>
+                    <button
+                        type="submit"
+                        className={styles.submitBtn}
+                        disabled={loading}
+                        data-mode="login"
+                        onClick={() => setAuthType('login')}
+                    >
                         {loading ? 'Please wait...' : 'Sign In'}
+                    </button>
+                    <button
+                        type="submit"
+                        className={styles.submitBtn}
+                        disabled={loading}
+                        data-mode="register"
+                        onClick={() => setAuthType('register')}
+                    >
+                        {loading ? 'Please wait...' : 'Create Account'}
                     </button>
                 </form>
             </div>
