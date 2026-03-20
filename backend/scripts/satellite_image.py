@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from datetime import datetime, timedelta
 from io import BytesIO
 
@@ -6,11 +8,15 @@ from PIL import Image
 from requests_toolbelt.multipart.decoder import MultipartDecoder
 
 from cresco.config import get_settings
-from scripts.drone_image import compute_ndvi_image
+from scripts.drone_image import compute_ndvi_from_satellite
+
+logger = logging.getLogger(__name__)
 
 
 async def process_satellite_images(nir_bytes: bytes, rgb_bytes: bytes):
-    result_bytes = compute_ndvi_image(rgb_bytes, nir_bytes, save_to_disk=False)["image_bytes"]
+    result_bytes = compute_ndvi_from_satellite(rgb_bytes, nir_bytes, save_to_disk=False)[
+        "image_bytes"
+    ]
     return result_bytes
 
 
@@ -23,27 +29,26 @@ def convert_tiff_to_png(tiff_bytes):
                 img.convert("RGB").save(png_io, format="PNG")
                 return png_io.getvalue()
     except Exception as e:
-        print(f"Error converting TIFF to PNG: {e}")
+        logger.exception("Error converting TIFF to PNG: %s", e)
         return None
 
 
 async def satellite_images_main(lat, lon):
     """
-    Main function: receives user_id, gets farm bbox and satellite images,
-    converts to JPEGs, calls process_satellite_images.
+    Main function: receives lat/lon, gets satellite images,
+    computes NDVI and returns result bytes.
     """
-    # Get satellite images (GeoTIFF)
     try:
         red_tiff, nir_tiff = await get_satellite_images(lat, lon)
         if not red_tiff or not nir_tiff:
-            print("Failed to fetch satellite images.")
-            return
+            logger.warning("Failed to fetch satellite images.")
+            return None
 
         result = await process_satellite_images(nir_tiff, red_tiff)
-        print("Processing complete. Result bytes length:", len(result) if result else 0)
+        logger.info("Processing complete. Result bytes length: %d", len(result) if result else 0)
         return result
     except Exception as e:
-        print(f"Error in satellite_images_main: {e}")
+        logger.exception("Error in satellite_images_main: %s", e)
         return None
 
 
@@ -61,43 +66,34 @@ def get_access_token(client_id, client_secret):
         response.raise_for_status()
         return response.json()["access_token"]
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching token: {e}")
+        logger.exception("Error fetching token: %s", e)
         return None
 
 
-# Import farm_data from backend
 def get_farm_bbox(lat, lon, margin=0.01):
     """
     Returns bounding box [minLon, minLat, maxLon, maxLat] for user's farm, with a margin (degrees).
     """
-    try:
-        return [lon - margin, lat - margin, lon + margin, lat + margin]
-    except Exception as e:
-        print(f"Error getting farm bbox: {e}")
-        return None
+    return [lon - margin, lat - margin, lon + margin, lat + margin]
 
 
-async def get_satellite_images(lat, lon):
+def _get_satellite_images_sync(lat, lon):
     """
-    Downloads Red (B04) and NIR (B08) bands as GeoTIFFs from Copernicus Sentinel Hub
-    for user's farm bbox and current date.
+    Synchronous helper that downloads Red (B04) and NIR (B08) bands as GeoTIFFs
+    from Copernicus Sentinel Hub.
     Returns: (red_bytes, nir_bytes) tuple, or (None, None) on failure.
     """
     settings = get_settings()
-    id = settings.COPERNICUS_CLIENT_ID
-    secret = settings.COPERNICUS_CLIENT_SECRET
-    access_token = get_access_token(id, secret)
+    client_id = settings.COPERNICUS_CLIENT_ID
+    client_secret = settings.COPERNICUS_CLIENT_SECRET
+    access_token = get_access_token(client_id, client_secret)
     if not access_token:
-        print("Failed to retrieve token. Exiting.")
+        logger.error("Failed to retrieve token. Exiting.")
         return None, None
 
     bbox = get_farm_bbox(lat, lon)
 
-    if not bbox:
-        print("No farm coordinates found for user.")
-        return None, None
-
-    # Use current date, fallback to last 30 days if needed
+    # Use current date, fallback to last 100 days
     today = datetime.utcnow()
     from_date = today - timedelta(days=100)
     from_str = from_date.strftime("%Y-%m-%dT00:00:00Z")
@@ -137,8 +133,6 @@ async def get_satellite_images(lat, lon):
                         "timeRange": {
                             "from": from_str,
                             "to": to_str,
-                            # "from": "2024-07-01T00:00:00Z",
-                            # "to": "2024-07-31T23:59:59Z"
                         },
                         "maxCloudCoverage": 10,
                         "mosaickingOrder": "leastCC",
@@ -164,7 +158,7 @@ async def get_satellite_images(lat, lon):
     }
 
     try:
-        print("Sending Process API request to retrieve separate Red and NIR images...")
+        logger.info("Sending Process API request to retrieve separate Red and NIR images...")
         response = requests.post(process_api_url, headers=headers, json=payload)
         response.raise_for_status()
 
@@ -188,21 +182,30 @@ async def get_satellite_images(lat, lon):
                 else:
                     nir_bytes = part.content
         if red_bytes and nir_bytes:
-            print("Successfully downloaded Red and NIR bands.")
+            logger.info("Successfully downloaded Red and NIR bands.")
             return red_bytes, nir_bytes
         else:
-            print("Bands not found in response.")
+            logger.warning("Bands not found in response.")
             return None, None
     except requests.exceptions.HTTPError as errh:
-        print(f"Http Error: {errh}")
+        logger.error("Http Error: %s", errh)
         try:
-            print(f"Response content: {response.json()}")
+            logger.error("Response content: %s", response.json())
         except Exception:
-            print(f"Response content: {response.text}")
+            logger.error("Response content: %s", response.text)
         return None, None
     except requests.exceptions.RequestException as err:
-        print(f"Oops: Something Else Went Wrong: {err}")
+        logger.error("Request error: %s", err)
         return None, None
     except ValueError as errv:
-        print(f"Data Processing Error: {errv}")
+        logger.error("Data Processing Error: %s", errv)
         return None, None
+
+
+async def get_satellite_images(lat, lon):
+    """
+    Downloads Red (B04) and NIR (B08) bands as GeoTIFFs from Copernicus Sentinel Hub.
+    Runs sync HTTP calls in a thread to avoid blocking the event loop.
+    Returns: (red_bytes, nir_bytes) tuple, or (None, None) on failure.
+    """
+    return await asyncio.to_thread(_get_satellite_images_sync, lat, lon)

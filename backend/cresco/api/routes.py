@@ -614,7 +614,7 @@ async def satellite_image(
     settings: Settings = Depends(get_settings),
     pool: AsyncConnectionPool = Depends(get_db_pool),
 ):
-    """Index or re-index the knowledge base documents."""
+    """Fetch satellite imagery and compute NDVI for the user's farm location."""
     try:
         user_id = current_user["user_id"]
         user_farm = await db.get_farm_data(pool, user_id)
@@ -623,7 +623,7 @@ async def satellite_image(
             lon = user_farm["lon"]
         else:
             raise HTTPException(status_code=404, detail="No farm data found for the user")
-        print(f"Received request for satellite image with lat={lat}, lon={lon}")  # Debug log
+        logger.info("Received request for satellite image with lat=%s, lon=%s", lat, lon)
         result = await satellite_images_main(lat, lon)
         if result is None:
             # Upstream satellite image generation failed; surface a clear error.

@@ -235,6 +235,78 @@ def compute_evi_image(
         return result
 
 
+def _read_and_normalize_satellite_bands(red_path, nir_path):
+    """Read single-band satellite GeoTIFFs and normalize UINT16 values to 0-1."""
+    with rasterio.open(red_path) as red_src:
+        red = red_src.read(1).astype("float32")
+
+    with rasterio.open(nir_path) as nir_src:
+        nir = nir_src.read(1).astype("float32")
+
+    # Sentinel-2 DN values are 0-10000; normalize appropriately
+    if red.max() > 1.0:
+        red /= 10000.0
+    if nir.max() > 1.0:
+        nir /= 10000.0
+
+    return red, nir
+
+
+def compute_ndvi_from_satellite(
+    red_file: bytes,
+    nir_file: bytes,
+    save_to_disk: bool = False,
+    user_id: str | None = None,
+) -> dict:
+    """
+    Compute NDVI from single-band satellite GeoTIFFs (Red and NIR).
+
+    Unlike drone images which have a 3-band RGB file, satellite data from
+    Copernicus provides separate single-band UINT16 GeoTIFFs for each spectral band.
+
+    Returns:
+        dict with keys:
+        - 'image_bytes': PNG image as bytes
+        - 'filename': saved filename (if save_to_disk=True)
+        - 'id': unique ID for the image
+        - 'histogram': index histogram bins and counts
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        red_path = os.path.join(tmpdir, "red.tiff")
+        nir_path = os.path.join(tmpdir, "nir.tiff")
+
+        with open(red_path, "wb") as f:
+            f.write(red_file)
+        with open(nir_path, "wb") as f:
+            f.write(nir_file)
+
+        red, nir = _read_and_normalize_satellite_bands(red_path, nir_path)
+
+        # Crop to match dimensions if needed
+        if red.shape != nir.shape:
+            min_h = min(red.shape[0], nir.shape[0])
+            min_w = min(red.shape[1], nir.shape[1])
+            red = red[:min_h, :min_w]
+            nir = nir[:min_h, :min_w]
+
+        # Compute NDVI
+        np.seterr(divide="ignore", invalid="ignore")
+        ndvi = np.where((nir + red) == 0.0, 0, (nir - red) / (nir + red))
+        histogram = compute_histogram(ndvi)
+
+        result = _calculate_and_save_index(
+            ndvi,
+            "ndvi",
+            "satellite_red.tiff",
+            "satellite_nir.tiff",
+            save_to_disk,
+            histogram=histogram,
+            user_id=user_id,
+        )
+        result["histogram"] = histogram
+        return result
+
+
 def compute_savi_image(
     rgb_file: bytes,
     nir_file: bytes,
