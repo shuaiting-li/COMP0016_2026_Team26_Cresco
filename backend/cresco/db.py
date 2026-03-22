@@ -1,58 +1,75 @@
-"""SQLite database module for Cresco."""
+"""PostgreSQL database module for Cresco."""
 
-import json
-import sqlite3
-from pathlib import Path
+import psycopg
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
+
+_pool: AsyncConnectionPool | None = None
+
+_CREATE_TABLES = (
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id            TEXT PRIMARY KEY,
+        username      TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        is_admin      BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at    TIMESTAMPTZ NOT NULL
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS farm_data (
+        user_id  TEXT PRIMARY KEY,
+        location TEXT,
+        area     DOUBLE PRECISION,
+        lat      DOUBLE PRECISION,
+        lon      DOUBLE PRECISION,
+        nodes    JSONB,
+        weather  JSONB
+    );
+    """,
+)
 
 
-def get_connection(db_path: str) -> sqlite3.Connection:
-    """Connect to the SQLite database, initialise tables, and return the connection."""
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    _init_tables(conn)
-    return conn
+async def init_pool(conninfo: str) -> AsyncConnectionPool:
+    """Open an async connection pool and ensure tables exist."""
+    global _pool
+    _pool = AsyncConnectionPool(conninfo, min_size=2, max_size=10, open=False)
+    await _pool.open()
+    async with _pool.connection() as conn:
+        for statement in _CREATE_TABLES:
+            await conn.execute(statement)
+        await conn.commit()
+    return _pool
 
 
-def _init_tables(conn: sqlite3.Connection) -> None:
-    """Create application tables if they do not exist."""
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id          TEXT PRIMARY KEY,
-            username    TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin    INTEGER NOT NULL DEFAULT 0,
-            created_at  TEXT NOT NULL
-        );
+async def close_pool() -> None:
+    """Close the async connection pool."""
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
 
-        CREATE TABLE IF NOT EXISTS farm_data (
-            user_id  TEXT PRIMARY KEY,
-            location TEXT,
-            area     REAL,
-            lat      REAL,
-            lon      REAL,
-            nodes    TEXT,
-            weather  TEXT
-        );
-        """
-    )
-    conn.commit()
+
+def init_tables_sync(conninfo: str) -> None:
+    """Create tables using a one-shot sync connection (for scripts)."""
+    with psycopg.connect(conninfo) as conn:
+        for statement in _CREATE_TABLES:
+            conn.execute(statement)
+        conn.commit()
 
 
 # ---------------------------------------------------------------------------
-# Farm data helpers
+# Async helpers (for routes — take pool param)
 # ---------------------------------------------------------------------------
 
 
-def save_farm_data(db_path: str, user_id: str, data: dict) -> None:
+async def save_farm_data(pool: AsyncConnectionPool, user_id: str, data: dict) -> None:
     """Insert or update farm data for a user (weather column is preserved on update)."""
-    conn = get_connection(db_path)
-    try:
-        conn.execute(
+    async with pool.connection() as conn:
+        await conn.execute(
             """
             INSERT INTO farm_data (user_id, location, area, lat, lon, nodes)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT(user_id) DO UPDATE SET
                 location = excluded.location,
                 area     = excluded.area,
@@ -66,43 +83,52 @@ def save_farm_data(db_path: str, user_id: str, data: dict) -> None:
                 data.get("area"),
                 data.get("lat"),
                 data.get("lon"),
-                json.dumps(data.get("nodes", [])),
+                psycopg.types.json.Jsonb(data.get("nodes", [])),
             ),
         )
-        conn.commit()
-    finally:
-        conn.close()
+        await conn.commit()
 
 
-def get_farm_data(db_path: str, user_id: str) -> dict | None:
+async def get_farm_data(pool: AsyncConnectionPool, user_id: str) -> dict | None:
     """Return farm data for a user, or ``None`` if no record exists."""
-    conn = get_connection(db_path)
-    try:
-        row = conn.execute("SELECT * FROM farm_data WHERE user_id = ?", (user_id,)).fetchone()
-        if row is None:
-            return None
-        result = dict(row)
-        result.pop("user_id", None)
-        # Deserialise JSON columns
-        result["nodes"] = json.loads(result["nodes"]) if result.get("nodes") else []
-        result["weather"] = json.loads(result["weather"]) if result.get("weather") else None
-        return result
-    finally:
-        conn.close()
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT * FROM farm_data WHERE user_id = %s", (user_id,))
+            row = await cur.fetchone()
+    if row is None:
+        return None
+    row.pop("user_id", None)
+    if row.get("nodes") is None:
+        row["nodes"] = []
+    return row
 
 
-def update_farm_weather(db_path: str, user_id: str, weather: dict) -> None:
+async def update_farm_weather(pool: AsyncConnectionPool, user_id: str, weather: dict) -> None:
     """Update (or insert) the weather column for a user."""
-    conn = get_connection(db_path)
-    try:
-        conn.execute(
+    async with pool.connection() as conn:
+        await conn.execute(
             """
             INSERT INTO farm_data (user_id, weather)
-            VALUES (?, ?)
+            VALUES (%s, %s)
             ON CONFLICT(user_id) DO UPDATE SET weather = excluded.weather
             """,
-            (user_id, json.dumps(weather)),
+            (user_id, psycopg.types.json.Jsonb(weather)),
         )
-        conn.commit()
-    finally:
-        conn.close()
+        await conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Sync helper (for agent tool running in LangGraph thread pool)
+# ---------------------------------------------------------------------------
+
+
+def get_farm_data_sync(conninfo: str, user_id: str) -> dict | None:
+    """Return farm data for a user using a sync connection."""
+    with psycopg.connect(conninfo, row_factory=dict_row) as conn:
+        row = conn.execute("SELECT * FROM farm_data WHERE user_id = %s", (user_id,)).fetchone()
+    if row is None:
+        return None
+    row.pop("user_id", None)
+    if row.get("nodes") is None:
+        row["nodes"] = []
+    return row

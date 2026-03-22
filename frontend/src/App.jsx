@@ -11,7 +11,7 @@ import {
     uploadAndIndexFile,
     deleteUploadedFile,
     fetchUploadedFiles,
-    fetchFarmData,
+    fetchFarmData, fetchChatHistory, clearChatHistory,
     isLoggedIn,
     logout,
     getUsername,
@@ -49,7 +49,7 @@ function App() {
     const [deletePrompt, setDeletePrompt] = useState(false);  // State to confirm account deletion
 
 
-    
+
     useEffect(() => {
         if (authenticated) {
             fetchUploadedFiles()
@@ -71,6 +71,13 @@ function App() {
                     console.error('Failed to fetch farm data:', err);
                     setFarmLocation(null);
                 });
+            fetchChatHistory()
+                .then(history => {
+                    if (history.length > 0) {
+                        setMessages(history);
+                    }
+                })
+                .catch(err => console.error('Failed to fetch chat history:', err));
         } else {
             setFarmLocation(null);
         }
@@ -155,6 +162,15 @@ function App() {
             await deleteLastExchange();
         } catch (error) {
             console.error('Failed to delete exchange from agent memory:', error);
+        }
+    };
+
+    const handleClearHistory = async () => {
+        setMessages([]);
+        try {
+            await clearChatHistory();
+        } catch (error) {
+            console.error('Failed to clear chat history:', error);
         }
     };
 
@@ -272,6 +288,7 @@ function App() {
                         messages={messages}
                         onSendMessage={handleSendMessage}
                         onDeleteLastExchange={handleDeleteLastExchange}
+                        onClearHistory={handleClearHistory}
                         onDeleteTask={handleDeleteTaskFromMessages}
                         isLoading={isLoading}
                         farmLocation={farmLocation}

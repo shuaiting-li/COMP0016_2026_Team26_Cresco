@@ -34,6 +34,21 @@ class ChatResponse(BaseModel):
     conversation_id: str | None = Field(None, description="Conversation ID for follow-up")
 
 
+class HistoryMessage(BaseModel):
+    """A single message in the conversation history."""
+
+    role: str = Field(..., description="Message role: 'user' or 'assistant'")
+    content: str = Field(..., description="Message content")
+    tasks: list[dict] = Field(default_factory=list, description="Tasks (assistant only)")
+    charts: list[dict] = Field(default_factory=list, description="Charts (assistant only)")
+
+
+class ChatHistoryResponse(BaseModel):
+    """Response model for chat history endpoint."""
+
+    messages: list[HistoryMessage] = Field(default_factory=list, description="Conversation history")
+
+
 class HealthResponse(BaseModel):
     """Response model for health check endpoint."""
 

@@ -1,17 +1,22 @@
 """FastAPI application entry point for Cresco."""
 
+import logging
 from contextlib import asynccontextmanager
 
+import psycopg.errors
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from cresco import __version__
+from cresco import __version__, db
 from cresco.api import router
 from cresco.auth import auth_router
 from cresco.config import get_settings
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -22,15 +27,32 @@ async def lifespan(app: FastAPI):
     print(f"[*] Starting Cresco v{__version__}")
     print(f"[*] Knowledge base: {settings.knowledge_base}")
     print(f"[*] Using model: {settings.model_provider}/{settings.model_name}")
-    yield
+
+    # Initialize database pool
+    pool = await db.init_pool(settings.database_url)
+    app.state.db_pool = pool
+    print("[*] Database pool initialized")
+
+    # Initialize PostgresSaver for conversation checkpointing
+    # setup() may race when multiple gunicorn workers start simultaneously;
+    # a UniqueViolation on the migrations table is harmless — another worker won.
+    async with AsyncPostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+        try:
+            await checkpointer.setup()
+        except psycopg.errors.UniqueViolation:
+            logger.info("Checkpointer migrations already applied by another worker")
+        app.state.checkpointer = checkpointer
+        print("[*] PostgresSaver checkpointer initialized")
+
+        yield
+
     # Shutdown
+    await db.close_pool()
     print("[*] Shutting down Cresco")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    get_settings()
-
     app = FastAPI(
         title="Cresco",
         description="AI Chatbot for UK Farmers - Agricultural knowledge assistant",
@@ -38,17 +60,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Configure CORS for frontend access
-    # Note: allow_origins=["*"] with allow_credentials=True is not valid per CORS spec
-    # Use specific origins in production
+    settings = get_settings()
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",  # Vite dev server
-            "http://localhost:3000",  # Alternative dev port
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000",
-        ],
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],

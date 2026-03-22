@@ -4,9 +4,10 @@ import uuid
 from datetime import datetime, timezone
 
 import bcrypt
+import psycopg
+from psycopg.rows import dict_row
 
 from cresco.config import get_settings
-from cresco.db import get_connection
 
 
 def hash_password(password: str) -> str:
@@ -26,16 +27,11 @@ def get_user_by_username(username: str) -> dict | None:
         User dict with id, username, password_hash, created_at — or None.
     """
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
-        row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-        if row is None:
-            return None
-        result = dict(row)
-        result["is_admin"] = bool(result["is_admin"])
-        return result
-    finally:
-        conn.close()
+    with psycopg.connect(settings.database_url, row_factory=dict_row) as conn:
+        row = conn.execute("SELECT * FROM users WHERE username = %s", (username,)).fetchone()
+    if row is None:
+        return None
+    return dict(row)
 
 
 def get_user_by_id(user_id: str) -> dict | None:
@@ -45,16 +41,11 @@ def get_user_by_id(user_id: str) -> dict | None:
         User dict or None.
     """
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
-        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if row is None:
-            return None
-        result = dict(row)
-        result["is_admin"] = bool(result["is_admin"])
-        return result
-    finally:
-        conn.close()
+    with psycopg.connect(settings.database_url, row_factory=dict_row) as conn:
+        row = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
+    if row is None:
+        return None
+    return dict(row)
 
 
 def delete_user_by_id(user_id: str) -> bool:
@@ -64,13 +55,10 @@ def delete_user_by_id(user_id: str) -> bool:
         True if a row was deleted, False if the user ID was not found.
     """
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
-        cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    with psycopg.connect(settings.database_url) as conn:
+        cursor = conn.execute("DELETE FROM users WHERE id = %s", (user_id,))
         conn.commit()
         return cursor.rowcount > 0
-    finally:
-        conn.close()
 
 
 def create_user(username: str, password: str, *, is_admin: bool = False) -> dict:
@@ -91,21 +79,18 @@ def create_user(username: str, password: str, *, is_admin: bool = False) -> dict
         raise ValueError(f"Username '{username}' already exists")
 
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
+    with psycopg.connect(settings.database_url) as conn:
         user_id = str(uuid.uuid4())
         conn.execute(
             "INSERT INTO users (id, username, password_hash, is_admin, created_at)"
-            " VALUES (?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s)",
             (
                 user_id,
                 username,
                 hash_password(password),
-                int(is_admin),
+                is_admin,
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
         conn.commit()
-        return {"id": user_id, "username": username, "is_admin": is_admin}
-    finally:
-        conn.close()
+    return {"id": user_id, "username": username, "is_admin": is_admin}

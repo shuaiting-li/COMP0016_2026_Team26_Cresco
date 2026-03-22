@@ -5,10 +5,16 @@
 
 set -e
 
-SUBSCRIPTION_ID="029e7210-7637-41e3-b2fb-5ec0f850f643"
-RESOURCE_GROUP="Cresco_group"
-VM_NAME="Cresco"
-REGION="ukwest"
+SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID:-}"
+RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-}"
+VM_NAME="${AZURE_VM_NAME:-}"
+PUBLIC_IP="${AZURE_PUBLIC_IP:-<your-vm-public-ip>}"
+
+if [[ -z "$SUBSCRIPTION_ID" || -z "$RESOURCE_GROUP" || -z "$VM_NAME" ]]; then
+  echo "Usage:"
+  echo "  AZURE_SUBSCRIPTION_ID=<subscription-id> AZURE_RESOURCE_GROUP=<resource-group> AZURE_VM_NAME=<vm-name> [AZURE_PUBLIC_IP=<public-ip>] bash setup-azure-firewall.sh"
+  exit 1
+fi
 
 echo "🔧 Setting up Azure firewall rules for Cresco..."
 echo "📍 Subscription: $SUBSCRIPTION_ID"
@@ -84,5 +90,5 @@ echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "🌐 Your app is now accessible at:"
-echo "   http://20.90.3.97:3000"
+echo "   http://$PUBLIC_IP:3000"
 echo ""

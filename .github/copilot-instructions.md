@@ -11,18 +11,18 @@ Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI ba
 | Layer | Key files | Purpose |
 |---|---|---|
 | **API** | `api/routes.py`, `api/schemas.py` | FastAPI router mounted at `/api/v1`. Pydantic v2 request/response models. Proxy endpoints for third-party APIs (geocoding, weather). Imagery endpoints (drone NDVI, satellite). |
-| **Auth** | `auth/routes.py`, `auth/dependencies.py`, `auth/jwt.py`, `auth/users.py`, `auth/schemas.py` | JWT Bearer auth (HS256 via `pyjwt`). Passwords hashed with `bcrypt`. Users stored in JSON file (`data/users.json`). Registration is admin-only; login is public. |
-| **Agent** | `agent/agent.py`, `agent/prompts.py` | LangGraph agent (`CrescoAgent`) with three tools: `retrieve_agricultural_info` (RAG), `get_weather_data` (user farm context), and `TavilySearch` (internet). Uses `InMemorySaver` checkpointer keyed by `thread_id` for conversation memory. Agent passes `user_id` via `RunnableConfig` to tools. Parses `---CHART---` JSON blocks for data visualization and `---TASKS---` JSON blocks for actionable farming tasks. Azure OpenAI (primary) or generic providers via `init_chat_model`. |
+| **Auth** | `auth/routes.py`, `auth/dependencies.py`, `auth/jwt.py`, `auth/users.py`, `auth/schemas.py` | JWT Bearer auth (HS256 via `pyjwt`). Passwords hashed with `bcrypt`. Users stored in PostgreSQL (`users` table) via sync `psycopg` connections. Registration is admin-only; login is public. |
+| **Agent** | `agent/agent.py`, `agent/prompts.py` | LangGraph agent (`CrescoAgent`) with three tools: `retrieve_agricultural_info` (RAG), `get_weather_data` (user farm context from PostgreSQL via sync `db.get_farm_data_sync()`), and `TavilySearch` (internet). Uses `AsyncPostgresSaver` checkpointer (from `langgraph-checkpoint-postgres`) keyed by `thread_id` for persistent conversation memory (survives restarts). Falls back to `InMemorySaver` in tests. Agent passes `user_id` via `RunnableConfig` to tools. Parses `---CHART---` JSON blocks for data visualization and `---TASKS---` JSON blocks for actionable farming tasks. Azure OpenAI (primary) or generic providers via `init_chat_model`. |
 | **RAG** | `rag/retriever.py`, `rag/indexer.py`, `rag/embeddings.py`, `rag/document_loader.py` | ChromaDB vector store (`"cresco_knowledge_base"` collection), Azure OpenAI embeddings, markdown document loading with filename-based category metadata. Chunks: 1500 chars, 200 overlap. |
 | **Config** | `config.py` | `pydantic-settings` based; reads `.env` from **project root** (`env_file="../.env"` relative to `backend/`). Holds all third-party API keys (e.g., `openweather_api_key`). |
 
-**App factory**: `main.py` uses `create_app()` → mounts `auth_router` and `router` under `/api/v1`. CORS allows `localhost` and `127.0.0.1` on ports 5173 and 3000.
+**App factory**: `main.py` uses `create_app()` → mounts `auth_router` and `router` under `/api/v1`. CORS allows `localhost` and `127.0.0.1` on ports 5173 and 3000. Lifespan initializes `db.init_pool()` → `app.state.db_pool` and `AsyncPostgresSaver` → `app.state.checkpointer`; shutdown calls `db.close_pool()`. Routes access the pool via `get_db_pool(request)` dependency and the agent via `get_agent_dep(request)` dependency.
 
 **Singletons — two patterns**:
 - `get_settings()`: `@lru_cache` — clear via `get_settings.cache_clear()` in tests.
 - RAG/agent modules (`get_embeddings()`, `get_vector_store()`, `get_retriever()`, `get_agent()`): module-level `_variable = None` with `global`. Reset by setting `module._variable = None` before patching.
 
-**Data flow**: User message → `POST /api/v1/chat` (requires Bearer token) → farm/weather context appended from in-memory `farm_data` dict (keyed by JWT `user_id`) → `CrescoAgent.chat()` → LangGraph agent invokes RAG + weather + search tools → ChromaDB similarity search (k=5) → LLM generates answer. Agent parses `---TASKS---` JSON blocks for actionable farming tasks and `---CHART---` JSON blocks for data visualization (see `prompts.py` for format).
+**Data flow**: User message → `POST /api/v1/chat` (requires Bearer token) → `CrescoAgent.chat()` → LangGraph agent invokes RAG + weather + search tools → weather tool reads farm data from PostgreSQL via sync `db.get_farm_data_sync()` → ChromaDB similarity search (k=5) → LLM generates answer. Agent parses `---TASKS---` JSON blocks for actionable farming tasks and `---CHART---` JSON blocks for data visualization (see `prompts.py` for format).
 
 **Agent response parsing**: The agent returns structured data with optional embedded blocks:
   - **Charts**: `---CHART--- {...JSON...} ---END_CHART---` blocks are parsed by `agent.py` and sent as separate `charts` field in response (see `ChartRenderer.jsx` for rendering). Each chart includes `position` metadata for frontend placement.
@@ -31,7 +31,7 @@ Cresco is a RAG-powered agricultural chatbot for UK farmers: **Python/FastAPI ba
   - **Sources**: Extracted from tool artifacts in the last 2 messages only.
   - **Error handling**: JSON parsing errors in chart/task blocks are silently ignored (no user-facing error).
 
-**Conversation memory**: Agent uses `InMemorySaver` keyed by `thread_id`. `CrescoAgent.delete_last_exchange()` removes the last `HumanMessage` and all subsequent messages (tool calls, AI reply) via LangGraph `RemoveMessage`. Exposed at `DELETE /api/v1/chat/last-exchange`.
+**Conversation memory**: Agent uses `AsyncPostgresSaver` (from `langgraph-checkpoint-postgres`) keyed by `thread_id`. Conversation history persists across server restarts. `CrescoAgent.delete_last_exchange()` removes the last `HumanMessage` and all subsequent messages (tool calls, AI reply) via LangGraph `RemoveMessage`. Exposed at `DELETE /api/v1/chat/last-exchange`.
 
 **Async patterns**: Routes and agent methods are all `async`. Weather fetching uses `asyncio.gather()` for parallel requests. Agent invocation uses `.ainvoke()` and `aget_state()`. New endpoints should follow the same async pattern.
 
@@ -88,9 +88,11 @@ npm run lint                  # ESLint
 - **Mock all external services**: patch at import paths (e.g., `patch("cresco.rag.embeddings.AzureOpenAIEmbeddings")`). Zero real API calls. For `httpx` proxy endpoints, patch `cresco.api.routes.httpx.AsyncClient` and provide `httpx.Response` objects with a `request=` kwarg (required for `raise_for_status()`).
 - **Reset singletons** before tests: `cresco.rag.embeddings._embeddings = None`.
 - **API test fixtures** (`conftest.py`):
-  - `client` — sync `TestClient`, auth bypassed via `app.dependency_overrides[get_current_user]`.
-  - `auth_client` — sync `TestClient` with **real auth** but mock agent/settings. Patches `cresco.auth.users.get_settings` and `cresco.auth.jwt.get_settings` to use `mock_settings` with temp `users.json`.
+  - `client` — sync `TestClient`, auth bypassed via `app.dependency_overrides[get_current_user]`. Overrides `get_db_pool` and `get_agent_dep` with mocks.
+  - `auth_client` — sync `TestClient` with **real auth** but mock agent/settings. Patches `cresco.auth.users.get_settings` and `cresco.auth.jwt.get_settings`. Uses `tmp_database` fixture for PostgreSQL.
   - `async_client` — `AsyncClient` with `ASGITransport`, auth bypassed.
+  - `tmp_database` — initialises PostgreSQL tables via `init_tables_sync()` and truncates between tests. Requires a running PostgreSQL instance.
+  - `mock_db_pool` — `MagicMock()` standing in for the async connection pool.
   - All fixtures patch `cresco.api.routes.is_indexed` and call `app.dependency_overrides.clear()` on teardown.
 - **Auth test helpers**: `_create_admin_and_get_token(mock_settings)` / `_create_regular_user_and_get_token(mock_settings)` — seed users directly and return JWTs for endpoint testing.
 

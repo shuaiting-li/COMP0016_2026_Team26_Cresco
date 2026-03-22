@@ -357,6 +357,57 @@ export async function fetchWeather(lat, lon) {
 }
 
 /**
+ * Fetch conversation history from the backend.
+ * @returns {Promise<Array<{id: number, role: string, content: string, tasks: Array, charts: Array, citations: Array}>>}
+ */
+export async function fetchChatHistory() {
+    const response = await fetch(`${API_BASE_URL}/chat/history`, {
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch chat history (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.messages.map((msg, i) => ({
+        id: i,
+        role: msg.role,
+        content: msg.content,
+        tasks: msg.tasks || [],
+        charts: msg.charts || [],
+        citations: [],
+    }));
+}
+
+/**
+ * Clear all conversation history from the agent's memory.
+ * @returns {Promise<{status: string}>}
+ */
+export async function clearChatHistory() {
+    const response = await fetch(`${API_BASE_URL}/chat/history`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        logout();
+        throw new Error('Session expired. Please log in again.');
+    }
+
+    if (!response.ok) {
+        throw new Error(`Failed to clear chat history (${response.status})`);
+    }
+
+    return await response.json();
+}
+
+/**
  * Delete the last user-assistant exchange from the agent's conversation memory.
  * @returns {Promise<{status: string}>}
  */

@@ -4,6 +4,8 @@ FastAPI backend for the Cresco agricultural AI chatbot. See the [main README](..
 
 ## Quick Start
 
+Requires a running PostgreSQL instance (see `docker-compose.yml` in the project root).
+
 ```bash
 uv sync                                              # Install dependencies
 uv run python scripts/create_admin.py <user> <pass>   # Create first admin
@@ -18,9 +20,9 @@ API docs: http://localhost:8000/docs
 | Layer | Key files | Purpose |
 |-------|-----------|---------|
 | **API** | `cresco/api/routes.py`, `cresco/api/schemas.py` | FastAPI router at `/api/v1`. Pydantic v2 request/response models. Third-party APIs (geocoding, weather) proxied via `httpx`. |
-| **Agent** | `cresco/agent/agent.py`, `cresco/agent/prompts.py` | LangGraph agent with three tools: `retrieve_agricultural_info` (RAG), `get_weather_data` (farm context), and `TavilySearch` (internet). `InMemorySaver` checkpointer keyed by `user_id`. Multi-provider LLM via `init_chat_model`. |
+| **Agent** | `cresco/agent/agent.py`, `cresco/agent/prompts.py` | LangGraph agent with three tools: `retrieve_agricultural_info` (RAG), `get_weather_data` (farm context from PostgreSQL), and `TavilySearch` (internet). `AsyncPostgresSaver` checkpointer (conversation memory persists across restarts). Multi-provider LLM via `init_chat_model`. |
 | **RAG** | `cresco/rag/` | ChromaDB vector store, Azure OpenAI embeddings, document loading with filename-based category metadata. Chunks: 1500 chars / 200 overlap. Multi-tenant retrieval via `$or` filter (shared + user-specific). |
-| **Auth** | `cresco/auth/` | JWT Bearer auth (HS256, 24h expiry, `pyjwt`). Passwords hashed with `bcrypt`. Users in `data/users.json`. Admin-only registration. |
+| **Auth** | `cresco/auth/` | JWT Bearer auth (HS256, 24h expiry, `pyjwt`). Passwords hashed with `bcrypt`. Users stored in PostgreSQL (`users` table). Admin-only registration. |
 | **Config** | `cresco/config.py` | `pydantic-settings` singleton; reads `.env` from **project root** (`../.env`). |
 
 ## API Endpoints
