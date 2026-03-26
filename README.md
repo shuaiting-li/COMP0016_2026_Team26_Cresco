@@ -1,6 +1,21 @@
+<p align="center">
+  <a href="https://www.ucl.ac.uk"><img src="docs/images/ucl-logo.png" alt="UCL" height="70"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.nttdata.com"><img src="docs/images/ntt-data-logo.svg" alt="NTT DATA" height="40"></a>
+</p>
+
 # Cresco
 
 RAG-powered agricultural chatbot for UK farmers — **Python/FastAPI backend** and **React/Vite frontend**.
+
+[![CI](https://github.com/shuaiting-li/COMP0016_2026_Team26_Cresco/actions/workflows/ci.yml/badge.svg)](https://github.com/shuaiting-li/COMP0016_2026_Team26_Cresco/actions/workflows/ci.yml)
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
+![React 19](https://img.shields.io/badge/react-19-61dafb)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
+## Demo
+
+<!-- Add a screenshot or GIF of the chat interface here -->
 
 ## Features
 
@@ -143,6 +158,20 @@ npm run lint          # ESLint
 npm run build         # Production build
 ```
 
+## Acknowledgements
+
+<p>
+  <a href="https://www.ucl.ac.uk"><img src="docs/images/ucl-logo.png" alt="UCL" height="50"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.nttdata.com"><img src="docs/images/ntt-data-logo.svg" alt="NTT DATA" height="30"></a>
+</p>
+
+This project was developed as part of the [UCL IXN](https://www.ucl.ac.uk/engineering/computer-science/collaborate/ucl-industry-exchange-network-ucl-ixn) (Industry Exchange Network) programme, which pairs UCL Computer Science student teams with industry partners to deliver real-world software projects.
+
+**Industry Partner:** [NTT DATA](https://www.nttdata.com) — project sponsor and industry mentor.
+
+**Academic Institution:** [University College London (UCL)](https://www.ucl.ac.uk), Department of Computer Science.
+
 ## License
 
-MIT
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
