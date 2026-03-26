@@ -1,6 +1,7 @@
 """LangChain agent for Cresco chatbot - Modern 2026 style."""
 
 import logging
+import re
 
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
@@ -17,6 +18,11 @@ from cresco.rag.retriever import get_vector_store
 from .prompts import INTERNET_SEARCH_DISABLED_ADDENDUM, SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
+
+_FILE_ANNOTATION_RE = re.compile(
+    r"\n\n\[The user has uploaded the following files.*?\]$",
+    re.DOTALL,
+)
 
 
 class CrescoAgent:
@@ -310,8 +316,15 @@ class CrescoAgent:
         history = []
         for msg in messages:
             if isinstance(msg, HumanMessage):
-                history.append({"role": "user", "content": msg.content})
+                clean = _FILE_ANNOTATION_RE.sub("", msg.content).strip()
+                if clean:
+                    history.append({"role": "user", "content": clean})
             elif isinstance(msg, AIMessage):
+                content = msg.content
+                if isinstance(content, list):
+                    content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
+                if not content or not content.strip():
+                    continue
                 parsed = self._parse_ai_content(msg.content)
                 history.append(
                     {

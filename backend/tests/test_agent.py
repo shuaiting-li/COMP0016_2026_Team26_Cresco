@@ -567,6 +567,59 @@ class TestGetHistory:
         assert history[0]["role"] == "user"
         assert history[1]["role"] == "assistant"
 
+    @pytest.mark.asyncio
+    async def test_get_history_skips_empty_ai_messages(self, mock_settings, mock_agent_deps):
+        """Test that AIMessages with empty content (tool-calling) are excluded."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        msgs = [
+            HumanMessage(content="hello", id="h1"),
+            AIMessage(content="", id="a1"),  # tool-calling message, no text
+            AIMessage(content="actual reply", id="a2"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        history = await agent.get_history(thread_id="user1", user_id="user1")
+
+        assert len(history) == 2
+        assert history[0] == {"role": "user", "content": "hello"}
+        assert history[1]["content"] == "actual reply"
+
+    @pytest.mark.asyncio
+    async def test_get_history_strips_file_annotations(self, mock_settings, mock_agent_deps):
+        """Test that file upload annotations are stripped from user messages."""
+        from langchain_core.messages import AIMessage, HumanMessage
+
+        annotated = (
+            "Tell me about soil health\n\n"
+            "[The user has uploaded the following files which are "
+            "indexed in the knowledge base — use the retrieval tool to "
+            "search their contents: report.pdf]"
+        )
+        msgs = [
+            HumanMessage(content=annotated, id="h1"),
+            AIMessage(content="Here is info about soil health.", id="a1"),
+        ]
+
+        mock_graph = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.values = {"messages": msgs}
+        mock_graph.aget_state.return_value = mock_state
+        mock_agent_deps["create_agent"].return_value = mock_graph
+
+        agent = CrescoAgent(mock_settings)
+        history = await agent.get_history(thread_id="user1", user_id="user1")
+
+        assert len(history) == 2
+        assert history[0]["content"] == "Tell me about soil health"
+        assert "[The user has uploaded" not in history[0]["content"]
+
 
 class TestClearHistory:
     """Tests for CrescoAgent.clear_history method."""

@@ -100,6 +100,7 @@ export default function ChatArea({
                             <div className={styles.messageList}>
                                 {messages.map((msg, index) => {
                                     if (msg.role === 'event') return null;
+                                    if (!msg.content || !msg.content.trim()) return null;
                                     const isUser = msg.role === 'user';
                                     const isLastUserMsg = isUser
                                         && !isLoading
