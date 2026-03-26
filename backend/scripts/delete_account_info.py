@@ -9,40 +9,32 @@ import json
 import shutil
 from pathlib import Path
 
+import psycopg
+
 from cresco.config import get_settings
 
 
 def delete_account_info(user_id: str, username: str | None = None):
-    from cresco.db import get_connection
-
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
-        deleted = conn.execute("DELETE FROM users WHERE id = ?", (user_id,)).rowcount
+    with psycopg.connect(settings.database_url) as conn:
+        deleted = conn.execute("DELETE FROM users WHERE id = %s", (user_id,)).rowcount
 
         if deleted == 0:
             fallback_username = username or user_id
             deleted = conn.execute(
-                "DELETE FROM users WHERE username = ?", (fallback_username,)
+                "DELETE FROM users WHERE username = %s", (fallback_username,)
             ).rowcount
 
         conn.commit()
         if deleted == 0:
             raise ValueError("User account not found; credentials were not deleted")
-    finally:
-        conn.close()
 
 
 def delete_farm_data(user_id: str):
-    from cresco.db import get_connection
-
     settings = get_settings()
-    conn = get_connection(settings.database_path)
-    try:
-        conn.execute("DELETE FROM farm_data WHERE user_id = ?", (user_id,))
+    with psycopg.connect(settings.database_url) as conn:
+        conn.execute("DELETE FROM farm_data WHERE user_id = %s", (user_id,))
         conn.commit()
-    finally:
-        conn.close()
 
 
 def delete_images(user_id: str):
@@ -53,7 +45,7 @@ def delete_images(user_id: str):
     if not metadata_file.exists():
         return
 
-    with open(metadata_file, "r", encoding="utf-8") as f:
+    with open(metadata_file, encoding="utf-8") as f:
         metadata = json.load(f)
 
     images = metadata.get("images", [])
@@ -75,25 +67,12 @@ def delete_images(user_id: str):
 
 
 def delete_uploaded_documents(user_id: str):
-    from cresco.db import get_connection
-
     settings = get_settings()
 
     # Remove user-uploaded files from disk
     user_upload_dir = settings.uploads_dir / user_id
     if user_upload_dir.exists() and user_upload_dir.is_dir():
         shutil.rmtree(user_upload_dir)
-
-    conn = get_connection(settings.database_path)
-    try:
-        table = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='uploaded_documents'"
-        ).fetchone()
-        if table is not None:
-            conn.execute("DELETE FROM uploaded_documents WHERE user_id = ?", (user_id,))
-            conn.commit()
-    finally:
-        conn.close()
 
 
 def delete_user_account(user_id: str, username: str | None = None):
