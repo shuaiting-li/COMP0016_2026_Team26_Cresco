@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://www.ucl.ac.uk"><img src="docs/images/ucl-logo.png" alt="UCL" height="70"></a>
+  <a href="https://www.ucl.ac.uk"><img src="docs/images/ucl-logo.png" alt="UCL" height="42"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.nttdata.com"><img src="docs/images/ntt-data-logo.svg" alt="NTT DATA" height="40"></a>
 </p>
@@ -167,7 +167,7 @@ npm run build         # Production build
 ## Acknowledgements
 
 <p>
-  <a href="https://www.ucl.ac.uk"><img src="docs/images/ucl-logo.png" alt="UCL" height="50"></a>
+  <a href="https://www.ucl.ac.uk"><img src="docs/images/ucl-logo.png" alt="UCL" height="30"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.nttdata.com"><img src="docs/images/ntt-data-logo.svg" alt="NTT DATA" height="30"></a>
 </p>
