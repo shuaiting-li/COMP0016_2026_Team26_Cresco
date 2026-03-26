@@ -9,9 +9,9 @@
 RAG-powered agricultural chatbot for UK farmers — **Python/FastAPI backend** and **React/Vite frontend**.
 
 [![CI](https://github.com/shuaiting-li/COMP0016_2026_Team26_Cresco/actions/workflows/ci.yml/badge.svg)](https://github.com/shuaiting-li/COMP0016_2026_Team26_Cresco/actions/workflows/ci.yml)
-![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
-![React 19](https://img.shields.io/badge/react-19-61dafb)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![React 19](https://img.shields.io/badge/react-19-61dafb)](https://react.dev/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## Demo
 
