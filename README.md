@@ -15,7 +15,13 @@ RAG-powered agricultural chatbot for UK farmers — **Python/FastAPI backend** a
 
 ## Demo
 
-<!-- Add a screenshot or GIF of the chat interface here -->
+<p align="center">
+  <img src="docs/images/demo-1.gif" alt="Cresco chat interface" width="700">
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-2.gif" alt="Cresco AI response with tasks and citations" width="700">
+</p>
 
 ## Features
 
