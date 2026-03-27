@@ -83,6 +83,24 @@ function App() {
         }
     }, [authenticated]);
 
+    useEffect(() => {
+        if (!authenticated) return;
+
+        const onKeyDown = (event) => {
+            if (event.ctrlKey && event.shiftKey && event.key === 'Backspace') {
+                event.preventDefault();
+                event.stopPropagation();
+                setMessages([]);
+                clearChatHistory().catch((error) => {
+                    console.error('Failed to clear chat history:', error);
+                });
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [authenticated]);
+
     const handleAuth = () => setAuthenticated(true);
 
     const handleLogout = () => {

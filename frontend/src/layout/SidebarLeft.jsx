@@ -99,7 +99,7 @@ export default function SidebarLeft({ files, onUpload, onRemove, onCollapse }) {
                 ))}
             </div>
             <div className={styles.footer}>
-                <p>{files.length} sources active</p>
+                <p>{files.length} {files.length === 1 ? 'source' : 'sources'} active</p>
                 <p>Supports .md, .pdf, .txt, .csv, .json</p>
             </div>
         </aside>
